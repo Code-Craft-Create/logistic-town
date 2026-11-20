@@ -38,7 +38,7 @@ button{font:inherit;color:inherit}
 #side h3 span{color:var(--text)}
 .empty{font-size:12px;color:var(--muted);padding:10px 4px 14px;font-style:italic}
 .oc{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;position:relative;transition:border-color .15s,transform .1s}
-.oc.inbox{cursor:pointer}
+.oc{cursor:pointer}
 .oc.inbox:hover{border-color:var(--accent);transform:translateX(2px)}
 .oc.inbox.blocked{opacity:.6}
 .oc.focus{box-shadow:inset 3px 0 0 var(--warn)}
@@ -74,7 +74,8 @@ button{font:inherit;color:inherit}
 #tooltip .row{display:flex;gap:6px;align-items:center;margin:2px 0;color:var(--muted)}
 #tooltip .row.done{color:var(--good)} #tooltip .row.next{color:var(--accent2);font-weight:700}
 #tooltip .fl{color:var(--bad);font-weight:700;margin-top:4px}
-#tooltip .items{font-family:var(--emoji);font-size:12px;color:var(--text);margin-bottom:4px}
+#tooltip .items{font-size:12px;color:var(--text);margin-bottom:4px}
+#tooltip .items i,.oc-items{font-style:normal;font-family:var(--emoji)}
 #modal{position:fixed;inset:0;background:rgba(6,9,14,.72);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;z-index:20;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 #modal.hidden{display:none}
 .mcard{background:linear-gradient(180deg,#1a2231,#141b27);border:1px solid var(--line);border-radius:18px;padding:26px 28px;width:min(720px,100%);margin:auto;flex:none;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .25s ease-out}
@@ -232,9 +233,12 @@ const STEPS = {
 // handles: step it performs. role: 'repair' (clears flags) or 'sink' (ships the order).
 // place: 'left' | 'right' | undefined (auto: distributed above/below the conveyor loop).
 const STATIONS = [
-  { id:'commission', name:'Commissioning', icon:'📦', color:'#4f8cff', handles:'pick', place:'left',
-    slots:2, time:5, queue:4, out:3, defect:{ chance:0.05, reason:'Wrong item picked', redo:false },
-    desc:'Picks the ordered tools from shuttle-storage totes into an order-specific handling unit (HU). Every order starts here.' },
+  { id:'warehouse', name:'Shuttle Warehouse', icon:'🏬', color:'#ff8a1f', role:'storage', place:'warehouse',
+    slots:2, time:1.2, queue:6, out:0,
+    desc:'Stores every tool in totes. Click an order\'s glowing totes to send them to Commissioning. Returned totes (↩) go back here.' },
+  { id:'commission', name:'Commissioning', icon:'📦', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
+    slots:2, time:5, queue:4, out:3, defect:{ chance:0.07, reason:'Wrong item picked', redo:true, returnTote:true },
+    desc:'Picks the tools from the delivered totes into an order-specific handling unit (HU). Starts once all of the order\'s totes have arrived.' },
   { id:'calib', name:'Calibration Lab', icon:'📏', color:'#22c3e6', handles:'calibration',
     slots:1, time:7, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
     desc:'Checks that measuring tools measure correctly and issues a certificate. Failed tools go to QA, then back here.' },
@@ -255,15 +259,16 @@ const STATIONS = [
     desc:'Packs the order and loads it on the truck. Last stop: only when every step is done and nothing is flagged.' },
 ];
 // Random weight check on every conveyor trip (scanner at each station entrance)
+const RETRIEVE_SPEED = 300; // px/s for totes coming out of the shuttle warehouse
 const TRANSPORT_CHECK = { chance:0.035, reason:'Weight check failed' };
 
 // ---------- 4. DATA: shifts (levels) ----------
 const SHIFTS = [
-  { name:'Monday',    title:'Learning the ropes', duration:150, goal:6,  spawn:[14,18],  items:[1,2], slack:30, stations:['commission','qa','pack'] },
-  { name:'Tuesday',   title:'Precision matters',  duration:180, goal:9,  spawn:[12,15],  items:[1,3], slack:28, stations:['commission','calib','qa','pack'] },
-  { name:'Wednesday', title:'Make it personal',   duration:180, goal:11, spawn:[10,13],  items:[1,3], slack:26, stations:['commission','calib','sign','qa','pack'] },
-  { name:'Thursday',  title:'VIP treatment',      duration:210, goal:14, spawn:[9,11.5], items:[1,3], slack:26, stations:['commission','calib','sign','patch','care','qa','pack'] },
-  { name:'Friday',    title:'The Friday rush',    duration:210, goal:17, spawn:[7.5,9.5],items:[1,3], slack:24, stations:['commission','calib','sign','patch','care','qa','pack'] },
+  { name:'Monday',    title:'Learning the ropes', duration:150, goal:6,  spawn:[14,18],  items:[1,2], slack:30, stations:['warehouse','commission','qa','pack'] },
+  { name:'Tuesday',   title:'Precision matters',  duration:180, goal:9,  spawn:[12,15],  items:[1,3], slack:28, stations:['warehouse','commission','calib','qa','pack'] },
+  { name:'Wednesday', title:'Make it personal',   duration:180, goal:11, spawn:[10,13],  items:[1,3], slack:26, stations:['warehouse','commission','calib','sign','qa','pack'] },
+  { name:'Thursday',  title:'VIP treatment',      duration:210, goal:13, spawn:[9.5,12], items:[1,3], slack:28, stations:['warehouse','commission','calib','sign','patch','care','qa','pack'] },
+  { name:'Friday',    title:'The Friday rush',    duration:210, goal:15, spawn:[8,10],  items:[1,3], slack:27, stations:['warehouse','commission','calib','sign','patch','care','qa','pack'] },
 ];
 function shiftConfig(i){
   if (i < SHIFTS.length) return SHIFTS[i];
@@ -391,6 +396,9 @@ function layoutStations(){
     });
   });
   const cy = (y0+y1)/2;
+  list.filter(s => s.def.place==='warehouse').forEach(st => {
+    st.x = WH.x; st.y = WH.y; st.w = WH.w; st.h = WH.h; const py = y1 - 6;
+    st.dock = { x:WH.x+WH.w, y:py }; st.port = { x:x0, y:py, s:2*w+h+(y1-py) }; st.side = 'left'; st.key = 0; });
   left.forEach((st, i) => { st.w=160; st.h=CH; st.x = x0-SP-160; st.y = cy-CH/2 + i*(CH+20); st.dock={ x:st.x+st.w, y:st.y+CH/2 }; st.port={ x:x0, y:st.y+CH/2, s:2*w+h+(y1-(st.y+CH/2)) }; st.side='left'; });
   right.forEach((st, i) => { st.w=160; st.h=CH; st.x = x1+SP; st.y = cy-CH/2 + i*(CH+20); st.dock={ x:st.x, y:st.y+CH/2 }; st.port={ x:x1, y:st.y+CH/2, s:w+(st.y+CH/2-y0) }; st.side='right'; });
   // keyboard keys in reading order
@@ -405,7 +413,7 @@ function startShift(idx){
   G.st = Object.fromEntries(G.stations.map(s => [s.id, s]));
   layoutStations();
   Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[],
-    seq: 0, huSeq:0, nextSpawn:2, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
+    seq: 0, huSeq:0, nextSpawn:2, fetch:[], hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
     truck:{ x:1210, load:0, state:'parked', t:0 } });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
   G.mode = 'play';
@@ -414,6 +422,7 @@ function startShift(idx){
 const activeHas = id => !!G.st[id];
 function pendingSteps(o){ return Object.keys(o.steps).filter(k => o.steps[k]==='todo'); }
 function validTargets(hu){
+  if (hu.kind === 'tote') return G.stations.filter(s => s.def.role==='storage');
   if (hu.flag) return G.stations.filter(s => s.def.role==='repair');
   const pend = pendingSteps(hu.order); if (!pend.length) return [];
   const minStage = Math.min(...pend.map(id => STEPS[id].stage));
@@ -427,6 +436,7 @@ function selectable(hu){
   return false;
 }
 function nextHint(hu){
+  if (hu.kind === 'tote') return 'Shuttle Warehouse';
   if (hu.flag) return 'Quality Assurance';
   const t = validTargets(hu); return t.length ? t.map(s => s.def.name).join(' or ') : '—';
 }
@@ -439,28 +449,50 @@ function makeOrder(){
   const o = { id, num:4100 + id + G.shiftIdx*100, customer:pick(CUSTOMERS), items, focus:false, steps:{},
     created:G.time, color:ORDER_COLORS[id % ORDER_COLORS.length], released:false, shipped:false, late:false, hu:null };
   o.focus = activeHas('care') && Math.random() < 0.28;
+  o.lines = items.map(item => ({ item, state:'stored', slot:freeRackSlot() }));
   let allow = cfg.slack;
   for (const [sid, s] of Object.entries(STEPS)){
     const stId = STEP_STATION[sid]; if (!stId || !activeHas(stId)) continue;
     if (s.want(o)){ o.steps[sid] = 'todo'; allow += DEF[stId].time + 6; }
   }
+  allow += 4*o.lines.length;
   o.allow = Math.round(allow); o.due = G.time + o.allow;
   G.orders.push(o);
   sfx('order');
-  if (G.cfg === SHIFTS[0] || G.shiftIdx === 0) tip('release', 'A new order arrived on the left. <b>Click the order card</b> to release it: the shuttle warehouse sends the totes to <b>Commissioning</b>.');
+  if (G.cfg === SHIFTS[0] || G.shiftIdx === 0) tip('release', 'A new order arrived! Its totes are <b style="color:var(--accent)">glowing in the Shuttle Warehouse</b> (same colour as the order card). <b>Click each glowing tote</b> to send it to Commissioning.');
 }
 
-function release(o){
-  if (o.released || G.mode !== 'play') return false;
+// Rack geometry of the shuttle warehouse (shared by drawing, hit-testing and retrieval)
+const RACK = { aisles:2, levels:18, top:WH.y+52 };
+RACK.aw = (WH.w-28)/RACK.aisles; RACK.lh = (WH.h-130)/RACK.levels;
+function rackPos(sl){ const ax = WH.x+14 + sl.a*RACK.aw, rw = RACK.aw*0.34;
+  return { x: ax + sl.side*(RACK.aw*0.62) + 2 + rw/2, y: RACK.top + sl.l*RACK.lh + (RACK.lh-3)/2 }; }
+function freeRackSlot(){
+  const used = new Set(); (G.orders||[]).forEach(o => (o.lines||[]).forEach(l => l.state==='stored' && used.add(l.slot.a+'-'+l.slot.l+'-'+l.slot.side)));
+  for (let i=0; i<60; i++){ const sl = { a:randInt(0,RACK.aisles-1), l:randInt(0,RACK.levels-1), side:randInt(0,1) }; if (!used.has(sl.a+'-'+sl.l+'-'+sl.side)) return sl; }
+  return { a:0, l:0, side:0 };
+}
+function linesDone(o){ return o.lines.filter(l => l.state==='atPick' || l.state==='picked').length; }
+// Click on a glowing tote: the shuttle brings it to Commissioning. The first tote opens the order's HU there.
+function retrieve(o, li){
+  const line = o.lines[li]; if (!line || line.state !== 'stored' || G.mode !== 'play') return false;
   const c = G.st.commission;
-  if (!hasRoom(c)){ toast('Commissioning queue is full. Wait for a free spot.', 'bad'); sfx('error'); return false; }
-  o.released = true;
-  const hu = { id:++G.huSeq, order:o, flag:null, loc:'transit' }; o.hu = hu; G.hus.push(hu);
-  c.incoming++;
-  const cy = c.y + c.h/2;
-  hu.tr = mkPath([{ x:WH.x+WH.w-30, y:cy }, { x:WH.x+WH.w+6, y:cy }, { x:c.x, y:cy }], -1);
-  hu.tr.to = c.id; hu.tr.feed = true; hu.tr.speedMul = 0.6;
+  if (!o.hu){
+    if (!hasRoom(c)){ toast('Commissioning is full. Wait for a free spot before starting a new order.', 'bad'); sfx('error'); return false; }
+    o.released = true;
+    const hu = { id:++G.huSeq, order:o, flag:null, loc:'queue' }; o.hu = hu; G.hus.push(hu); c.queue.push(hu);
+  }
+  line.state = 'retrieving';
+  const p0 = rackPos(line.slot), liftX = WH.x+WH.w-24, cy = c.y + c.h/2;
+  const path = mkPath([p0, { x:liftX, y:p0.y }, { x:liftX, y:cy }, { x:c.x+6, y:cy }], -1);
+  G.fetch.push({ o, line, path });
   hideTip('release'); sfx('release'); return true;
+}
+function rackHit(p){
+  if (p.x < WH.x || p.x > WH.x+WH.w || p.y < WH.y || p.y > WH.y+WH.h) return null;
+  let best = null, bd = 1e9;
+  for (const o of G.orders) o.lines.forEach((l, li) => { if (l.state !== 'stored') return; const q = rackPos(l.slot), d = Math.hypot(p.x-q.x, p.y-q.y); if (d < 24 && d < bd){ bd = d; best = { o, li }; } });
+  return best;
 }
 
 function dispatch(hu, st){
@@ -485,7 +517,7 @@ function circle(hu, s){ hu.loc = 'transit'; hu.tr = buildPath(null, s, null); }
 
 function portCheck(hu, st){
   let weightFail = false;
-  if (!hu.flag && st.def.role !== 'repair' && Math.random() < TRANSPORT_CHECK.chance){
+  if (hu.kind !== 'tote' && !hu.flag && st.def.role !== 'repair' && Math.random() < TRANSPORT_CHECK.chance){
     hu.flag = { reason:TRANSPORT_CHECK.reason, station:null }; weightFail = true; G.defects++;
     st.scanFlash = 1.2;
   }
@@ -496,9 +528,9 @@ function portCheck(hu, st){
     sfx('flag'); event('flag');
   } else {
     G.wrong++; G.money -= 10; G.earned -= 10; changeSat(-3);
-    const why = hu.flag ? 'it is flagged and must go to Quality Assurance first'
+    const why = hu.kind === 'tote' ? 'return totes go back to the Shuttle Warehouse' : hu.flag ? 'it is flagged and must go to Quality Assurance first'
       : `next step is ${nextHint(hu)}`;
-    toast(`✖ ${st.def.name} rejected #${hu.order.num}: ${why}.`, 'bad');
+    toast(`✖ ${st.def.name} rejected ${hu.kind === 'tote' ? 'the return tote' : '#'+hu.order.num}: ${why}.`, 'bad');
     floatText(st.port.x, st.port.y-14, '−$10', '#ff5468'); sfx('error'); st.flash = -1;
     tip('wrong', 'Rejected! A station only accepts units that need it <b>next</b>. The unit now circles on the conveyor. <b>Click it on the belt</b> and send it somewhere else.');
   }
@@ -509,10 +541,27 @@ function portCheck(hu, st){
 function complete(st, hu){
   const d = st.def, o = hu.order;
   st.processed++;
-  if (d.role === 'repair'){ hu.flag = null; floatText(st.dock.x, st.y+10, 'Fixed ✓', '#3ddc84'); sfx('fix'); return; }
+  if (d.role === 'storage') return;
+  if (d.role === 'repair'){
+    const f = hu.flag; hu.flag = null;
+    if (f && f.line != null){
+      // wrong item: send the wrong tote back to storage, the order needs a fresh tote + a re-pick
+      const line = o.lines[f.line]; line.state = 'stored'; line.slot = freeRackSlot();
+      const tote = { id:++G.huSeq, kind:'tote', order:o, item:line.item, flag:null, loc:'out' };
+      G.hus.push(tote);
+      if (st.out.length < st.outMax){ st.out.push(tote); } else circle(tote, st.port.s);
+      floatText(st.dock.x, st.y+10, 'Wrong tote found', '#ffc53d'); sfx('fix');
+      tip('return', `QA found the wrong item. Two jobs now: 1) route the grey <b>↩ return tote</b> back to the <b>Shuttle Warehouse</b> (key <span class="kbd">0</span>), 2) click the order's new <b style="color:var(--accent)">glowing tote</b> in the warehouse and send HU <b>#${o.num}</b> back to <b>Commissioning</b> for a re-pick.`);
+      return;
+    }
+    floatText(st.dock.x, st.y+10, 'Fixed ✓', '#3ddc84'); sfx('fix'); return;
+  }
   const step = d.handles;
+  let pickedNow = [];
+  if (d.needsTotes){ o.lines.forEach((l, i) => { if (l.state === 'atPick'){ l.state = 'picked'; pickedNow.push(i); } }); }
   if (d.defect && Math.random() < d.defect.chance * st.qualMul){
     hu.flag = { reason:d.defect.reason, station:d.id }; G.defects++;
+    if (d.defect.returnTote && pickedNow.length) hu.flag.line = pick(pickedNow);
     o.steps[step] = d.defect.redo ? 'todo' : 'done';
     toast(`⚠ #${o.num}: ${d.defect.reason} at ${d.name}. Send it to Quality Assurance.`, 'warn');
     sfx('flag'); event('flag');
@@ -538,6 +587,11 @@ function ship(hu){
   if (!G.goalToast && G.shipped >= G.cfg.goal){ G.goalToast = true; toast('🎯 Shift goal reached! Everything else is bonus.', 'good'); sfx('fix'); }
 }
 
+function isReady(st, hu){
+  if (!st.def.needsTotes || hu.kind === 'tote') return true;
+  const o = hu.order; return o.lines.every(l => l.state === 'atPick' || l.state === 'picked') && o.lines.some(l => l.state === 'atPick');
+}
+function removeObj(hu){ hu.gone = true; const i = G.hus.indexOf(hu); if (i >= 0) G.hus.splice(i, 1); if (G.selected === hu) G.selected = null; }
 function changeSat(d){
   G.sat = clamp(G.sat + d, 0, 100);
   if (G.sat <= 0 && G.mode === 'play') endShift(true);
@@ -569,18 +623,28 @@ function update(dt){
       else circle(hu, tr.loopS);
     }
   }
+  // totes coming out of the shuttle warehouse
+  for (const f of G.fetch){ f.path.d += RETRIEVE_SPEED*dt; if (f.path.d >= f.path.len){ f.line.state = 'atPick'; f.done = true; } }
+  G.fetch = G.fetch.filter(f => !f.done);
   // stations
   for (const st of G.stations){
     st.flash = st.flash > 0 ? Math.max(0, st.flash - dt) : Math.min(0, st.flash + dt);
     st.scanFlash = Math.max(0, st.scanFlash - dt);
     for (let i=0; i<st.slotCount; i++){
       let s = st.slots[i];
-      if (!s && st.queue.length){ const hu = st.queue.shift(); hu.loc = 'slot'; s = st.slots[i] = { hu, t:0, dur:st.def.time*st.speedMul*rand(0.88,1.12), done:false, blocked:false }; }
+      if (!s && st.queue.length){
+        const qi = st.queue.findIndex(h => isReady(st, h));
+        if (qi >= 0){ const hu = st.queue.splice(qi, 1)[0]; hu.loc = 'slot';
+          let dur = st.def.time*st.speedMul*rand(0.88,1.12);
+          if (st.def.needsTotes){ const o = hu.order; dur *= 0.45 + 0.55*o.lines.filter(l => l.state==='atPick').length/o.lines.length; }
+          s = st.slots[i] = { hu, t:0, dur, done:false, blocked:false }; }
+      }
       if (!s) continue;
       if (!s.done){ s.t += dt; if (s.t >= s.dur){ s.done = true; complete(st, s.hu); } }
       if (s.done){
         const hu = s.hu;
-        if (st.def.role === 'sink' && !hu.flag && !pendingSteps(hu.order).length){ ship(hu); st.slots[i] = null; }
+        if (st.def.role === 'storage'){ removeObj(hu); st.slots[i] = null; floatText(st.dock.x+20, st.dock.y-16, 'Stored ✓', '#3ddc84'); sfx('clunk'); }
+        else if (st.def.role === 'sink' && hu.kind !== 'tote' && !hu.flag && !pendingSteps(hu.order).length){ ship(hu); st.slots[i] = null; }
         else if (st.outMax === 0){ st.slots[i] = null; circle(hu, st.port.s); }
         else if (st.out.length < st.outMax){
           st.out.push(hu); hu.loc = 'out'; st.slots[i] = null; s.blocked = false; st.flash = 0.6; sfx('done'); event('ready', hu);
@@ -610,7 +674,7 @@ function endShift(failedSat){
   let bonus = 0;
   if (passed){ bonus = 100 + 40*stars; G.money += bonus; G.best = Math.max(G.best||0, G.shiftIdx+1); }
   G.result = { passed, failedSat, stars, ratio, bonus };
-  if (!G.silent){ hideTip(); sfx(passed ? 'fanfare' : 'fail'); showResult(); }
+  if (!G.silent){ tipQueue.length = 0; hideTip(null); sfx(passed ? 'fanfare' : 'fail'); showResult(); }
 }
 
 // ===================================================================
@@ -716,16 +780,24 @@ function toast(msg, kind=''){
 }
 function floatText(x, y, text, color){ G.floats.push({ x, y, text, color, t:0 }); }
 let tipKey = null;
+const tipQueue = [];
 function tip(key, html){
   if (G.silent || G.seenTips[key]) return;
-  G.seenTips[key] = true; tipKey = key; $('tipText').innerHTML = html; $('tip').classList.add('show');
-  saveProfile();
+  G.seenTips[key] = true; saveProfile();
+  if ($('tip').classList.contains('show')){ tipQueue.push([key, html]); return; } // don't cover a tip that is still open
+  tipKey = key; $('tipText').innerHTML = html; $('tip').classList.add('show');
 }
-function hideTip(key){ if (!key || key === tipKey) $('tip').classList.remove('show'); }
+function hideTip(key){
+  if (key == null || key === tipKey){
+    $('tip').classList.remove('show'); tipKey = null;
+    if (key !== null && tipQueue.length && G.mode === 'play'){ const [k, h] = tipQueue.shift(); setTimeout(() => { tipKey = k; $('tipText').innerHTML = h; $('tip').classList.add('show'); }, 250); }
+  } else { const i = tipQueue.findIndex(q => q[0] === key); if (i >= 0) tipQueue.splice(i, 1); }
+}
 $('tipOk').onclick = () => { hideTip(); sfx('click'); };
 function event(name, hu){
   if (G.silent) return;
   if (name === 'ready' && hu){
+    if (hu.kind === 'tote') return;
     const t = validTargets(hu);
     if (hu.flag) return;
     tip('route', `Handling unit <b>#${hu.order.num}</b> is ready! <b>Click it</b>, then click the station that is <b style="color:var(--accent)">glowing orange</b> (or press its number key). You can also drag it.`);
@@ -753,7 +825,7 @@ const FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 function rr(x, y, w, h, r){ ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
 function hash(n){ n = Math.sin(n*127.1)*43758.5453; return n - Math.floor(n); }
 const mouse = { x:-1, y:-1, inside:false };
-let hoverHU = null, hoverSt = null, drag = null;
+let hoverHU = null, hoverSt = null, drag = null, hoverRack = null;
 
 function drawFloor(t){
   ctx.fillStyle = '#121925'; ctx.fillRect(0, 0, W, H);
@@ -773,8 +845,10 @@ function drawWarehouse(t){
   rr(x, y, w, h, 14); ctx.fillStyle = '#18202e'; ctx.fill(); ctx.restore();
   ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.5; rr(x, y, w, h, 14); ctx.stroke();
   ctx.fillStyle = '#ff8a1f'; ctx.font = `800 11px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('SHUTTLE WAREHOUSE', x+14, y+22);
-  ctx.fillStyle = '#8a96ad'; ctx.font = `500 10px ${FONT}`; ctx.fillText(`${(18420 + Math.floor(t*3)%97).toLocaleString('en')} totes stored`, x+14, y+37);
-  const aisles = 2, aw = (w-28)/aisles, levels = 18, top = y+52, lh = (h-130)/levels;
+  const nReq = G.orders.reduce((n, o) => n + (o.lines ? o.lines.filter(l => l.state === 'stored').length : 0), 0);
+  if (!nReq){ ctx.fillStyle = '#8a96ad'; ctx.font = `500 10px ${FONT}`; ctx.fillText(`${(18420 + Math.floor(t*3)%97).toLocaleString('en')} totes stored`, x+14, y+37); }
+  else { ctx.fillStyle = '#ffb15c'; ctx.font = `800 10.5px ${FONT}`; ctx.fillText(`▸ ${nReq} glowing tote${nReq>1?'s':''} to click`, x+14, y+37); }
+  const aisles = RACK.aisles, aw = RACK.aw, levels = RACK.levels, top = RACK.top, lh = RACK.lh;
   for (let a=0; a<aisles; a++){
     const ax = x+14 + a*aw;
     for (let l=0; l<levels; l++){
@@ -783,14 +857,14 @@ function drawWarehouse(t){
         const rx = ax + side*(aw*0.62) + 2, rw = aw*0.34;
         ctx.fillStyle = '#222c3e'; ctx.fillRect(rx, ly, rw, lh-3);
         for (let k=0; k<3; k++){ const hsh = hash(a*1000+l*10+side*3+k);
-          if (hsh > 0.18){ ctx.fillStyle = hsh > 0.8 ? '#ff8a1f' : hsh > 0.55 ? '#3b5b8f' : '#4a5770'; ctx.fillRect(rx + 2 + k*(rw/3), ly+2, rw/3-3, lh-7); } }
+          if (hsh > 0.18){ ctx.fillStyle = hsh > 0.8 ? '#5a4a3c' : hsh > 0.55 ? '#34486a' : '#3d4659'; ctx.fillRect(rx + 2 + k*(rw/3), ly+2, rw/3-3, lh-7); } }
       }
       // shuttle track & shuttle
       const tx0 = ax + aw*0.36 + 2, tx1 = ax + aw*0.62;
       ctx.fillStyle = '#10161f'; ctx.fillRect(tx0, ly + lh/2 - 1, tx1-tx0, 2);
       const ph = hash(a*77+l*13)*6.28, sp = 0.6 + hash(l*31+a)*0.9;
       const sx = tx0 + (tx1-tx0-8) * (0.5 + 0.5*Math.sin(t*sp + ph));
-      ctx.fillStyle = '#ffc53d'; ctx.fillRect(sx, ly + 2, 8, lh-6);
+      ctx.fillStyle = '#c99a2e'; ctx.fillRect(sx, ly + 2, 8, lh-6);
     }
   }
   // lift & output
@@ -802,6 +876,31 @@ function drawWarehouse(t){
   ctx.fillText('to Commissioning', x+14, y+h-42);
   // feeder belt to commissioning
   if (c){ conveyorSeg(x+w-30, cy, c.x, cy, 22, t, 1); }
+  // requested totes (clickable)
+  const ws = G.st.warehouse;
+  let req = 0;
+  for (const o of G.orders) o.lines.forEach((l, li) => {
+    if (l.state !== 'stored') return; req++;
+    const q = rackPos(l.slot), hot = G.hoverOrder === o.id || (o.flashT && o.flashT > G.time) || (hoverRack && hoverRack.o === o);
+    const pulse = 0.5 + 0.5*Math.sin(t*5 + o.id);
+    const sc = hot ? 1.25 : 1.1 + pulse*0.06;
+    ctx.save(); ctx.shadowColor = o.color; ctx.shadowBlur = hot ? 26 : 12 + pulse*10;
+    rr(q.x-19*sc, q.y-14*sc, 38*sc, 28*sc, 6); ctx.fillStyle = hexA(o.color, 0.35); ctx.fill(); ctx.restore();
+    ctx.strokeStyle = o.color; ctx.lineWidth = hot ? 3 : 2 + pulse; rr(q.x-19*sc, q.y-14*sc, 38*sc, 28*sc, 6); ctx.stroke();
+    ctx.save(); ctx.translate(q.x, q.y); ctx.scale(sc, sc); drawTote(0, 0, o.color, l.item.icon, false, hoverRack && hoverRack.o === o && hoverRack.li === li, false); ctx.restore();
+    rr(q.x+8*sc, q.y-17*sc, 22, 11, 3); ctx.fillStyle = o.color; ctx.fill();
+    ctx.fillStyle = '#10141c'; ctx.font = `800 8px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(o.num).slice(-3), q.x+8*sc+11, q.y-17*sc+8.5); ctx.textAlign = 'left';
+  });
+  for (const f of G.fetch){ const q = along(f.path, f.path.d); drawTote(q.x, q.y, f.o.color, f.line.item.icon, false, false, false); }
+  if (ws){
+    // key badge + target glow
+    rr(x+w-30, y+9, 17, 17, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('0', x+w-21.5, y+21); ctx.textAlign = 'left';
+    const sel = G.selected, isT = sel && validTargets(sel).includes(ws);
+    if (isT && G.hints){ ctx.strokeStyle = `rgba(255,138,31,${0.6 + 0.4*Math.sin(t*6)})`; ctx.lineWidth = 3; rr(x, y, w, h, 14); ctx.stroke();
+      rr(x+w/2-34, y-10, 68, 18, 6); ctx.fillStyle = '#ff8a1f'; ctx.fill(); ctx.fillStyle = '#1a1208'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('RETURN ▾', x+w/2, y+3); ctx.textAlign = 'left'; }
+    else if (sel && hoverSt === ws){ ctx.strokeStyle = '#ff5468'; ctx.lineWidth = 3; rr(x, y, w, h, 14); ctx.stroke(); }
+  }
 }
 function conveyorSeg(x0, y0, x1, y1, wdt, t, dirSign){
   const len = Math.hypot(x1-x0, y1-y0), ang = Math.atan2(y1-y0, x1-x0);
@@ -835,7 +934,8 @@ function drawLoop(t){
   }
 }
 function drawSpur(st, t){
-  conveyorSeg(st.dock.x, st.dock.y, st.port.x, st.port.y, 26, t, 0);
+  conveyorSeg(st.dock.x, st.dock.y, st.port.x, st.port.y, st.def.role === 'storage' ? 20 : 26, t, 0);
+  if (st.def.role === 'storage'){ ctx.fillStyle = '#8a96ad'; ctx.font = `700 9px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('↩ RETURNS TO STORAGE', st.dock.x+12, st.dock.y+22); return; }
   // scanner arch
   const mx = (st.dock.x*0.35 + st.port.x*0.65), my = (st.dock.y*0.35 + st.port.y*0.65);
   const vertical = st.side === 'top' || st.side === 'bottom';
@@ -846,7 +946,18 @@ function drawSpur(st, t){
 }
 
 function huRect(hu){ return { w:30, h:22 }; }
+function drawTote(x, y, color, icon, sel, hov, ret){
+  ctx.save(); ctx.translate(x, y);
+  if (sel){ ctx.shadowColor = '#ff8a1f'; ctx.shadowBlur = 16; } else { ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2; }
+  rr(-14, -10, 28, 20, 3); ctx.fillStyle = ret ? '#7d8799' : '#5d6b85'; ctx.fill(); ctx.shadowColor = 'transparent';
+  ctx.fillStyle = color; ctx.fillRect(-14, -10, 28, 4);
+  ctx.font = `11px ${EMOJI}`; ctx.textAlign = 'center'; ctx.fillText(icon, ret ? 3 : 0, 6);
+  if (ret){ ctx.fillStyle = '#ffc53d'; ctx.font = `900 11px ${FONT}`; ctx.fillText('↩', -8, 6); }
+  if (sel || hov){ ctx.strokeStyle = sel ? '#fff' : 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; rr(-15.5, -11.5, 31, 23, 4); ctx.stroke(); }
+  ctx.restore();
+}
 function drawHU(hu, x, y, opts={}){
+  if (hu.kind === 'tote'){ drawTote(x, y, hu.order.color, hu.item.icon, G.selected === hu, hoverHU === hu, true); return; }
   const o = hu.order, sel = G.selected === hu, hov = hoverHU === hu;
   ctx.save(); ctx.translate(x, y);
   if (opts.scale) ctx.scale(opts.scale, opts.scale);
@@ -880,6 +991,7 @@ function star(cx, cy, r){
 function outPos(st, i){ const sp = Math.min(36, (st.w-60)/Math.max(1, st.outMax-1) ); return { x: st.x + 52 + i*sp, y: st.y + 124 }; }
 
 function drawStation(st, t){
+  if (st.def.role === 'storage') return;
   const {x,y,w,h,def} = st;
   const sel = G.selected, targets = sel ? validTargets(sel) : [];
   const isTarget = sel && targets.includes(st), full = !hasRoom(st);
@@ -920,9 +1032,16 @@ function drawStation(st, t){
   ctx.fillStyle = '#8a96ad'; ctx.font = `700 9px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('IN', x+10, qy+3);
   for (let i=0; i<st.queueMax; i++){
     const px = x + 30 + i*14; ctx.beginPath(); ctx.arc(px, qy, 4.5, 0, 7);
-    if (i < st.queue.length){ ctx.fillStyle = st.queue[i].order.color; ctx.fill(); }
+    if (i < st.queue.length){ const q = st.queue[i];
+      if (isReady(st, q)){ ctx.fillStyle = q.order.color; ctx.fill(); } else { ctx.strokeStyle = q.order.color; ctx.lineWidth = 2; ctx.stroke(); } }
     else if (i < st.queue.length + st.incoming){ ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 1.5; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]); }
     else { ctx.strokeStyle = '#3a4560'; ctx.lineWidth = 1.5; ctx.stroke(); }
+  }
+  if (def.needsTotes){ // totes waiting at the pick station
+    const waiting = []; G.orders.forEach(o => o.lines && o.lines.forEach(l => l.state === 'atPick' && waiting.push(o.color)));
+    const n = Math.min(waiting.length, 6);
+    for (let i=0; i<n; i++){ const tx = x + w - 14 - i*9; ctx.fillStyle = '#5d6b85'; ctx.fillRect(tx-3.5, qy-4, 7, 8); ctx.fillStyle = waiting[i]; ctx.fillRect(tx-3.5, qy-4, 7, 2.5); }
+    if (waiting.length){ ctx.fillStyle = '#8a96ad'; ctx.font = `700 8px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText('TOTES', x + w - 10 - n*9, qy+3); ctx.textAlign = 'left'; }
   }
   // out tray
   if (st.outMax > 0){
@@ -1054,7 +1173,8 @@ function orderParts(o, inbox){
   const rem = o.due - G.time, frac = clamp(rem / o.allow, 0, 1);
   const col = rem < 0 ? '#ff5468' : frac < 0.3 ? '#ffc53d' : '#3ddc84';
   const blocked = inbox && G.st.commission && !hasRoom(G.st.commission);
-  const steps = Object.keys(o.steps).map(s => chipHTML(o, s)).join('');
+  const steps = Object.keys(o.steps).map(s => s === 'pick' && o.steps.pick === 'todo' && o.lines.length
+    ? `<span class="chip" style="border-color:${STEP_COLOR('pick')};color:${STEP_COLOR('pick')}">PICK ${linesDone(o)}/${o.lines.length} 🧺</span>` : chipHTML(o, s)).join('');
   const flag = o.hu && o.hu.flag ? `<span class="chip flag">⚠ ${o.hu.flag.reason}</span>` : '';
   const cls = `oc ${inbox?'inbox':''} ${blocked?'blocked':''} ${o.focus?'focus':''} ${rem<0?'late':''}`;
   const html = `<div class="oc-h"><span class="sw" style="background:${o.color}"></span><b>#${o.num}</b><span class="cust">${o.customer}</span>${o.focus?'<span style="color:var(--warn)">★</span>':''}
@@ -1062,7 +1182,7 @@ function orderParts(o, inbox){
     <div class="oc-items" title="${o.items.map(i=>i.name).join(', ')}">${o.items.map(i=>i.icon).join(' ')}</div>
     <div class="chips">${steps}${flag}</div>
     <div class="tbar"><div></div></div>
-    ${inbox ? '<span class="release-hint">release ▸</span>' : ''}`;
+    ${inbox ? '<span class="release-hint">totes in warehouse ◂</span>' : ''}`;
   return { cls, html, col, frac, due: rem < 0 ? 'LATE' : Math.ceil(rem)+'s' };
 }
 // Cards are kept as persistent DOM nodes and patched in place (no flicker, hover stays stable)
@@ -1092,8 +1212,8 @@ function syncList(container, orders, inbox, emptyText){
   for (const [k, el] of cardEls) if (k[0] === (inbox ? 'i' : 'a') && !keep.has(k)){ el.remove(); cardEls.delete(k); }
 }
 function renderSide(){
-  const inbox = G.orders.filter(o => !o.released).sort((a,b) => a.due-b.due);
-  const act = G.orders.filter(o => o.released).sort((a,b) => a.due-b.due);
+  const inbox = G.orders.filter(o => !o.hu).sort((a,b) => a.due-b.due);
+  const act = G.orders.filter(o => o.hu).sort((a,b) => a.due-b.due);
   $('inCount').textContent = inbox.length; $('actCount').textContent = act.length;
   syncList($('inbox'), inbox, true, 'Waiting for orders…');
   syncList($('active'), act, false, 'Nothing in process.');
@@ -1118,19 +1238,28 @@ function syncButtons(){
 }
 
 // ---------- tooltip ----------
-function showTooltip(hu, cx, cy){
+function showTooltip(hu, cx, cy, rack){
   const tt = $('tooltip');
-  if (!hu){ tt.style.display = 'none'; return; }
+  if (!hu && !rack){ tt.style.display = 'none'; return; }
+  if (rack || hu.kind === 'tote'){
+    const o = rack ? rack.o : hu.order, item = rack ? o.lines[rack.li].item : hu.item;
+    tt.innerHTML = rack
+      ? `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>Tote for #${o.num}</div><div class="items"><i>${item.icon}</i> ${item.name}</div><div class="row next">▸ Click to send it to Commissioning</div><div class="row">${o.customer} · ${linesDone(o)}/${o.lines.length} totes at the pick station</div>`
+      : `<div class="tt-h">↩ Return tote</div><div class="items"><i>${item.icon}</i> ${item.name} (wrong pick for #${o.num})</div><div class="row next">▸ Route it back to the Shuttle Warehouse</div>`;
+    tt.style.display = 'block'; placeTooltip(tt, cx, cy); return;
+  }
   const o = hu.order, pend = pendingSteps(o), nextIds = hu.flag ? [] : validTargets(hu).map(s => s.def.handles);
   const rows = Object.keys(o.steps).map(sid => {
     const done = o.steps[sid] === 'done', nx = nextIds.includes(sid);
     return `<div class="row ${done?'done':nx?'next':''}">${done?'✓':nx?'▸':'○'} ${STEPS[sid].label}</div>`; }).join('');
   const rem = o.due - G.time;
   tt.innerHTML = `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>#${o.num} · ${o.customer} ${o.focus?'<span style="color:var(--warn)">★ focus</span>':''}</div>
-    <div class="items">${o.items.map(i => i.icon+' '+i.name).join(', ')}</div>${rows}
+    <div class="items">${o.items.map(i => '<i>'+i.icon+'</i> '+i.name).join(', ')}</div>${rows}
     ${hu.flag ? `<div class="fl">⚠ ${hu.flag.reason} → Quality Assurance</div>` : ''}
     <div class="row" style="margin-top:4px">${rem<0 ? '<span style="color:var(--bad)">Overdue</span>' : `Due in ${Math.ceil(rem)}s`}</div>`;
-  tt.style.display = 'block';
+  tt.style.display = 'block'; placeTooltip(tt, cx, cy);
+}
+function placeTooltip(tt, cx, cy){
   const r = floorEl.getBoundingClientRect(), tw = tt.offsetWidth, th = tt.offsetHeight;
   let lx = cx + 16, ly = cy + 16; if (lx + tw > r.width - 8) lx = cx - tw - 16; if (ly + th > r.height - 8) ly = cy - th - 16;
   tt.style.left = lx + 'px'; tt.style.top = ly + 'px';
@@ -1154,6 +1283,9 @@ cv.addEventListener('pointerdown', e => {
   const hu = hitHU(p);
   if (hu){ selectHU(hu); drag = { hu, x:p.x, y:p.y, moved:false }; cv.setPointerCapture(e.pointerId); return; }
   const st = hitStation(p);
+  if (st && G.selected && (st.def.role !== 'storage' || G.selected.kind === 'tote')){ dispatch(G.selected, st); return; }
+  const rk = rackHit(p);
+  if (rk){ if (!retrieve(rk.o, rk.li)) G.selected = null; return; }
   if (st && G.selected){ dispatch(G.selected, st); return; }
   G.selected = null;
 });
@@ -1161,22 +1293,25 @@ cv.addEventListener('pointermove', e => {
   const p = toWorld(e); mouse.x = p.x; mouse.y = p.y; mouse.inside = true;
   if (drag && Math.hypot(p.x-drag.x, p.y-drag.y) > 8) drag.moved = true;
   hoverHU = drag ? null : hitHU(p); hoverSt = hitStation(p);
-  cv.style.cursor = hoverHU ? 'grab' : (G.selected && hoverSt) ? 'pointer' : drag ? 'grabbing' : 'default';
-  showTooltip(hoverHU, p.cx, p.cy);
+  hoverRack = (!hoverHU && !drag && G.mode === 'play') ? rackHit(p) : null;
+  cv.style.cursor = hoverHU ? 'grab' : hoverRack ? 'pointer' : (G.selected && hoverSt) ? 'pointer' : drag ? 'grabbing' : 'default';
+  showTooltip(hoverHU, p.cx, p.cy, hoverRack);
 });
 cv.addEventListener('pointerup', e => {
   if (drag && drag.moved){ const st = hitStation(toWorld(e)); if (st && G.selected === drag.hu) dispatch(drag.hu, st); }
   drag = null;
 });
-cv.addEventListener('pointerleave', () => { mouse.inside = false; hoverHU = null; hoverSt = null; showTooltip(null); });
+cv.addEventListener('pointerleave', () => { mouse.inside = false; hoverHU = null; hoverSt = null; hoverRack = null; showTooltip(null); });
 cv.addEventListener('contextmenu', e => { e.preventDefault(); G.selected = null; });
 $('side').addEventListener('pointerdown', e => {
   AU.init(); Music.start();
-  const card = e.target.closest('.oc.inbox'); if (!card) return;
-  const o = G.orders.find(o => o.id === +card.dataset.oid);
-  if (o && !release(o)){ card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
-  else renderSide();
+  const card = e.target.closest('.oc'); if (!card) return;
+  const o = G.orders.find(o => o.id === +card.dataset.oid); if (!o) return;
+  if (o.lines.some(l => l.state === 'stored')){ o.flashT = G.time + 2; sfx('select');
+    if (!G.seenTips.findTotes){ G.seenTips.findTotes = true; toast('👉 Click the order\'s glowing totes in the Shuttle Warehouse.', ''); } }
 });
+$('side').addEventListener('pointerover', e => { const card = e.target.closest('.oc'); G.hoverOrder = card ? +card.dataset.oid : null; });
+$('side').addEventListener('pointerleave', () => { G.hoverOrder = null; });
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
@@ -1188,8 +1323,8 @@ window.addEventListener('keydown', e => {
   if (k === 'f'){ toggleSpeed(); return; }
   if (G.mode !== 'play') return;
   if (k === 'tab'){ e.preventDefault(); cycleSelect(e.shiftKey ? -1 : 1); return; }
-  if (k === 'r'){ const o = G.orders.filter(o => !o.released).sort((a,b) => a.due-b.due)[0]; if (o) release(o); return; }
   const n = parseInt(k, 10);
+  if (n === 0 && G.selected && G.st.warehouse){ dispatch(G.selected, G.st.warehouse); return; }
   if (n >= 1 && n <= 9 && G.selected){ const st = G.keyOrder[n-1]; if (st) dispatch(G.selected, st); }
 });
 function cycleSelect(dir){
@@ -1232,14 +1367,14 @@ function showTitle(){
   modal(`<div class="hero">${heroSVG}<div style="flex:1;min-width:240px"><h1>Logistic <em>Town</em></h1>
     <p class="sub">Run the distribution centre of a busy tool supplier. Route handling units from the shuttle warehouse through commissioning, special services and quality checks, and get every order onto the truck on time.</p></div></div>
     <ul class="clean">
-      <li><b>Click an order</b> on the left to release it to Commissioning.</li>
+      <li>Each new order lights up its <b>totes in the Shuttle Warehouse</b>. <b>Click them</b> to send them to Commissioning.</li>
       <li><b>Click a handling unit</b>, then <b>click its next station</b> (or press the station's number key, or drag it).</li>
       <li>Each order needs only the services shown on its card. <b style="color:var(--bad)">⚠ Flagged</b> units go to Quality Assurance first.</li>
       <li>Ship before the timer runs out to keep customers happy.</li>
     </ul>
     <div class="btnrow">${sv && sv.shiftIdx > 0 ? `<button class="btn primary" id="mContinue">Continue: Shift ${sv.shiftIdx+1}</button><button class="btn" id="mNew">New game</button>` : `<button class="btn primary" id="mNew">Start the first shift</button>`}
     <button class="btn" id="mHelp">How to play</button></div>
-    <p style="color:var(--muted);font-size:12px;margin-top:16px">Sound on recommended 🔊 · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">R</span> release · <span class="kbd">Space</span> pause</p>`);
+    <p style="color:var(--muted);font-size:12px;margin-top:16px">Sound on recommended 🔊 · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">0</span> warehouse · <span class="kbd">Space</span> pause</p>`);
   bind('mNew', () => { const keepTips = G.seenTips, mo = G.musicOn, so = G.sfxOn; Object.assign(G, newProfile(), { seenTips:keepTips, musicOn:mo, sfxOn:so }); showIntro(0); });
   bind('mContinue', () => { Object.assign(G, sv); showIntro(sv.shiftIdx); });
   bind('mHelp', () => showHelp(true));
@@ -1249,7 +1384,7 @@ function showIntro(idx){
   const cfg = shiftConfig(idx), prev = idx > 0 ? shiftConfig(idx-1).stations : [];
   // preview stations for flow
   G.cfg = cfg; G.stations = cfg.stations.map(id => makeStation(DEF[id])); G.st = Object.fromEntries(G.stations.map(s => [s.id, s])); layoutStations();
-  G.orders = []; G.hus = []; G.shippedLog = []; G.time = 0; G.truck = { x:1210, load:0, state:'parked', t:0 }; G.shipped = 0; G.sat = 100;
+  G.orders = []; G.hus = []; G.fetch = []; G.shippedLog = []; G.time = 0; G.truck = { x:1210, load:0, state:'parked', t:0 }; G.shipped = 0; G.sat = 100;
   const newOnes = cfg.stations.filter(id => !prev.includes(id));
   saveProfile();
   modal(`<p class="sub" style="margin:0;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:12px">Shift ${idx+1}</p>
@@ -1260,7 +1395,7 @@ function showIntro(idx){
     <div class="grid2">${cfg.stations.map(id => { const d = DEF[id], nw = newOnes.includes(id) && idx > 0;
       return `<div class="scard ${nw?'new':''}"><div class="t"><span class="e">${d.icon}</span>${d.name}${nw?'<span class="tag">NEW</span>':''}</div>${d.desc}</div>`; }).join('')}</div>
     <div class="btnrow"><button class="btn primary" id="mStart">Start shift ▸</button></div>`);
-  bind('mStart', () => { hideModal(); hideTip(); startShift(idx); syncButtons(); renderSide();
+  bind('mStart', () => { hideModal(); tipQueue.length = 0; hideTip(null); startShift(idx); syncButtons(); renderSide();
     if (idx === 0) setTimeout(() => toast('☀️ Good morning! The first order is on its way…', 'good'), 300);
     else toast(`Shift ${idx+1} started. Goal: ship ${cfg.goal} orders.`, 'good'); });
 }
@@ -1278,7 +1413,7 @@ function showResult(){
       <div><small>Satisfaction</small><b>${Math.round(G.sat)}%</b></div>
     </div>
     ${r.passed ? `<p>Shift bonus: <b style="color:var(--accent2)">$${r.bonus}</b>. Spend your cash on upgrades before the next shift.</p>`
-      : `<p>Tip: release orders steadily, keep OUT trays empty so stations don't block, and send flagged units to QA quickly.</p>`}
+      : `<p>Tip: retrieve totes steadily, keep OUT trays empty so stations don't block, and send flagged units to QA quickly.</p>`}
     <div class="btnrow">${r.passed ? `<button class="btn primary" id="mShop">Upgrades & next shift ▸</button>` : `<button class="btn primary" id="mRetry">Retry shift</button>`}
     <button class="btn" id="mMenu">Main menu</button></div>`);
   bind('mShop', () => { G.shiftIdx++; saveProfile(); showShop(); });
@@ -1320,7 +1455,9 @@ function showHelp(fromTitle){
     <p>Orders from tool customers arrive on the left. Each order travels in its own <b>handling unit (HU)</b>, a transport box on the conveyor loop. Your job is to route every HU through exactly the stations its order needs.</p>
     <div class="flow">${flow}</div>
     <ul class="clean">
+      <li>Click an order's <b>glowing totes</b> in the Shuttle Warehouse. Commissioning starts once all of them have arrived. Hover an order card to see where its totes are.</li>
       <li>Every order starts at <b>Commissioning</b> and ends at <b>Packing & Shipping</b>.</li>
+      <li><b>Wrong pick</b>: QA takes the wrong item out as a grey <b>↩ return tote</b>. Route it back to the Shuttle Warehouse, click the order's new glowing tote, and send the HU back to Commissioning for a re-pick.</li>
       <li>Services in the same group can be done in any order. Coloured dots under an HU show what it still needs.</li>
       <li><b style="color:var(--bad)">⚠ Flags</b>: a failed check, a wrong pick or a failed <b>weight check</b> on the conveyor. Flagged HUs go to <b>Quality Assurance</b>. A failed service must be redone after QA.</li>
       <li>Sending an HU to the wrong station gets it rejected (−$10, −satisfaction). It then circles the belt until you re-route it.</li>
@@ -1328,7 +1465,7 @@ function showHelp(fromTitle){
       <li>Late orders pay 40% and cost satisfaction. Focus customers (★) pay 50% more.</li>
     </ul>
     <div class="grid2">${all.map(d => `<div class="scard"><div class="t"><span class="e">${d.icon}</span>${d.name}</div>${d.desc}</div>`).join('')}</div>
-    <p style="font-size:13px;color:var(--muted)">Controls: click an order to release it, click an HU then a station to route it (or drag, or press <span class="kbd">1</span>–<span class="kbd">9</span>). <span class="kbd">Tab</span> selects the most urgent HU, <span class="kbd">R</span> releases the most urgent order, <span class="kbd">H</span> hints, <span class="kbd">F</span> speed, <span class="kbd">Space</span> pause, right-click deselects.</p>
+    <p style="font-size:13px;color:var(--muted)">Controls: click an order's glowing totes in the Shuttle Warehouse to start it, click an HU then a station to route it (or drag, or press <span class="kbd">1</span>–<span class="kbd">9</span>). <span class="kbd">0</span> sends a selected return tote to the warehouse, <span class="kbd">Tab</span> selects the most urgent HU, <span class="kbd">H</span> hints, <span class="kbd">F</span> speed, <span class="kbd">Space</span> pause, right-click deselects.</p>
     <div class="btnrow"><button class="btn primary" id="mBack">${fromTitle ? 'Back' : 'Resume ▸'}</button></div>`);
   bind('mBack', () => { if (fromTitle) showTitle(); else { hideModal(); if (G.mode === 'paused'){ G.mode = 'play'; syncButtons(); } } });
 }
@@ -1338,21 +1475,21 @@ function showHelp(fromTitle){
 // ===================================================================
 let last = performance.now(), sideTimer = 0;
 function frame(now){
+  requestAnimationFrame(frame);
   const realDt = Math.min(0.05, (now - last)/1000); last = now;
   const dt = realDt * (G.speed || 1);
   if (G.mode === 'play'){ update(dt); Music.intensity = clamp(0.2 + G.orders.length*0.09 + (G.time/G.cfg.duration)*0.25, 0, 1); }
-  render(now/1000);
+  try { render(now/1000); } catch(e){ console.error(e); }
   sideTimer -= realDt;
   if (sideTimer <= 0 && (G.mode === 'play' || G.mode === 'intro')){ sideTimer = 0.2; renderSide(); renderHUD(); }
   if (hoverHU && !selectable(hoverHU)){ hoverHU = null; showTooltip(null); }
-  requestAnimationFrame(frame);
 }
 ['touchend','click','keydown'].forEach(ev => document.addEventListener(ev, () => { AU.init(); if (AU.ctx && AU.ctx.state !== 'running') AU.ctx.resume(); }, { passive:true }));
 if (window.ResizeObserver) new ResizeObserver(resize).observe(floorEl);
 resize(); syncButtons(); showTitle(); requestAnimationFrame(frame);
 
 // ---------- test / automation hooks ----------
-window.LT = { G, STATIONS, STEPS, SHIFTS, startShift, update, validTargets, dispatch, release, selectable, hasRoom, endShift,
+window.LT = { G, STATIONS, STEPS, SHIFTS, startShift, update, validTargets, dispatch, retrieve, selectable, hasRoom, endShift,
   simulate(seconds, policy, dt=1/30){ const s = G.silent; G.silent = true; let t = 0; while (t < seconds && G.mode === 'play'){ policy && policy(G, dt); update(dt); t += dt; } G.silent = s; return G; } };
 </script>
 </body>
