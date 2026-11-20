@@ -1,7 +1,7 @@
 # Logistic Town
 
 A warehouse logistics routing game for a tool supplier, in a single self-contained HTML file (`index.html`).
-Open it in any modern browser. No build step, no external assets: all tools, apparel and station icons are hand-drawn SVG line icons (`ICONS`),
+Open it in any modern browser. No build step, no external assets: all tools, apparel and station icons are hand-drawn, coloured SVG icons (`CICONS`, layers of `[fill, path]`; UI glyphs stay as line icons in `ICONS`),
 and sound and music are generated with the Web Audio API.
 
 ## How to play
@@ -27,5 +27,5 @@ Everything is data-driven at the top of the script in `index.html`:
 3. Add the station id to the `stations` list of the shifts in `SHIFTS`.
 Layout, routing rules, order generation, help screen and the routing board update automatically.
 
-New items go into `ITEMS` with an icon key from `ICONS` and tags: `measure` items can be calibrated, `tool` items
+New items go into `ITEMS` with an icon key from `CICONS` (or `ICONS`) and tags: `measure` items can be calibrated, `tool` items
 signed, `sewable` clothing patched (a step's `tag` decides which items it applies to).
