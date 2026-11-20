@@ -14,6 +14,10 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
 button{font:inherit;color:inherit}
+.ic{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.2em;flex:none}
+.tbtn .ic{width:17px;height:17px}
+.flow .fs .ic{width:16px;height:16px;margin-right:3px}
+.toast .ic,.chip .ic{width:13px;height:13px}
 #app{display:grid;grid-template-rows:58px 1fr;grid-template-columns:300px 1fr;height:100vh;height:100dvh}
 #top{grid-column:1/3;display:flex;align-items:center;gap:20px;padding:0 16px;background:linear-gradient(#1a2231,#131a26);border-bottom:1px solid var(--line);min-width:0}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.3px;font-size:17px;white-space:nowrap}
@@ -49,7 +53,11 @@ button{font:inherit;color:inherit}
 .oc-h .sw{width:11px;height:11px;border-radius:3px;flex:none}
 .oc-h .cust{color:#c9d2e3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
 .oc-h .due{font-variant-numeric:tabular-nums;font-weight:700;font-size:12px}
-.oc-items{font-family:var(--emoji);font-size:15px;margin:4px 0 5px;letter-spacing:2px}
+.oc-items{display:flex;gap:7px;margin:5px 0 5px;color:#e6ebf4}
+.oc-items .it{display:flex;flex-direction:column;align-items:center;gap:2px}
+.oc-items .it .ic{width:20px;height:20px}
+.oc-items .dots{display:flex;gap:2px;height:4px}
+.oc-items .dots i{width:4px;height:4px;border-radius:50%}
 .chips{display:flex;flex-wrap:wrap;gap:4px}
 .chip{font-size:9.5px;font-weight:700;letter-spacing:.4px;padding:2px 6px;border-radius:5px;border:1px solid;opacity:.95}
 .chip.done{color:#0e131d!important}
@@ -75,7 +83,7 @@ button{font:inherit;color:inherit}
 #tooltip .row.done{color:var(--good)} #tooltip .row.next{color:var(--accent2);font-weight:700}
 #tooltip .fl{color:var(--bad);font-weight:700;margin-top:4px}
 #tooltip .items{font-size:12px;color:var(--text);margin-bottom:4px}
-#tooltip .items i,.oc-items{font-style:normal;font-family:var(--emoji)}
+#tooltip .items .ic{width:14px;height:14px;vertical-align:-3px}
 #modal{position:fixed;inset:0;background:rgba(6,9,14,.72);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;z-index:20;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 #modal.hidden{display:none}
 .mcard{background:linear-gradient(180deg,#1a2231,#141b27);border:1px solid var(--line);border-radius:18px;padding:26px 28px;width:min(720px,100%);margin:auto;flex:none;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .25s ease-out}
@@ -94,7 +102,7 @@ button{font:inherit;color:inherit}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
 .scard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px;line-height:1.4}
 .scard .t{display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:4px;font-size:14px}
-.scard .t .e{font-family:var(--emoji);font-size:20px}
+.scard .t .ic{width:22px;height:22px;flex:none}
 .scard.new{border-color:var(--accent);background:linear-gradient(135deg,rgba(255,138,31,.12),var(--panel2))}
 .tag{display:inline-block;font-size:10px;font-weight:800;background:var(--accent);color:#1a1208;border-radius:5px;padding:1px 6px;margin-left:auto}
 .flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0;font-size:13px}
@@ -111,7 +119,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .shop{display:flex;flex-direction:column;gap:8px}
 .srow{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;flex-wrap:wrap}
 .srow .nm{display:flex;align-items:center;gap:8px;font-weight:700;width:190px;font-size:14px}
-.srow .nm .e{font-family:var(--emoji);font-size:18px}
+.srow .nm .ic{width:22px;height:22px;flex:none}
 .ubtn{flex:1;min-width:130px;border-radius:9px;padding:7px 9px;border:1px solid var(--line);background:#121925;cursor:pointer;text-align:left;font-size:12px;line-height:1.3}
 .ubtn:hover:not(:disabled){border-color:var(--accent)}
 .ubtn:disabled{opacity:.4;cursor:default}
@@ -164,11 +172,11 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
     <div class="hgroup" id="satGroup"><label>Customer satisfaction</label><div class="bar"><div id="satFill" style="width:100%"></div></div></div>
     <div class="spacer"></div>
     <button class="tbtn" id="bSpeed" title="Game speed (F)">1×</button>
-    <button class="tbtn on" id="bHints" title="Route hints (H): the routing line turns green/red over stations. Off = expert mode, +25% pay">💡 Hints</button>
-    <button class="tbtn on" id="bMusic" title="Music (M)">♫</button>
-    <button class="tbtn on" id="bSfx" title="Sound effects (S)">🔊</button>
-    <button class="tbtn" id="bHelp" title="How to play">?</button>
-    <button class="tbtn" id="bPause" title="Pause (Space)">❚❚</button>
+    <button class="tbtn on" id="bHints" title="Route hints (H): the routing line turns green/red over stations. Off = expert mode, +25% pay"></button>
+    <button class="tbtn on" id="bMusic" title="Music (M)"></button>
+    <button class="tbtn on" id="bSfx" title="Sound effects (S)"></button>
+    <button class="tbtn" id="bHelp" title="How to play"></button>
+    <button class="tbtn" id="bPause" title="Pause (Space)"></button>
   </header>
   <aside id="side">
     <h3>Incoming orders <span id="inCount">0</span></h3>
@@ -178,7 +186,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
   </aside>
   <main id="floor">
     <canvas id="cv"></canvas>
-    <div id="rotate">📱↻ Turn your phone sideways for a bigger warehouse view.</div>
+    <div id="rotate">Turn your phone sideways for a bigger warehouse view.</div>
     <div id="toasts"></div>
     <div id="tip"><div class="ico">i</div><button id="tipOk">Got it</button><div id="tipText"></div></div>
     <div id="tooltip"></div>
@@ -202,23 +210,93 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
    ===================================================================== */
 
 // ---------- 1. DATA: items, customers ----------
+// icon: key into ICONS (hand-drawn line icons below). tags drive which services an item can get.
 const ITEMS = [
-  { name:'Digital caliper',      icon:'📏', tags:['measure','tool'] },
-  { name:'Torque wrench',        icon:'🔧', tags:['measure','tool'] },
-  { name:'Laser distance meter', icon:'📐', tags:['measure','tool'] },
-  { name:'Spirit level',         icon:'🧭', tags:['measure','tool'] },
-  { name:'Cordless drill',       icon:'🪛', tags:['tool'] },
-  { name:'Hammer',               icon:'🔨', tags:['tool'] },
-  { name:'Angle grinder',        icon:'⚙️', tags:['tool'] },
-  { name:'Saw',                  icon:'🪚', tags:['tool'] },
-  { name:'Work jacket',          icon:'🧥', tags:['apparel'] },
-  { name:'Safety vest',          icon:'🦺', tags:['apparel'] },
-  { name:'Work gloves',          icon:'🧤', tags:['apparel'] },
-  { name:'Work trousers',        icon:'👖', tags:['apparel'] },
+  { name:'Digital caliper',        icon:'caliper',     tags:['measure','tool'] },
+  { name:'Torque wrench',          icon:'torque',      tags:['measure','tool'] },
+  { name:'Laser distance meter',   icon:'lasermeter',  tags:['measure','tool'] },
+  { name:'Spirit level',           icon:'level',       tags:['measure','tool'] },
+  { name:'Tape measure',           icon:'tape',        tags:['measure','tool'] },
+  { name:'Digital multimeter',     icon:'multimeter',  tags:['measure','tool'] },
+  { name:'Infrared thermometer',   icon:'thermo',      tags:['measure','tool'] },
+  { name:'Cordless drill',         icon:'drill',       tags:['tool'] },
+  { name:'Hammer',                 icon:'hammer',      tags:['tool'] },
+  { name:'Angle grinder',          icon:'grinder',     tags:['tool'] },
+  { name:'Hand saw',               icon:'saw',         tags:['tool'] },
+  { name:'Combination pliers',     icon:'pliers',      tags:['tool'] },
+  { name:'Screwdriver',            icon:'screwdriver', tags:['tool'] },
+  { name:'Jigsaw',                 icon:'jigsaw',      tags:['tool'] },
+  { name:'Work jacket',            icon:'jacket',      tags:['apparel','sewable'] },
+  { name:'Safety vest',            icon:'vest',        tags:['apparel','sewable'] },
+  { name:'Work trousers',          icon:'trousers',    tags:['apparel','sewable'] },
+  { name:'Work cap',               icon:'cap',         tags:['apparel','sewable'] },
+  { name:'Work gloves',            icon:'gloves',      tags:['apparel'] },
+  { name:'Safety helmet',          icon:'helmet',      tags:['apparel'] },
+  { name:'Safety boots',           icon:'boots',       tags:['apparel'] },
 ];
 const CUSTOMERS = ['Bergmann Bau','Nordhang Montage','Alpenkamm Stahl','Kessling Elektro','Hofstetter Dach','Lindvik Rail',
   'Brückenwerk Anlagen','Sommerau Sanitär','Vogtland Gerüste','Rheinfeld Service','Falkenstein Metall','Weidner Zimmerei',
   'Tannberg Tiefbau','Seeblick Haustechnik','Grauholz Fassaden','Morgental Energie'];
+// Line icons, 24x24 viewBox, drawn with stroke (round caps/joins). Same path strings feed SVG (DOM) and Path2D (canvas).
+const ICONS = {
+  // ---- items: measuring tools
+  caliper:   'M3 5h18v3H3z M7 5v1.5 M10 5v1.5 M13 5v1.5 M16 5v1.5 M5 8v12l3-3V8 M14 8v6l2-2V8',
+  torque:    'M3 21l10-10 M13 11l2 2 M15.5 3.5a4.5 4.5 0 1 1-3 7.6 M15.5 3.5v3l2 1.5 2.5-1.2 M2.5 19.5l2 2 M7 15l2 2',
+  lasermeter:'M3 7h8v14H3z M5 10h4v3H5z M5 16h1 M8 16h1 M5 18.5h1 M8 18.5h1 M13 10h2 M17 10h2 M21 10h1 M11 10h1',
+  level:     'M2 8h20v8H2z M9 8v8 M15 8v8 M10.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0 M4 12h2 M18 12h2',
+  tape:      'M3 6h11v11H3z M8.5 9a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z M14 14h7v3h-7 M17 14v1.5 M19.5 14v1.5',
+  multimeter:'M6 2h12v20H6z M8.5 4.5h7v5h-7z M12 13a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z M12 15.5l1.5-1.5 M9 20h.01 M15 20h.01',
+  thermo:    'M10 4a2 2 0 0 1 4 0v10a4 4 0 1 1-4 0z M12 9v8 M16 6h2 M16 9h2',
+  // ---- items: power & hand tools
+  drill:     'M3 6h11a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H3z M16 8h2v2h-2 M18 9h4 M6 12l-1 8h5l1-6 M5 17h5',
+  hammer:    'M4 5h9l2 2v3H4z M15 7l4-2v6l-4-1 M8 10v11 M10 10v11 M8 21h2',
+  grinder:   'M2 10h11v4H2z M13 12h2 M19 7a5 5 0 1 0 0.01 0z M19 10a2 2 0 1 0 0.01 0z M6 14v4h3v-4',
+  saw:       'M2 6h5v9H2z M7 8h14v3l-14 6z M9 15.5l1-2 M12 14l1-2 M15 12.7l1-2 M18 11.4l1-2',
+  pliers:    'M8 2c0 3 1.5 5.5 4 8 M16 2c0 3-1.5 5.5-4 8 M12 10l-4.5 11 M12 10l4.5 11 M10.5 10h3',
+  screwdriver:'M15 3l6 6-4 4-6-6z M11 9l-7.5 7.5 3 3L14 12 M3.5 16.5l-1 4 1 1 4-1',
+  jigsaw:    'M3 8h13l3 3v3H6z M7 8V5h6v3 M10 14v6 M9 20h2 M19 11h2',
+  // ---- items: apparel
+  jacket:    'M8 3l4 3 4-3 5 4-3 4v10H6V11L3 7z M12 6v15 M9 14h1 M14 14h1',
+  vest:      'M8 3h2l2 3 2-3h2l2 6-1 12H7L6 9z M12 6v15 M7 13h10 M7 16h10',
+  gloves:    'M7 21v-7l-3-4a1.2 1.2 0 0 1 2-1.4L8 11V5a1.2 1.2 0 0 1 2.4 0v5V4a1.2 1.2 0 0 1 2.4 0v6V5a1.2 1.2 0 0 1 2.4 0v6V7a1.2 1.2 0 0 1 2.4 0v8l-2 6z',
+  trousers:  'M6 3h12l1.5 18H15l-3-11-3 11H4.5z M6 6.5h12',
+  helmet:    'M3 17h18v2H3z M5 17a7 7 0 0 1 14 0 M12 6v5 M9 7v3.5 M15 7v3.5',
+  boots:     'M6 3h6v9l6 2.5a3 3 0 0 1 3 3V20H5V3z M5 17h16 M6 7h6',
+  cap:       'M3 15a9 9 0 0 1 18 0 M3 15h11l7 2.5 M12 6v2 M8 9.5c1-.8 2.5-1.3 4-1.3',
+  // ---- stations
+  warehouse: 'M3 21V9l9-6 9 6v12 M6 21v-9h12v9 M6 15h12 M6 18h12 M9 12v9 M15 12v9',
+  box:       'M3 7.5l9-4.5 9 4.5v9l-9 4.5-9-4.5z M3 7.5l9 4.5 9-4.5 M12 12v9 M7.5 5.2l9 4.6',
+  gauge:     'M3.5 16a8.5 8.5 0 1 1 17 0 M12 16l4.5-5 M12 16a1 1 0 1 0 0.01 0 M6 13l1.2.6 M12 8v1.4 M18 13l-1.2.6 M3 20h18',
+  laser:     'M4 20l2.5-.8L17 8.7 15.3 7 4.8 17.5z M15.3 7l2-2 1.7 1.7-2 2 M19 2v2.5 M21.8 4.8h-2.5 M20.8 2.8l-1.4 1.4',
+  needle:    'M4 20L16.5 7.5 M16.5 7.5l2.8-2.8a1.4 1.4 0 0 0-2-2L14.5 5.5z M17 5l.01.01 M4 20c-2-2.5 0-5.5 3-4.5s4.5-1 3-3.5',
+  star:      'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
+  magnifier: 'M10 3.5a6.5 6.5 0 1 1 0 13a6.5 6.5 0 1 1 0-13z M15 15l6 6 M7.3 10l2 2 3.6-4',
+  retoure:   'M3 8h12a5 5 0 0 1 0 10h-5 M7 4L3 8l4 4 M14 21h-4',
+  truck:     'M2 6h12v10H2z M14 9h4.5l3.5 4v3h-8 M4 18a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M15 18a2 2 0 1 0 4 0a2 2 0 1 0-4 0',
+  // ---- ui
+  bulb:      'M9 18h6 M10 21h4 M12 3a6 6 0 0 0-4 10.4c.8.8 1 1.6 1 2.6h6c0-1 .2-1.8 1-2.6A6 6 0 0 0 12 3z',
+  speaker:   'M4 9h4l5-4v14l-5-4H4z M16.5 9a4 4 0 0 1 0 6 M19 6.5a8 8 0 0 1 0 11',
+  mute:      'M4 9h4l5-4v14l-5-4H4z M17 9.5l5 5 M22 9.5l-5 5',
+  music:     'M9 18V5l11-2v13 M3 18a3 3 0 1 0 6 0a3 3 0 1 0-6 0 M14 16a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
+  pause:     'M8 5v14 M16 5v14',
+  play:      'M7 4l13 8-13 8z',
+  help:      'M12 21a9 9 0 1 0 0-18a9 9 0 1 0 0 18z M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7v.5 M12 17h.01',
+  factory:   'M3 21V10l6 4v-4l6 4V5h5v16z M7 17h2 M12 17h2 M17 17h1',
+  warn:      'M12 3l10 18H2z M12 10v5 M12 18h.01',
+  scale:     'M12 4v17 M7 21h10 M4 7h16 M12 4h.01 M6.5 7L4 13h5z M17.5 7L15 13h5z',
+  clock:     'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18z M12 7v5l3.5 2',
+  target:    'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18z M12 7.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9z M12 11.5a.5.5 0 1 1 0 1',
+  sun:       'M12 8a4 4 0 1 1 0 8a4 4 0 1 1 0-8z M12 2v2 M12 20v2 M2 12h2 M20 12h2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4',
+  tote:      'M3 8h18l-2 12H5z M7 8V5h10v3 M9 12v4 M15 12v4',
+  x:         'M6 6l12 12 M18 6L6 18',
+  check:     'M4.5 12.5l5 5L20 7',
+  coin:      'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18z M14.5 9a2.5 2 0 0 0-2.5-1.5c-1.5 0-2.5.8-2.5 2s1 1.7 2.5 2 2.5.8 2.5 2-1 2-2.5 2A2.5 2 0 0 1 9.5 15 M12 6v1.5 M12 16.5V18',
+  phone:     'M8 2h8a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z M11 19h2',
+  grad:      'M2 9l10-5 10 5-10 5z M6 11v5c3 2 9 2 12 0v-5 M22 9v5',
+  party:     'M3 21l5-14 9 9z M14 4l1 2 M19 3l-1 3 M20 9l-2 1 M12 8c2-3 4-3 5-1',
+  sad:       'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18z M8.5 16c2-2 5-2 7 0 M9 10h.01 M15 10h.01',
+};
+
 const ORDER_COLORS = ['#ff8a1f','#4f8cff','#3ddc84','#ff5fa2','#22c3e6','#b07cff','#ffd23f','#ff6b5a','#7bd389','#9aa8ff','#f78c6b','#5ce1c6'];
 
 // ---------- 2. DATA: process steps (routing rules) ----------
@@ -226,9 +304,10 @@ const ORDER_COLORS = ['#ff8a1f','#4f8cff','#3ddc84','#ff5fa2','#22c3e6','#b07cff
 const has = (o, tag) => o.items.some(i => i.tags.includes(tag));
 const STEPS = {
   pick:        { label:'Commissioning',        short:'PICK',  stage:0, want: () => true },
-  calibration: { label:'Calibration',          short:'CAL',   stage:1, want: o => has(o,'measure') && Math.random() < 0.75 },
-  signing:     { label:'Laser signing',        short:'SIGN',  stage:1, want: o => has(o,'tool') && Math.random() < 0.45 },
-  patching:    { label:'Logo patching',        short:'PATCH', stage:1, want: o => has(o,'apparel') && Math.random() < 0.75 },
+  // tag: the step only ever applies to items carrying this tag (calibration -> measuring tools, patching -> sewable clothing)
+  calibration: { label:'Calibration',          short:'CAL',   stage:1, tag:'measure', want: o => has(o,'measure') && Math.random() < 0.75 },
+  signing:     { label:'Laser signing',        short:'SIGN',  stage:1, tag:'tool',    want: o => has(o,'tool') && Math.random() < 0.45 },
+  patching:    { label:'Logo patching',        short:'PATCH', stage:1, tag:'sewable', want: o => has(o,'sewable') && Math.random() < 0.75 },
   focus:       { label:'Focus customer check', short:'FOCUS', stage:2, want: o => o.focus },
   pack:        { label:'Packing & shipping',   short:'SHIP',  stage:9, want: () => true },
 };
@@ -237,31 +316,31 @@ const STEPS = {
 // handles: step it performs. role: 'repair' (clears flags) or 'sink' (ships the order).
 // place: 'left' | 'right' | undefined (auto: distributed above/below the conveyor loop).
 const STATIONS = [
-  { id:'warehouse', name:'Shuttle Warehouse', icon:'🏬', color:'#ff8a1f', role:'storage', accepts:'tote', place:'warehouse',
+  { id:'warehouse', name:'Shuttle Warehouse', icon:'warehouse', color:'#ff8a1f', role:'storage', accepts:'tote', place:'warehouse',
     slots:2, time:1.2, queue:6, out:0,
     desc:'Stores every tool in totes. Click an order\'s glowing totes to send them to Commissioning. Returned totes (↩) go back here.' },
-  { id:'commission', name:'Commissioning', icon:'📦', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
+  { id:'commission', name:'Commissioning', icon:'box', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
     slots:1, time:5, queue:4, out:3, defect:{ chance:0.07, reason:'Wrong item picked', redo:true, returnTote:true },
     desc:'Picks the tools from the delivered totes into an order-specific handling unit (HU). Starts once all of the order\'s totes have arrived.' },
-  { id:'calib', name:'Calibration Lab', icon:'📏', color:'#22c3e6', handles:'calibration',
+  { id:'calib', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
     slots:1, time:9, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
     desc:'Checks that measuring tools measure correctly and issues a certificate. Failed tools go to QA, then back here.' },
-  { id:'sign', name:'Laser Signing', icon:'✒️', color:'#b07cff', handles:'signing',
+  { id:'sign', name:'Laser Signing', icon:'laser', color:'#b07cff', handles:'signing',
     slots:1, time:6, queue:3, out:3, defect:{ chance:0.08, reason:'Engraving blurred', redo:true },
     desc:'Lasers the customer identifier onto tools so they can be traced on site.' },
-  { id:'patch', name:'Patch Studio', icon:'🧵', color:'#ff5fa2', handles:'patching',
+  { id:'patch', name:'Patch Studio', icon:'needle', color:'#ff5fa2', handles:'patching',
     slots:1, time:8, queue:3, out:3, defect:{ chance:0.10, reason:'Patch misaligned', redo:true },
     desc:'Sews custom company logos onto work apparel.' },
-  { id:'care', name:'Focus Customer Care', icon:'⭐', color:'#ffd23f', handles:'focus',
+  { id:'care', name:'Focus Customer Care', icon:'star', color:'#ffd23f', handles:'focus',
     slots:1, time:5, queue:3, out:3, defect:{ chance:0.10, reason:'Scratch found', redo:false },
-    desc:'Dedicated final check for focus customers (★). Comes after all other services, right before packing.' },
-  { id:'qa', name:'Quality Assurance', icon:'🔍', color:'#ff5468', role:'repair',
+    desc:'Dedicated final check for focus customers (★ star). Comes after all other services, right before packing.' },
+  { id:'qa', name:'Quality Assurance', icon:'magnifier', color:'#ff5468', role:'repair',
     slots:1, time:7, queue:4, out:3, issue:{ chance:0.35, reason:'Item defective' },
-    desc:'Checks everything flagged ⚠. Either it can be corrected and continues its route (a failed service is redone), or the item is defective: it goes to Retoure and a new one must be commissioned.' },
-  { id:'retoure', name:'Retoure', icon:'📮', color:'#a07cff', role:'returns', accepts:'scrap', place:'right',
+    desc:'Checks everything flagged with a warning. Either it can be corrected and continues its route (a failed service is redone), or the item is defective: it goes to Retoure and a new one must be commissioned.' },
+  { id:'retoure', name:'Retoure', icon:'retoure', color:'#a07cff', role:'returns', accepts:'scrap', place:'right',
     slots:1, time:3, queue:4, out:0,
-    desc:'Takes back defective items found by QA (✖ red boxes), separate from Packing. The order needs a freshly commissioned replacement.' },
-  { id:'pack', name:'Packing & Shipping', icon:'🚚', color:'#3ddc84', handles:'pack', role:'sink', place:'right',
+    desc:'Takes back defective items found by QA (red boxes), separate from Packing. The order needs a freshly commissioned replacement.' },
+  { id:'pack', name:'Packing & Shipping', icon:'truck', color:'#3ddc84', handles:'pack', role:'sink', place:'right',
     slots:1, time:5, queue:4, out:0,
     desc:'Packs the order and loads it on the truck. Last stop: only when every step is done and nothing is flagged.' },
 ];
@@ -301,6 +380,15 @@ const GLOBAL_UPGRADES = [
 // ===================================================================
 //  ENGINE
 // ===================================================================
+// SVG for DOM, Path2D for canvas, both from ICONS
+function ico(name, cls=''){ const d = ICONS[name]; if (!d) return ''; return `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`; }
+const PATHS = {};
+function drawIcon(name, x, y, size, color, lw=2){
+  const d = ICONS[name]; if (!d) return;
+  const p = PATHS[name] || (PATHS[name] = new Path2D(d));
+  ctx.save(); ctx.translate(x - size/2, y - size/2); ctx.scale(size/24, size/24);
+  ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(p); ctx.restore();
+}
 const DEF = Object.fromEntries(STATIONS.map(s => [s.id, s]));
 const STEP_STATION = {}; STATIONS.forEach(s => { if (s.handles) STEP_STATION[s.handles] = s.id; });
 const STEP_COLOR = id => DEF[STEP_STATION[id]]?.color || '#888';
@@ -535,13 +623,13 @@ function portCheck(hu, st){
   if (validTargets(hu).includes(st)) return true;
   st.incoming--;
   if (weightFail){
-    toast(`⚖ #${hu.order.num}: weight check failed at ${st.def.name}. Route it to Quality Assurance.`, 'warn');
+    toast(`${ico('scale')} #${hu.order.num}: weight check failed at ${st.def.name}. Route it to Quality Assurance.`, 'warn');
     sfx('flag'); event('flag');
   } else {
     G.wrong++; G.money -= 10; G.earned -= 10; changeSat(-3);
     const why = hu.kind ? `it belongs to ${nextHint(hu)}` : hu.flag ? 'it is flagged and must go to Quality Assurance first'
       : `next step is ${nextHint(hu)}`;
-    toast(`✖ ${st.def.name} rejected ${hu.kind === 'tote' ? 'the return tote' : hu.kind === 'scrap' ? 'the defective item' : '#'+hu.order.num}: ${why}.`, 'bad');
+    toast(`${ico('x')} ${st.def.name} rejected ${hu.kind === 'tote' ? 'the return tote' : hu.kind === 'scrap' ? 'the defective item' : '#'+hu.order.num}: ${why}.`, 'bad');
     floatText(st.port.x, st.port.y-14, '−$10', '#ff5468'); sfx('error'); st.flash = -1;
     tip('wrong', 'Rejected! A station only accepts units that need it <b>next</b>. The unit now circles on the conveyor. <b>Click it on the belt</b> and send it somewhere else.');
   }
@@ -572,9 +660,9 @@ function complete(st, hu){
       const scrap = { id:++G.huSeq, kind:'scrap', order:o, item:line.item, flag:null, loc:'out' };
       G.hus.push(scrap);
       if (st.out.length < st.outMax) st.out.push(scrap); else circle(scrap, st.port.s);
-      floatText(st.dock.x, st.y+10, d.issue.reason + ' ✖', '#ff5468'); sfx('flag');
-      toast(`✖ #${o.num}: ${line.item.name} is defective. Send it to Retoure and commission a new one.`, 'bad');
-      tip('retoure', `QA couldn't fix it: the <b>${line.item.name}</b> is defective. 1) route the red <b>✖ box</b> to <b>📮 Retoure</b> (next to Packing), 2) click the order's new <b style="color:var(--accent)">glowing tote</b> in the warehouse, 3) send HU <b>#${o.num}</b> back to <b>Commissioning</b>.`);
+      floatText(st.dock.x, st.y+10, d.issue.reason + '!', '#ff5468'); sfx('flag');
+      toast(`${ico('x')} #${o.num}: ${line.item.name} is defective. Send it to Retoure and commission a new one.`, 'bad');
+      tip('retoure', `QA couldn't fix it: the <b>${line.item.name}</b> is defective. 1) route the <b>red box</b> to <b>Retoure</b> (next to Packing), 2) click the order's new <b style="color:var(--accent)">glowing tote</b> in the warehouse, 3) send HU <b>#${o.num}</b> back to <b>Commissioning</b>.`);
       return;
     }
     floatText(st.dock.x, st.y+10, 'Corrected ✓', '#3ddc84'); sfx('fix'); return;
@@ -586,7 +674,7 @@ function complete(st, hu){
     hu.flag = { reason:d.defect.reason, station:d.id }; G.defects++;
     if (d.defect.returnTote && pickedNow.length) hu.flag.line = pick(pickedNow);
     o.steps[step] = d.defect.redo ? 'todo' : 'done';
-    toast(`⚠ #${o.num}: ${d.defect.reason} at ${d.name}. Send it to Quality Assurance.`, 'warn');
+    toast(`${ico('warn')} #${o.num}: ${d.defect.reason} at ${d.name}. Send it to Quality Assurance.`, 'warn');
     sfx('flag'); event('flag');
   } else o.steps[step] = 'done';
 }
@@ -607,7 +695,7 @@ function ship(hu){
   floatText(pk.x+pk.w/2, pk.y-6, `+$${pay}`, late ? '#ffc53d' : '#3ddc84');
   G.flyers.push({ x0:pk.x+pk.w/2, y0:pk.y+pk.h, x1:G.truck.x-20, y1:640, t:0, color:o.color });
   sfx('ship'); event('ship');
-  if (!G.goalToast && G.shipped >= G.cfg.goal){ G.goalToast = true; toast('🎯 Shift goal reached! Everything else is bonus.', 'good'); sfx('fix'); }
+  if (!G.goalToast && G.shipped >= G.cfg.goal){ G.goalToast = true; toast(ico('target') + ' Shift goal reached! Everything else is bonus.', 'good'); sfx('fix'); }
 }
 
 function isReady(st, hu){
@@ -630,7 +718,7 @@ function update(dt){
   }
   // overdue
   for (const o of G.orders){
-    if (!o.late && G.time > o.due){ o.late = true; changeSat(-6); toast(`⏰ Order #${o.num} for ${o.customer} is overdue!`, 'bad'); sfx('late'); }
+    if (!o.late && G.time > o.due){ o.late = true; changeSat(-6); toast(`${ico('clock')} Order #${o.num} for ${o.customer} is overdue!`, 'bad'); sfx('late'); }
   }
   // transport
   for (const hu of G.hus){
@@ -840,10 +928,10 @@ function event(name, hu){
     if (hu.flag) return;
     tip('route', `Handling unit <b>#${hu.order.num}</b> is ready! <b>Click it</b>, then click the station it needs next (or press its number key, or drag it). While you point at a station, the line turns <b style="color:var(--good)">green</b> if it's right and <b style="color:var(--bad)">red</b> if it's wrong.`);
     for (const st of t){ const sid = st.def.handles; if (sid !== 'pick' && sid !== 'pack') tip('step_'+sid,
-      `This order needs <b>${STEPS[sid].label}</b>: route it to <b>${st.def.icon} ${st.def.name}</b>. Services can be done in any order. Focus Customer Care comes after all services, Packing always last.`); }
+      `This order needs <b>${STEPS[sid].label}</b>: route it to <b>${st.def.name}</b>. Services can be done in any order. Focus Customer Care comes after all services, Packing always last.`); }
   }
-  if (name === 'flag') tip('flag', 'A <b style="color:var(--bad)">⚠ red flag</b> means something went wrong. Flagged units must go to <b>🔍 Quality Assurance</b> first. If a service failed, it has to be redone afterwards.');
-  if (name === 'ship') tip('ship', 'Shipped! 💰 Ship before an order\'s timer runs out: late orders pay less and upset customers. If satisfaction hits zero, the shift is lost.');
+  if (name === 'flag') tip('flag', 'A <b style="color:var(--bad)">red warning flag</b> means something went wrong. Flagged units must go to <b>Quality Assurance</b> first. If a service failed, it has to be redone afterwards.');
+  if (name === 'ship') tip('ship', 'Shipped! Ship before an order\'s timer runs out: late orders pay less and upset customers. If satisfaction hits zero, the shift is lost.');
 }
 
 // ===================================================================
@@ -858,7 +946,6 @@ function resize(){
   view.ox = (r.width - W*view.s)/2; view.oy = (r.height - H*view.s)/2;
 }
 window.addEventListener('resize', resize);
-const EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 const FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 function rr(x, y, w, h, r){ ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
 function hash(n){ n = Math.sin(n*127.1)*43758.5453; return n - Math.floor(n); }
@@ -987,8 +1074,8 @@ function drawTote(x, y, color, icon, sel, hov, ret, scrap){
   if (sel){ ctx.shadowColor = '#ff8a1f'; ctx.shadowBlur = 16; } else { ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2; }
   rr(-14, -10, 28, 20, 3); ctx.fillStyle = scrap ? '#8a3a46' : ret ? '#7d8799' : '#5d6b85'; ctx.fill(); ctx.shadowColor = 'transparent';
   ctx.fillStyle = color; ctx.fillRect(-14, -10, 28, 4);
-  ctx.font = `11px ${EMOJI}`; ctx.textAlign = 'center'; ctx.fillText(icon, ret ? 3 : 0, 6);
-  if (ret){ ctx.fillStyle = scrap ? '#ff5468' : '#ffc53d'; ctx.font = `900 11px ${FONT}`; ctx.fillText(scrap ? '✖' : '↩', -8, 6); }
+  drawIcon(icon, ret ? 3 : 0, 1.5, 13, '#f2f5fa', 2.2);
+  if (ret){ drawIcon(scrap ? 'x' : 'retoure', -8, 2, 9, scrap ? '#ff8a96' : '#ffc53d', 3); }
   if (sel || hov){ ctx.strokeStyle = sel ? '#fff' : 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; rr(-15.5, -11.5, 31, 23, 4); ctx.stroke(); }
   ctx.restore();
 }
@@ -1041,7 +1128,7 @@ function drawStation(st, t){
   if (st.flash > 0){ ctx.fillStyle = `rgba(255,255,255,${st.flash*0.25})`; ctx.fillRect(x, y, w, h); }
   if (st.flash < 0){ ctx.fillStyle = `rgba(255,84,104,${-st.flash*0.3})`; ctx.fillRect(x, y, w, h); }
   ctx.restore();
-  ctx.font = `16px ${EMOJI}`; ctx.textAlign = 'left'; ctx.fillText(def.icon, x+8, y+21);
+  drawIcon(def.icon, x+17, y+15, 17, '#0e131d', 2.4); ctx.textAlign = 'left';
   ctx.fillStyle = '#0e131d';
   let fs = 12.5; ctx.font = `800 ${fs}px ${FONT}`;
   while (fs > 10 && ctx.measureText(def.name).width > w-60){ fs -= 0.5; ctx.font = `800 ${fs}px ${FONT}`; }
@@ -1120,7 +1207,7 @@ function drawBoard(){
         rr(xx, yy-10, tw, 14, 4); ctx.fillStyle = hexA(STEP_COLOR(sid), 0.25); ctx.fill(); ctx.fillStyle = STEP_COLOR(sid); ctx.fillText(lbl, xx+5, yy+1); xx += tw + 4; } }
     yy += 22;
   }
-  ctx.fillStyle = '#ff5468'; ctx.font = `700 10.5px ${FONT}`; ctx.fillText('⚠ Flagged → QA first', x+12, yy+2);
+  drawIcon('warn', x+18, yy-2, 12, '#ff5468', 2.4); ctx.fillStyle = '#ff5468'; ctx.font = `700 10.5px ${FONT}`; ctx.fillText('Flagged → QA first', x+28, yy+2);
   ctx.fillStyle = '#8a96ad'; ctx.font = `500 9.5px ${FONT}`; ctx.fillText('only if the order needs it', x+12, y+h-12);
 }
 function stageList(){
@@ -1201,6 +1288,8 @@ function render(t){
 }
 
 // ---------- side panel & HUD ----------
+// which of the order's services apply to this particular item (shown as dots under the item icon)
+function itemSteps(o, item){ return Object.keys(o.steps).filter(sid => STEPS[sid].tag && item.tags.includes(STEPS[sid].tag)); }
 function chipHTML(o, sid){
   const c = STEP_COLOR(sid), done = o.steps[sid] === 'done';
   return `<span class="chip ${done?'done':''}" style="border-color:${c};color:${c};${done?`background:${c}`:''}">${done?'✓ ':''}${STEPS[sid].short}</span>`;
@@ -1210,12 +1299,12 @@ function orderParts(o, inbox){
   const col = rem < 0 ? '#ff5468' : frac < 0.3 ? '#ffc53d' : '#3ddc84';
   const blocked = inbox && G.st.commission && !hasRoom(G.st.commission);
   const steps = Object.keys(o.steps).map(s => s === 'pick' && o.steps.pick === 'todo' && o.lines.length
-    ? `<span class="chip" style="border-color:${STEP_COLOR('pick')};color:${STEP_COLOR('pick')}">PICK ${linesDone(o)}/${o.lines.length} 🧺</span>` : chipHTML(o, s)).join('');
-  const flag = o.hu && o.hu.flag ? `<span class="chip flag">⚠ ${o.hu.flag.reason}</span>` : '';
+    ? `<span class="chip" style="border-color:${STEP_COLOR('pick')};color:${STEP_COLOR('pick')}">PICK ${linesDone(o)}/${o.lines.length} ${ico('tote')}</span>` : chipHTML(o, s)).join('');
+  const flag = o.hu && o.hu.flag ? `<span class="chip flag">${ico('warn')} ${o.hu.flag.reason}</span>` : '';
   const cls = `oc ${inbox?'inbox':''} ${blocked?'blocked':''} ${o.focus?'focus':''} ${rem<0?'late':''}`;
   const html = `<div class="oc-h"><span class="sw" style="background:${o.color}"></span><b>#${o.num}</b><span class="cust">${o.customer}</span>${o.focus?'<span style="color:var(--warn)">★</span>':''}
     <span class="due"></span></div>
-    <div class="oc-items" title="${o.items.map(i=>i.name).join(', ')}">${o.items.map(i=>i.icon).join(' ')}</div>
+    <div class="oc-items">${o.items.map(i => `<span class="it" title="${i.name}">${ico(i.icon)}<span class="dots">${itemSteps(o, i).map(sid => `<i style="background:${STEP_COLOR(sid)}"></i>`).join('')}</span></span>`).join('')}</div>
     <div class="chips">${steps}${flag}</div>
     <div class="tbar"><div></div></div>
     ${inbox ? '<span class="release-hint">totes in warehouse ◂</span>' : ''}`;
@@ -1271,9 +1360,10 @@ function syncButtons(){
   $('bHints').classList.toggle('on', G.hints); $('bHints').classList.toggle('off', !G.hints);
   $('bMusic').classList.toggle('on', G.musicOn); $('bMusic').classList.toggle('off', !G.musicOn);
   $('bSfx').classList.toggle('on', G.sfxOn); $('bSfx').classList.toggle('off', !G.sfxOn);
-  $('bSfx').textContent = G.sfxOn ? '🔊' : '🔈';
+  $('bSfx').innerHTML = ico(G.sfxOn ? 'speaker' : 'mute');
+  $('bMusic').innerHTML = ico('music'); $('bHints').innerHTML = ico('bulb') + ' Hints'; $('bHelp').innerHTML = ico('help');
   $('bSpeed').textContent = (G.speed||1) + '×'; $('bSpeed').classList.toggle('on', G.speed === 2);
-  $('bPause').textContent = G.mode === 'paused' ? '▶' : '❚❚';
+  $('bPause').innerHTML = ico(G.mode === 'paused' ? 'play' : 'pause');
 }
 
 // ---------- tooltip ----------
@@ -1283,9 +1373,9 @@ function showTooltip(hu, cx, cy, rack){
   if (rack || hu.kind){
     const o = rack ? rack.o : hu.order, item = rack ? o.lines[rack.li].item : hu.item;
     tt.innerHTML = rack
-      ? `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>Tote for #${o.num}</div><div class="items"><i>${item.icon}</i> ${item.name}</div><div class="row next">▸ Click to send it to Commissioning</div><div class="row">${o.customer} · ${linesDone(o)}/${o.lines.length} totes at the pick station</div>`
-      : hu.kind === 'scrap' ? `<div class="tt-h" style="color:var(--bad)">✖ Defective item</div><div class="items"><i>${item.icon}</i> ${item.name} (from #${o.num})</div><div class="row next">▸ Route it to Retoure</div>`
-      : `<div class="tt-h">↩ Return tote</div><div class="items"><i>${item.icon}</i> ${item.name} (wrong pick for #${o.num})</div><div class="row next">▸ Route it back to the Shuttle Warehouse</div>`;
+      ? `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>Tote for #${o.num}</div><div class="items">${ico(item.icon)} ${item.name}</div><div class="row next">▸ Click to send it to Commissioning</div><div class="row">${o.customer} · ${linesDone(o)}/${o.lines.length} totes at the pick station</div>`
+      : hu.kind === 'scrap' ? `<div class="tt-h" style="color:var(--bad)">${ico('x')} Defective item</div><div class="items">${ico(item.icon)} ${item.name} (from #${o.num})</div><div class="row next">▸ Route it to Retoure</div>`
+      : `<div class="tt-h">↩ Return tote</div><div class="items">${ico(item.icon)} ${item.name} (wrong pick for #${o.num})</div><div class="row next">▸ Route it back to the Shuttle Warehouse</div>`;
     tt.style.display = 'block'; placeTooltip(tt, cx, cy); return;
   }
   const o = hu.order, pend = pendingSteps(o), nextIds = hu.flag ? [] : validTargets(hu).map(s => s.def.handles);
@@ -1294,8 +1384,8 @@ function showTooltip(hu, cx, cy, rack){
     return `<div class="row ${done?'done':nx?'next':''}">${done?'✓':nx?'▸':'○'} ${STEPS[sid].label}</div>`; }).join('');
   const rem = o.due - G.time;
   tt.innerHTML = `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>#${o.num} · ${o.customer} ${o.focus?'<span style="color:var(--warn)">★ focus</span>':''}</div>
-    <div class="items">${o.items.map(i => '<i>'+i.icon+'</i> '+i.name).join(', ')}</div>${rows}
-    ${hu.flag ? `<div class="fl">⚠ ${hu.flag.reason} → Quality Assurance</div>` : ''}
+    <div class="items">${o.items.map(i => ico(i.icon) + ' ' + i.name + (itemSteps(o, i).length ? ' <span style="color:var(--muted)">(' + itemSteps(o, i).map(sid => STEPS[sid].short).join(', ') + ')</span>' : '')).join('<br>')}</div>${rows}
+    ${hu.flag ? `<div class="fl">${ico('warn')} ${hu.flag.reason} → Quality Assurance</div>` : ''}
     <div class="row" style="margin-top:4px">${rem<0 ? '<span style="color:var(--bad)">Overdue</span>' : `Due in ${Math.ceil(rem)}s`}</div>`;
   tt.style.display = 'block'; placeTooltip(tt, cx, cy);
 }
@@ -1348,7 +1438,7 @@ $('side').addEventListener('pointerdown', e => {
   const card = e.target.closest('.oc'); if (!card) return;
   const o = G.orders.find(o => o.id === +card.dataset.oid); if (!o) return;
   if (o.lines.some(l => l.state === 'stored')){ o.flashT = G.time + 2; sfx('select');
-    if (!G.seenTips.findTotes){ G.seenTips.findTotes = true; toast('👉 Click the order\'s glowing totes in the Shuttle Warehouse.', ''); } }
+    if (!G.seenTips.findTotes){ G.seenTips.findTotes = true; toast('Click the order\'s glowing totes in the Shuttle Warehouse.', ''); } }
 });
 $('side').addEventListener('pointerover', e => { const card = e.target.closest('.oc'); G.hoverOrder = card ? +card.dataset.oid : null; });
 $('side').addEventListener('pointerleave', () => { G.hoverOrder = null; });
@@ -1377,7 +1467,7 @@ function togglePause(){
   else if (G.mode === 'paused'){ G.mode = 'play'; hideModal(); }
   syncButtons();
 }
-function toggleHints(){ G.hints = !G.hints; toast(G.hints ? '💡 Route hints on' : '🎓 Expert mode: hints off, +25% pay', ''); syncButtons(); saveProfile(); }
+function toggleHints(){ G.hints = !G.hints; toast(G.hints ? ico('bulb') + ' Route hints on' : ico('grad') + ' Expert mode: hints off, +25% pay', ''); syncButtons(); saveProfile(); }
 function toggleMusic(){ AU.init(); Music.start(); G.musicOn = !G.musicOn; Music.setOn(G.musicOn); syncButtons(); saveProfile(); }
 function toggleSfx(){ AU.init(); G.sfxOn = !G.sfxOn; if (AU.sfxBus) AU.sfxBus.gain.value = G.sfxOn ? 0.75 : 0; syncButtons(); saveProfile(); }
 function toggleSpeed(){ G.speed = G.speed === 2 ? 1 : 2; syncButtons(); }
@@ -1399,7 +1489,7 @@ const heroSVG = `<svg width="150" height="120" viewBox="0 0 150 120"><rect x="6"
   <circle cx="16" cy="28" r="9" fill="#ff8a1f" opacity=".25"/></svg>`;
 function flowHTML(){
   const stg = stageList();
-  return `<div class="flow">${stg.map(g => `<span class="fs">${g.map(sid => DEF[STEP_STATION[sid]].icon + ' ' + DEF[STEP_STATION[sid]].name).join(' <span style="color:var(--muted)">/</span> ')}</span>`).join('<span class="ar">➜</span>')}</div>`;
+  return `<div class="flow">${stg.map(g => `<span class="fs">${g.map(sid => ico(DEF[STEP_STATION[sid]].icon) + DEF[STEP_STATION[sid]].name).join(' <span style="color:var(--muted)">/</span> ')}</span>`).join('<span class="ar">➜</span>')}</div>`;
 }
 function showTitle(){
   G.mode = 'title';
@@ -1409,12 +1499,12 @@ function showTitle(){
     <ul class="clean">
       <li>Each new order lights up its <b>totes in the Shuttle Warehouse</b>. <b>Click them</b> to send them to Commissioning.</li>
       <li><b>Click a handling unit</b>, then <b>click its next station</b> (or press the station's number key, or drag it).</li>
-      <li>Each order needs only the services shown on its card. <b style="color:var(--bad)">⚠ Flagged</b> units go to Quality Assurance first.</li>
+      <li>Each order needs only the services shown on its card. <b style="color:var(--bad)">Flagged</b> units go to Quality Assurance first.</li>
       <li>Ship before the timer runs out to keep customers happy.</li>
     </ul>
     <div class="btnrow">${sv && sv.shiftIdx > 0 ? `<button class="btn primary" id="mContinue">Continue: Shift ${sv.shiftIdx+1}</button><button class="btn" id="mNew">New game</button>` : `<button class="btn primary" id="mNew">Start the first shift</button>`}
     <button class="btn" id="mHelp">How to play</button></div>
-    <p style="color:var(--muted);font-size:12px;margin-top:16px">Sound on recommended 🔊 · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">0</span> warehouse · <span class="kbd">Space</span> pause</p>`);
+    <p style="color:var(--muted);font-size:12px;margin-top:16px">Sound on recommended · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">0</span> warehouse · <span class="kbd">Space</span> pause</p>`);
   bind('mNew', () => { const keepTips = G.seenTips, mo = G.musicOn, so = G.sfxOn; Object.assign(G, newProfile(), { seenTips:keepTips, musicOn:mo, sfxOn:so }); showIntro(0); });
   bind('mContinue', () => { Object.assign(G, sv); showIntro(sv.shiftIdx); });
   bind('mHelp', () => showHelp(true));
@@ -1431,18 +1521,18 @@ function showIntro(idx){
     <h2>${cfg.name}: ${cfg.title}</h2>
     <div class="goal"><div><small>Goal</small><b>Ship ${cfg.goal} orders</b></div><div><small>Shift length</small><b>${Math.round(cfg.duration/60*10)/10} min</b></div><div><small>New order every</small><b>~${Math.round((cfg.spawn[0]+cfg.spawn[1])/2)} s</b></div></div>
     <p style="margin:6px 0 4px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px">Routing plan</p>${flowHTML()}
-    <p style="margin:2px 0 12px;color:var(--muted);font-size:13px">Skip any station the order doesn't need. <b style="color:var(--bad)">⚠ Flagged</b> units go to 🔍 Quality Assurance first.</p>
+    <p style="margin:2px 0 12px;color:var(--muted);font-size:13px">Skip any station the order doesn't need. <b style="color:var(--bad)">Flagged</b> units go to Quality Assurance first.</p>
     <div class="grid2">${cfg.stations.map(id => { const d = DEF[id], nw = newOnes.includes(id) && idx > 0;
-      return `<div class="scard ${nw?'new':''}"><div class="t"><span class="e">${d.icon}</span>${d.name}${nw?'<span class="tag">NEW</span>':''}</div>${d.desc}</div>`; }).join('')}</div>
+      return `<div class="scard ${nw?'new':''}"><div class="t">${ico(d.icon)}${d.name}${nw?'<span class="tag">NEW</span>':''}</div>${d.desc}</div>`; }).join('')}</div>
     <div class="btnrow"><button class="btn primary" id="mStart">Start shift ▸</button></div>`);
   bind('mStart', () => { hideModal(); tipQueue.length = 0; hideTip(null); startShift(idx); syncButtons(); renderSide();
-    if (idx === 0) setTimeout(() => toast('☀️ Good morning! The first order is on its way…', 'good'), 300);
+    if (idx === 0) setTimeout(() => toast(ico('sun') + ' Good morning! The first order is on its way…', 'good'), 300);
     else toast(`Shift ${idx+1} started. Goal: ship ${cfg.goal} orders.`, 'good'); });
 }
 function showResult(){
   const r = G.result, cfg = G.cfg;
   const stars = [0,1,2].map(i => `<span class="${i < r.stars ? 'lit' : ''}">★</span>`).join('');
-  modal(`<h2>${r.passed ? 'Shift complete! 🎉' : r.failedSat ? 'Customers walked away 😟' : 'Shift goal missed'}</h2>
+  modal(`<h2>${r.passed ? 'Shift complete!' : r.failedSat ? 'Customers walked away' : 'Shift goal missed'}</h2>
     <p class="sub">${r.passed ? `Great work on ${cfg.name}.` : r.failedSat ? 'Customer satisfaction dropped to zero.' : `You shipped ${G.shipped} of ${cfg.goal} orders.`}</p>
     ${r.passed ? `<div class="stars">${stars}</div>` : ''}
     <div class="goal">
@@ -1468,11 +1558,11 @@ function showShop(){
       return `<button class="ubtn" data-st="${id}" data-up="${u.id}" ${maxed || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${u.desc}</button>`; }).join('');
     const ld = G.lastLoad && G.lastLoad[id] != null && d.role !== 'storage' ? G.lastLoad[id] : null;
     const load = ld == null ? '' : `<div class="load" title="Share of last shift this station was busy"><span style="width:${Math.round(ld*100)}%;background:${ld > 0.8 ? 'var(--bad)' : ld > 0.55 ? 'var(--warn)' : 'var(--good)'}"></span><em>${Math.round(ld*100)}% busy</em></div>`;
-    return `<div class="srow"><div class="nm"><span class="e">${d.icon}</span><div>${d.name}${load}</div></div>${btns}</div>`; }).join('');
+    return `<div class="srow"><div class="nm">${ico(d.icon)}<div>${d.name}${load}</div></div>${btns}</div>`; }).join('');
   const grow = GLOBAL_UPGRADES.map(u => { const lv = G.global[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max;
     return `<button class="ubtn" data-g="${u.id}" ${maxed || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${u.desc}</button>`; }).join('');
   modal(`<h2>Upgrade the hall</h2><p class="sub">Busy stations (red) are your bottlenecks. Next: Shift ${G.shiftIdx+1} · ${next.name}. Cash available: <span class="cashbig">$${G.money.toLocaleString('en')}</span></p>
-    <div class="shop"><div class="srow"><div class="nm"><span class="e">🏭</span>Whole hall</div>${grow}</div>${rows}</div>
+    <div class="shop"><div class="srow"><div class="nm">${ico('factory')}Whole hall</div>${grow}</div>${rows}</div>
     <div class="btnrow"><button class="btn primary" id="mNext">Continue to Shift ${G.shiftIdx+1} ▸</button></div>`);
   $('mcard').querySelectorAll('.ubtn').forEach(b => b.onclick = () => {
     if (b.dataset.g){ const u = GLOBAL_UPGRADES.find(x => x.id === b.dataset.g), lv = G.global[u.id] || 0; if (G.money < u.cost(lv)) return; G.money -= u.cost(lv); G.global[u.id] = lv+1; }
@@ -1492,7 +1582,7 @@ function showPause(){
 function showHelp(fromTitle){
   const all = STATIONS;
   const stg = {}; Object.entries(STEPS).forEach(([sid,s]) => (stg[s.stage] = stg[s.stage] || []).push(sid));
-  const flow = Object.keys(stg).sort((a,b)=>a-b).map(k => `<span class="fs">${stg[k].map(sid => DEF[STEP_STATION[sid]].icon+' '+DEF[STEP_STATION[sid]].name).join(' / ')}</span>`).join('<span class="ar">➜</span>');
+  const flow = Object.keys(stg).sort((a,b)=>a-b).map(k => `<span class="fs">${stg[k].map(sid => ico(DEF[STEP_STATION[sid]].icon)+DEF[STEP_STATION[sid]].name).join(' / ')}</span>`).join('<span class="ar">➜</span>');
   modal(`<h2>How to play</h2>
     <p>Orders from tool customers arrive on the left. Each order travels in its own <b>handling unit (HU)</b>, a transport box on the conveyor loop. Your job is to route every HU through exactly the stations its order needs.</p>
     <div class="flow">${flow}</div>
@@ -1501,12 +1591,12 @@ function showHelp(fromTitle){
       <li>Every order starts at <b>Commissioning</b> and ends at <b>Packing & Shipping</b>.</li>
       <li><b>Wrong pick</b>: QA takes the wrong item out as a grey <b>↩ return tote</b>. Route it back to the Shuttle Warehouse, click the order's new glowing tote, and send the HU back to Commissioning for a re-pick.</li>
       <li>Services in the same group can be done in any order. Coloured dots under an HU show what it still needs.</li>
-      <li><b style="color:var(--bad)">⚠ Flags</b>: a failed check, a wrong pick or a failed <b>weight check</b> on the conveyor. Flagged HUs go to <b>Quality Assurance</b>. QA either <b>corrects</b> it (it continues its route, a failed service is redone) or finds the item <b>defective</b>: the red ✖ box goes to <b>Retoure</b> and a new item must be commissioned.</li>
+      <li><b style="color:var(--bad)">Flags</b>: a failed check, a wrong pick or a failed <b>weight check</b> on the conveyor. Flagged HUs go to <b>Quality Assurance</b>. QA either <b>corrects</b> it (it continues its route, a failed service is redone) or finds the item <b>defective</b>: the red box goes to <b>Retoure</b> and a new item must be commissioned.</li>
       <li>Sending an HU to the wrong station gets it rejected (−$10, −satisfaction). It then circles the belt until you re-route it.</li>
       <li>Full OUT trays <b>block</b> a station. Keep units moving!</li>
       <li>Late orders pay 40% and cost satisfaction. Focus customers (★) pay 50% more.</li>
     </ul>
-    <div class="grid2">${all.map(d => `<div class="scard"><div class="t"><span class="e">${d.icon}</span>${d.name}</div>${d.desc}</div>`).join('')}</div>
+    <div class="grid2">${all.map(d => `<div class="scard"><div class="t">${ico(d.icon)}${d.name}</div>${d.desc}</div>`).join('')}</div>
     <p style="font-size:13px;color:var(--muted)">Controls: click an order's glowing totes in the Shuttle Warehouse to start it, click an HU then a station to route it (or drag, or press <span class="kbd">1</span>–<span class="kbd">9</span>). <span class="kbd">0</span> sends a selected return tote to the warehouse, <span class="kbd">Tab</span> selects the most urgent HU, <span class="kbd">H</span> hints, <span class="kbd">F</span> speed, <span class="kbd">Space</span> pause, right-click deselects.</p>
     <div class="btnrow"><button class="btn primary" id="mBack">${fromTitle ? 'Back' : 'Resume ▸'}</button></div>`);
   bind('mBack', () => { if (fromTitle) showTitle(); else { hideModal(); if (G.mode === 'paused'){ G.mode = 'play'; syncButtons(); } } });
