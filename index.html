@@ -267,6 +267,7 @@ const STATIONS = [
 ];
 // Random weight check on every conveyor trip (scanner at each station entrance)
 const RETRIEVE_SPEED = 300; // px/s for totes coming out of the shuttle warehouse
+const FAIL_PAYOUT = 0.5; // share of a failed shift's earnings you keep
 const TRANSPORT_CHECK = { chance:0.035, reason:'Weight check failed' };
 
 // ---------- 4. DATA: shifts (levels) ----------
@@ -706,7 +707,10 @@ function endShift(failedSat){
   if (passed){ stars = 1; if (ratio >= 0.7) stars = 2; if (ratio >= 0.9 && G.sat >= 70) stars = 3; }
   let bonus = 0;
   if (passed){ bonus = 100 + 40*stars; G.money += bonus; G.best = Math.max(G.best||0, G.shiftIdx+1); }
-  G.result = { passed, failedSat, stars, ratio, bonus };
+  // a failed shift still pays out: you keep half of what you earned (no bonus) to spend on upgrades
+  const kept = passed ? 0 : Math.max(0, Math.round(G.earned * FAIL_PAYOUT));
+  if (!passed) G.money = G.startMoney + kept;
+  G.result = { passed, failedSat, stars, ratio, bonus, kept };
   G.lastLoad = Object.fromEntries(G.stations.map(s => [s.id, clamp(s.busyT / Math.max(1, G.time), 0, 1)]));
   if (!G.silent){ tipQueue.length = 0; hideTip(null); sfx(passed ? 'fanfare' : 'fail'); showResult(); }
 }
@@ -1445,16 +1449,16 @@ function showResult(){
       <div><small>Shipped</small><b>${G.shipped} / ${cfg.goal}</b></div>
       <div><small>On time</small><b>${G.shipped ? Math.round(r.ratio*100) : 0}%</b></div>
       <div><small>Wrong routes</small><b>${G.wrong}</b></div>
-      <div><small>Earned</small><b>$${G.earned + r.bonus}</b></div>
+      <div><small>${r.passed ? 'Earned' : 'You keep'}</small><b>$${r.passed ? G.earned + r.bonus : r.kept}</b></div>
       <div><small>Satisfaction</small><b>${Math.round(G.sat)}%</b></div>
     </div>
     ${r.passed ? `<p>Shift bonus: <b style="color:var(--accent2)">$${r.bonus}</b>. Spend your cash on upgrades before the next shift.</p>`
-      : `<p>Tip: retrieve totes steadily, keep OUT trays empty so stations don't block, and send flagged units to QA quickly.</p>`}
-    <div class="btnrow">${r.passed ? `<button class="btn primary" id="mShop">Upgrades & next shift ▸</button>` : `<button class="btn primary" id="mRetry">Retry shift</button>`}
+      : `<p>You keep <b style="color:var(--accent2)">$${r.kept}</b> (half of what you earned this shift) to spend on upgrades before retrying.</p><p>Tip: check which stations were busiest in the shop, retrieve totes steadily, keep OUT trays empty so stations don't block, and send flagged units to QA quickly.</p>`}
+    <div class="btnrow">${r.passed ? `<button class="btn primary" id="mShop">Upgrades & next shift ▸</button>` : `<button class="btn primary" id="mRetry">Upgrade & retry ▸</button>`}
     <button class="btn" id="mMenu">Main menu</button></div>`);
   bind('mShop', () => { G.shiftIdx++; saveProfile(); showShop(); });
-  bind('mRetry', () => { G.money = G.startMoney; showIntro(G.shiftIdx); });
-  bind('mMenu', () => { if (!r.passed) G.money = G.startMoney; showTitle(); });
+  bind('mRetry', () => { saveProfile(); showShop(); });
+  bind('mMenu', () => { saveProfile(); showTitle(); });
 }
 function showShop(){
   G.mode = 'shop';
