@@ -130,6 +130,9 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .load em{position:absolute;left:0;top:7px;font-style:normal;font-size:10px;color:var(--muted);font-weight:600}
 .srow .nm{min-height:34px}
 .cashbig{font-size:22px;font-weight:800;color:var(--accent2)}
+.toolstrip{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+.toolstrip span{width:34px;height:34px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent2)}
+.toolstrip .ic{width:20px;height:20px}
 .hero{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
 .hero svg{flex:none}
 @media (max-width:900px), (max-height:620px){
@@ -324,13 +327,13 @@ const STATIONS = [
     desc:'Picks the tools from the delivered totes into an order-specific handling unit (HU). Starts once all of the order\'s totes have arrived.' },
   { id:'calib', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
     slots:1, time:9, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
-    desc:'Checks that measuring tools measure correctly and issues a certificate. Failed tools go to QA, then back here.' },
+    desc:'Checks that measuring tools (calipers, meters, levels…) measure correctly and issues a certificate. Failed tools go to QA, then back here.' },
   { id:'sign', name:'Laser Signing', icon:'laser', color:'#b07cff', handles:'signing',
     slots:1, time:6, queue:3, out:3, defect:{ chance:0.08, reason:'Engraving blurred', redo:true },
     desc:'Lasers the customer identifier onto tools so they can be traced on site.' },
   { id:'patch', name:'Patch Studio', icon:'needle', color:'#ff5fa2', handles:'patching',
     slots:1, time:8, queue:3, out:3, defect:{ chance:0.10, reason:'Patch misaligned', redo:true },
-    desc:'Sews custom company logos onto work apparel.' },
+    desc:'Sews custom company logos onto sewable clothing: jackets, vests, trousers and caps (not gloves, helmets or boots).' },
   { id:'care', name:'Focus Customer Care', icon:'star', color:'#ffd23f', handles:'focus',
     slots:1, time:5, queue:3, out:3, defect:{ chance:0.10, reason:'Scratch found', redo:false },
     desc:'Dedicated final check for focus customers (★ star). Comes after all other services, right before packing.' },
@@ -1496,6 +1499,7 @@ function showTitle(){
   const sv = loadProfile();
   modal(`<div class="hero">${heroSVG}<div style="flex:1;min-width:240px"><h1>Logistic <em>Town</em></h1>
     <p class="sub">Run the distribution centre of a busy tool supplier. Route handling units from the shuttle warehouse through commissioning, special services and quality checks, and get every order onto the truck on time.</p></div></div>
+    <div class="toolstrip">${ITEMS.map(i => `<span title="${i.name}">${ico(i.icon)}</span>`).join('')}</div>
     <ul class="clean">
       <li>Each new order lights up its <b>totes in the Shuttle Warehouse</b>. <b>Click them</b> to send them to Commissioning.</li>
       <li><b>Click a handling unit</b>, then <b>click its next station</b> (or press the station's number key, or drag it).</li>
