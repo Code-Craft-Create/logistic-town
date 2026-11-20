@@ -10,10 +10,12 @@ Open it in any modern browser. No build step, no external assets; sound and musi
 - Route each order through only the services it needs: Calibration, Laser Signing, Patching (any order),
   then Focus Customer Care for ★ customers, then Packing & Shipping.
 - ⚠ Flagged units (failed checks, wrong picks, failed weight checks on the conveyor) go to Quality Assurance first.
+  QA either corrects it (it continues its route, a failed service is redone) or finds the item defective:
+  the ✖ box goes to **Retoure** (next to Packing) and a replacement must be commissioned.
 - Wrong pick: QA takes the wrong item out as a ↩ return tote. Route it back to the Shuttle Warehouse (key `0`),
   click the order's new glowing tote, and send the HU back to Commissioning for a re-pick.
-- Ship before the timer runs out. Five shifts (Mon–Fri) introduce stations step by step, then endless overtime.
-  Spend earnings on upgrades between shifts.
+- Ship before the timer runs out. Five short shifts (Mon–Fri) introduce stations step by step, then endless overtime.
+  Stations start slow; the upgrade shop shows how busy each station was, so you can fix bottlenecks.
 
 Keys: `1`–`9` route · `0` warehouse · `Tab` next unit · `H` hints · `F` speed · `Space` pause.
 
