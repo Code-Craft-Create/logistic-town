@@ -75,9 +75,9 @@ button{font:inherit;color:inherit}
 #tooltip .row.done{color:var(--good)} #tooltip .row.next{color:var(--accent2);font-weight:700}
 #tooltip .fl{color:var(--bad);font-weight:700;margin-top:4px}
 #tooltip .items{font-family:var(--emoji);font-size:12px;color:var(--text);margin-bottom:4px}
-#modal{position:fixed;inset:0;background:rgba(6,9,14,.72);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
+#modal{position:fixed;inset:0;background:rgba(6,9,14,.72);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;z-index:20;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 #modal.hidden{display:none}
-.mcard{background:linear-gradient(180deg,#1a2231,#141b27);border:1px solid var(--line);border-radius:18px;padding:26px 28px;width:min(720px,100%);max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .25s ease-out}
+.mcard{background:linear-gradient(180deg,#1a2231,#141b27);border:1px solid var(--line);border-radius:18px;padding:26px 28px;width:min(720px,100%);margin:auto;flex:none;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .25s ease-out}
 @keyframes pop{from{opacity:0;transform:scale(.96)}}
 .mcard h1{margin:0 0 4px;font-size:34px;letter-spacing:.5px}
 .mcard h1 em{font-style:normal;color:var(--accent)}
@@ -119,16 +119,34 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .cashbig{font-size:22px;font-weight:800;color:var(--accent2)}
 .hero{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
 .hero svg{flex:none}
-@media (max-width:900px){
-  #app{grid-template-columns:1fr;grid-template-rows:auto 1fr 170px}
-  #top{flex-wrap:wrap;gap:10px;padding:8px 12px;grid-column:1}
+@media (max-width:900px), (max-height:620px){
+  #app{grid-template-columns:230px 1fr;grid-template-rows:46px 1fr}
+  #top{gap:10px;padding:0 10px}
+  .brand span.t,#top .hgroup label{display:none}
+  #top #clockGroup label{display:block}
+  #clockGroup{width:150px!important}
+  .brand .logo{width:26px;height:26px}
+  #clockGroup,#satGroup{width:90px}
+  .hgroup b{font-size:14px}
+  .tbtn{height:30px;min-width:30px;padding:0 7px;font-size:12px}
+  #side{padding:8px}
+  .oc{padding:6px 8px}
+  .oc-items{font-size:13px;margin:2px 0 3px}
+  .mcard{padding:18px 18px}
+  .mcard h1{font-size:26px}
+}
+@media (max-width:700px){
+  #app{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) 150px}
+  #top{flex-wrap:wrap;padding:6px 10px;grid-column:1;row-gap:6px}
   #side{grid-row:3;border-right:0;border-top:1px solid var(--line);display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:8px 16px}
   #side h3{display:none}
   #side > div{display:flex;gap:8px}
-  .oc{width:220px;flex:none;margin:0}
-  .brand span.t{display:none}
-  #clockGroup,#satGroup{width:120px}
+  .oc{width:200px;flex:none;margin:0}
+  .empty{white-space:nowrap}
+  #rotate{display:flex}
 }
+#rotate{display:none;position:absolute;left:8px;right:8px;top:8px;z-index:4;background:rgba(21,28,41,.92);border:1px solid var(--accent);border-radius:10px;padding:8px 12px;font-size:12.5px;align-items:center;gap:8px;pointer-events:none}
+@media (orientation:landscape){ #rotate{display:none!important} }
 </style>
 </head>
 <body>
@@ -155,6 +173,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
   </aside>
   <main id="floor">
     <canvas id="cv"></canvas>
+    <div id="rotate">📱↻ Turn your phone sideways for a bigger warehouse view.</div>
     <div id="toasts"></div>
     <div id="tip"><div class="ico">i</div><button id="tipOk">Got it</button><div id="tipText"></div></div>
     <div id="tooltip"></div>
@@ -1301,6 +1320,8 @@ function frame(now){
   if (hoverHU && !selectable(hoverHU)){ hoverHU = null; showTooltip(null); }
   requestAnimationFrame(frame);
 }
+['touchend','click','keydown'].forEach(ev => document.addEventListener(ev, () => { AU.init(); if (AU.ctx && AU.ctx.state !== 'running') AU.ctx.resume(); }, { passive:true }));
+if (window.ResizeObserver) new ResizeObserver(resize).observe(floorEl);
 resize(); syncButtons(); showTitle(); requestAnimationFrame(frame);
 
 // ---------- test / automation hooks ----------
