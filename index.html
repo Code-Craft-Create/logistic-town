@@ -1050,26 +1050,53 @@ function chipHTML(o, sid){
   const c = STEP_COLOR(sid), done = o.steps[sid] === 'done';
   return `<span class="chip ${done?'done':''}" style="border-color:${c};color:${c};${done?`background:${c}`:''}">${done?'✓ ':''}${STEPS[sid].short}</span>`;
 }
-function orderCard(o, inbox){
+function orderParts(o, inbox){
   const rem = o.due - G.time, frac = clamp(rem / o.allow, 0, 1);
   const col = rem < 0 ? '#ff5468' : frac < 0.3 ? '#ffc53d' : '#3ddc84';
   const blocked = inbox && G.st.commission && !hasRoom(G.st.commission);
   const steps = Object.keys(o.steps).map(s => chipHTML(o, s)).join('');
   const flag = o.hu && o.hu.flag ? `<span class="chip flag">⚠ ${o.hu.flag.reason}</span>` : '';
-  return `<div class="oc ${inbox?'inbox':''} ${blocked?'blocked':''} ${o.focus?'focus':''} ${rem<0?'late':''}" data-oid="${o.id}">
-    <div class="oc-h"><span class="sw" style="background:${o.color}"></span><b>#${o.num}</b><span class="cust">${o.customer}</span>${o.focus?'<span style="color:var(--warn)">★</span>':''}
-    <span class="due" style="color:${col}">${rem < 0 ? 'LATE' : Math.ceil(rem)+'s'}</span></div>
+  const cls = `oc ${inbox?'inbox':''} ${blocked?'blocked':''} ${o.focus?'focus':''} ${rem<0?'late':''}`;
+  const html = `<div class="oc-h"><span class="sw" style="background:${o.color}"></span><b>#${o.num}</b><span class="cust">${o.customer}</span>${o.focus?'<span style="color:var(--warn)">★</span>':''}
+    <span class="due"></span></div>
     <div class="oc-items" title="${o.items.map(i=>i.name).join(', ')}">${o.items.map(i=>i.icon).join(' ')}</div>
     <div class="chips">${steps}${flag}</div>
-    <div class="tbar"><div style="width:${frac*100}%;background:${col}"></div></div>
-    ${inbox ? '<span class="release-hint">release ▸</span>' : ''}</div>`;
+    <div class="tbar"><div></div></div>
+    ${inbox ? '<span class="release-hint">release ▸</span>' : ''}`;
+  return { cls, html, col, frac, due: rem < 0 ? 'LATE' : Math.ceil(rem)+'s' };
+}
+// Cards are kept as persistent DOM nodes and patched in place (no flicker, hover stays stable)
+const cardEls = new Map();
+function syncList(container, orders, inbox, emptyText){
+  const keep = new Set();
+  const els = orders.map(o => {
+    const key = (inbox ? 'i' : 'a') + o.id; keep.add(key);
+    let el = cardEls.get(key);
+    if (!el){ el = document.createElement('div'); el.dataset.oid = o.id; cardEls.set(key, el); }
+    const p = orderParts(o, inbox);
+    const cls = p.cls + (el.classList.contains('shake') ? ' shake' : '');
+    if (el.className !== cls) el.className = cls;
+    if (el._html !== p.html){ el.innerHTML = p.html; el._html = p.html; el._due = el.querySelector('.due'); el._bar = el.querySelector('.tbar div'); }
+    if (el._due.textContent !== p.due) el._due.textContent = p.due;
+    el._due.style.color = p.col;
+    el._bar.style.width = (p.frac*100).toFixed(1) + '%'; el._bar.style.background = p.col;
+    return el;
+  });
+  if (!els.length){
+    if (!container._empty){ container.innerHTML = `<div class="empty">${emptyText}</div>`; container._empty = true; }
+  } else {
+    if (container._empty){ container.innerHTML = ''; container._empty = false; }
+    els.forEach((el, i) => { if (container.children[i] !== el) container.insertBefore(el, container.children[i] || null); });
+    while (container.children.length > els.length) container.lastChild.remove();
+  }
+  for (const [k, el] of cardEls) if (k[0] === (inbox ? 'i' : 'a') && !keep.has(k)){ el.remove(); cardEls.delete(k); }
 }
 function renderSide(){
   const inbox = G.orders.filter(o => !o.released).sort((a,b) => a.due-b.due);
   const act = G.orders.filter(o => o.released).sort((a,b) => a.due-b.due);
   $('inCount').textContent = inbox.length; $('actCount').textContent = act.length;
-  $('inbox').innerHTML = inbox.length ? inbox.map(o => orderCard(o, true)).join('') : '<div class="empty">Waiting for orders…</div>';
-  $('active').innerHTML = act.length ? act.map(o => orderCard(o, false)).join('') : '<div class="empty">Nothing in process.</div>';
+  syncList($('inbox'), inbox, true, 'Waiting for orders…');
+  syncList($('active'), act, false, 'Nothing in process.');
 }
 function renderHUD(){
   const cfg = G.cfg; if (!cfg) return;
