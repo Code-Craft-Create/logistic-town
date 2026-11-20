@@ -117,6 +117,10 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .ubtn:disabled{opacity:.4;cursor:default}
 .ubtn b{color:var(--accent2)}
 .ubtn .lv{color:var(--muted);float:right;margin-left:8px}
+.load{position:relative;height:6px;width:120px;background:#0b1018;border-radius:3px;margin-top:5px}
+.load span{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
+.load em{position:absolute;left:0;top:7px;font-style:normal;font-size:10px;color:var(--muted);font-weight:600}
+.srow .nm{min-height:34px}
 .cashbig{font-size:22px;font-weight:800;color:var(--accent2)}
 .hero{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
 .hero svg{flex:none}
@@ -237,25 +241,25 @@ const STATIONS = [
     slots:2, time:1.2, queue:6, out:0,
     desc:'Stores every tool in totes. Click an order\'s glowing totes to send them to Commissioning. Returned totes (↩) go back here.' },
   { id:'commission', name:'Commissioning', icon:'📦', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
-    slots:2, time:5, queue:4, out:3, defect:{ chance:0.07, reason:'Wrong item picked', redo:true, returnTote:true },
+    slots:1, time:5, queue:4, out:3, defect:{ chance:0.07, reason:'Wrong item picked', redo:true, returnTote:true },
     desc:'Picks the tools from the delivered totes into an order-specific handling unit (HU). Starts once all of the order\'s totes have arrived.' },
   { id:'calib', name:'Calibration Lab', icon:'📏', color:'#22c3e6', handles:'calibration',
-    slots:1, time:7, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
+    slots:1, time:9, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
     desc:'Checks that measuring tools measure correctly and issues a certificate. Failed tools go to QA, then back here.' },
   { id:'sign', name:'Laser Signing', icon:'✒️', color:'#b07cff', handles:'signing',
-    slots:1, time:5, queue:3, out:3, defect:{ chance:0.08, reason:'Engraving blurred', redo:true },
+    slots:1, time:6, queue:3, out:3, defect:{ chance:0.08, reason:'Engraving blurred', redo:true },
     desc:'Lasers the customer identifier onto tools so they can be traced on site.' },
   { id:'patch', name:'Patch Studio', icon:'🧵', color:'#ff5fa2', handles:'patching',
-    slots:1, time:6, queue:3, out:3, defect:{ chance:0.10, reason:'Patch misaligned', redo:true },
+    slots:1, time:8, queue:3, out:3, defect:{ chance:0.10, reason:'Patch misaligned', redo:true },
     desc:'Sews custom company logos onto work apparel.' },
   { id:'care', name:'Focus Customer Care', icon:'⭐', color:'#ffd23f', handles:'focus',
-    slots:1, time:4, queue:3, out:3, defect:{ chance:0.10, reason:'Scratch found', redo:false },
+    slots:1, time:5, queue:3, out:3, defect:{ chance:0.10, reason:'Scratch found', redo:false },
     desc:'Dedicated final check for focus customers (★). Comes after all other services, right before packing.' },
   { id:'qa', name:'Quality Assurance', icon:'🔍', color:'#ff5468', role:'repair',
-    slots:1, time:5, queue:4, out:3,
+    slots:1, time:7, queue:4, out:3,
     desc:'Fixes everything flagged ⚠: failed checks, wrong picks, failed weight checks. A failed service has to be redone afterwards.' },
   { id:'pack', name:'Packing & Shipping', icon:'🚚', color:'#3ddc84', handles:'pack', role:'sink', place:'right',
-    slots:2, time:4, queue:4, out:0,
+    slots:1, time:5, queue:4, out:0,
     desc:'Packs the order and loads it on the truck. Last stop: only when every step is done and nothing is flagged.' },
 ];
 // Random weight check on every conveyor trip (scanner at each station entrance)
@@ -264,28 +268,30 @@ const TRANSPORT_CHECK = { chance:0.035, reason:'Weight check failed' };
 
 // ---------- 4. DATA: shifts (levels) ----------
 const SHIFTS = [
-  { name:'Monday',    title:'Learning the ropes', duration:150, goal:6,  spawn:[14,18],  items:[1,2], slack:30, stations:['warehouse','commission','qa','pack'] },
-  { name:'Tuesday',   title:'Precision matters',  duration:180, goal:9,  spawn:[12,15],  items:[1,3], slack:28, stations:['warehouse','commission','calib','qa','pack'] },
-  { name:'Wednesday', title:'Make it personal',   duration:180, goal:11, spawn:[10,13],  items:[1,3], slack:26, stations:['warehouse','commission','calib','sign','qa','pack'] },
-  { name:'Thursday',  title:'VIP treatment',      duration:210, goal:13, spawn:[9.5,12], items:[1,3], slack:28, stations:['warehouse','commission','calib','sign','patch','care','qa','pack'] },
-  { name:'Friday',    title:'The Friday rush',    duration:210, goal:15, spawn:[8,10],  items:[1,3], slack:27, stations:['warehouse','commission','calib','sign','patch','care','qa','pack'] },
+  { name:'Monday',    title:'Learning the ropes', duration:100, goal:6,  spawn:[9,11],   items:[1,2], slack:26, stations:['warehouse','commission','qa','pack'] },
+  { name:'Tuesday',   title:'Precision matters',  duration:110, goal:8,  spawn:[7.5,9.5],items:[1,3], slack:24, stations:['warehouse','commission','calib','qa','pack'] },
+  { name:'Wednesday', title:'Make it personal',   duration:120, goal:11, spawn:[6,8],items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','qa','pack'] },
+  { name:'Thursday',  title:'VIP treatment',      duration:130, goal:13, spawn:[5.5,7],  items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','patch','care','qa','pack'] },
+  { name:'Friday',    title:'The Friday rush',    duration:140, goal:16, spawn:[4.5,6],  items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','qa','pack'] },
 ];
 function shiftConfig(i){
   if (i < SHIFTS.length) return SHIFTS[i];
   const k = i - SHIFTS.length + 1, b = SHIFTS[SHIFTS.length-1];
-  return { ...b, name:'Overtime '+k, title:'Demand keeps growing', goal:b.goal + 2*k,
-    spawn:[Math.max(5, b.spawn[0]-0.5*k), Math.max(6.5, b.spawn[1]-0.6*k)], slack:Math.max(18, b.slack-k) };
+  return { ...b, name:'Overtime '+k, title:'Demand keeps growing', goal:b.goal + 3*k,
+    spawn:[Math.max(2.4, b.spawn[0]-0.6*k), Math.max(3.2, b.spawn[1]-0.7*k)], slack:Math.max(16, b.slack-k) };
 }
 
 // ---------- 5. DATA: upgrades ----------
 const UPGRADES = [
-  { id:'slots',   label:'Extra workstation', desc:'+1 parallel slot',  max:2, cost:l => 220 + l*180 },
-  { id:'speed',   label:'Staff training',    desc:'−15% process time', max:3, cost:l => 120 + l*100 },
-  { id:'quality', label:'Quality program',   desc:'−35% defects',      max:2, cost:l => 100 + l*90, needs: d => !!d.defect },
+  { id:'slots',   label:'Extra workstation', desc:'+1 parallel slot',  max:2, cost:l => 360 + l*300, needs: d => d.role !== 'storage' },
+  { id:'speed',   label:'Staff training',    desc:'−18% process time', max:3, cost:l => 220 + l*170, needs: d => d.role !== 'storage' },
+  { id:'quality', label:'Quality program',   desc:'−40% defects',      max:2, cost:l => 160 + l*140, needs: d => !!d.defect },
+  { id:'shuttle', label:'Faster shuttles',   desc:'totes arrive 40% faster', max:2, cost:l => 200 + l*170, needs: d => d.role === 'storage' },
+  { id:'auto',    label:'Auto-retrieval',    desc:'shuttles fetch totes of the most urgent order on their own', max:1, cost:() => 650, needs: d => d.role === 'storage' },
 ];
 const GLOBAL_UPGRADES = [
-  { id:'conveyor', label:'Faster conveyor', desc:'+15% belt speed', max:3, cost:l => 150 + l*130 },
-  { id:'buffers',  label:'Bigger buffers',  desc:'+1 IN / OUT space everywhere', max:2, cost:l => 200 + l*180 },
+  { id:'conveyor', label:'Faster conveyor', desc:'+15% belt speed', max:3, cost:l => 220 + l*180 },
+  { id:'buffers',  label:'Bigger buffers',  desc:'+1 IN / OUT space everywhere', max:2, cost:l => 300 + l*250 },
 ];
 
 // ===================================================================
@@ -377,7 +383,7 @@ const saved = loadProfile(); if (saved){ G.musicOn = saved.musicOn; G.sfxOn = sa
 function makeStation(def){
   const up = G.upgrades[def.id] || {};
   return { def, id:def.id, slotCount:def.slots + (up.slots||0), queueMax:def.queue + G.global.buffers,
-    outMax: def.out ? def.out + G.global.buffers : 0, speedMul:Math.pow(0.85, up.speed||0), qualMul:Math.pow(0.65, up.quality||0),
+    outMax: def.out ? def.out + G.global.buffers : 0, speedMul:Math.pow(0.82, up.speed||0), qualMul:Math.pow(0.6, up.quality||0), busyT:0,
     slots:[], queue:[], out:[], incoming:0, processed:0, flash:0, scanFlash:0, x:0, y:0, w:160, h:150 };
 }
 function layoutStations(){
@@ -602,7 +608,7 @@ function update(dt){
   G.time += dt;
   const cfg = G.cfg;
   // spawn orders
-  if (G.time >= G.nextSpawn && G.time < cfg.duration - 22){
+  if (G.time >= G.nextSpawn && G.time < cfg.duration - 18){
     makeOrder(); G.nextSpawn = G.time + rand(cfg.spawn[0], cfg.spawn[1]);
   }
   // overdue
@@ -624,12 +630,23 @@ function update(dt){
     }
   }
   // totes coming out of the shuttle warehouse
-  for (const f of G.fetch){ f.path.d += RETRIEVE_SPEED*dt; if (f.path.d >= f.path.len){ f.line.state = 'atPick'; f.done = true; } }
+  const wu = G.upgrades.warehouse || {};
+  if (wu.auto && G.st.warehouse){
+    G.autoT = (G.autoT || 0) - dt;
+    if (G.autoT <= 0){
+      G.autoT = 1.4;
+      const c = G.st.commission;
+      const o = G.orders.filter(o => o.lines.some(l => l.state === 'stored') && (o.hu || hasRoom(c))).sort((a,b) => (b.hu?1:0)-(a.hu?1:0) || a.due-b.due)[0];
+      if (o){ const s0 = G.silent; G.silent = true; retrieve(o, o.lines.findIndex(l => l.state === 'stored')); G.silent = s0; }
+    }
+  }
+  for (const f of G.fetch){ f.path.d += RETRIEVE_SPEED*(1 + 0.4*(wu.shuttle||0))*dt; if (f.path.d >= f.path.len){ f.line.state = 'atPick'; f.done = true; } }
   G.fetch = G.fetch.filter(f => !f.done);
   // stations
   for (const st of G.stations){
     st.flash = st.flash > 0 ? Math.max(0, st.flash - dt) : Math.min(0, st.flash + dt);
     st.scanFlash = Math.max(0, st.scanFlash - dt);
+    st.busyT += (st.slots.filter(Boolean).length / st.slotCount) * dt;
     for (let i=0; i<st.slotCount; i++){
       let s = st.slots[i];
       if (!s && st.queue.length){
@@ -674,6 +691,7 @@ function endShift(failedSat){
   let bonus = 0;
   if (passed){ bonus = 100 + 40*stars; G.money += bonus; G.best = Math.max(G.best||0, G.shiftIdx+1); }
   G.result = { passed, failedSat, stars, ratio, bonus };
+  G.lastLoad = Object.fromEntries(G.stations.map(s => [s.id, clamp(s.busyT / Math.max(1, G.time), 0, 1)]));
   if (!G.silent){ tipQueue.length = 0; hideTip(null); sfx(passed ? 'fanfare' : 'fail'); showResult(); }
 }
 
@@ -1427,10 +1445,12 @@ function showShop(){
   const rows = next.stations.map(id => { const d = DEF[id], up = G.upgrades[id] = G.upgrades[id] || {};
     const btns = UPGRADES.filter(u => !u.needs || u.needs(d)).map(u => { const lv = up[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max;
       return `<button class="ubtn" data-st="${id}" data-up="${u.id}" ${maxed || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${u.desc}</button>`; }).join('');
-    return `<div class="srow"><div class="nm"><span class="e">${d.icon}</span>${d.name}</div>${btns}</div>`; }).join('');
+    const ld = G.lastLoad && G.lastLoad[id] != null && d.role !== 'storage' ? G.lastLoad[id] : null;
+    const load = ld == null ? '' : `<div class="load" title="Share of last shift this station was busy"><span style="width:${Math.round(ld*100)}%;background:${ld > 0.8 ? 'var(--bad)' : ld > 0.55 ? 'var(--warn)' : 'var(--good)'}"></span><em>${Math.round(ld*100)}% busy</em></div>`;
+    return `<div class="srow"><div class="nm"><span class="e">${d.icon}</span><div>${d.name}${load}</div></div>${btns}</div>`; }).join('');
   const grow = GLOBAL_UPGRADES.map(u => { const lv = G.global[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max;
     return `<button class="ubtn" data-g="${u.id}" ${maxed || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${u.desc}</button>`; }).join('');
-  modal(`<h2>Upgrade the hall</h2><p class="sub">Next: Shift ${G.shiftIdx+1} · ${next.name}. Cash available: <span class="cashbig">$${G.money.toLocaleString('en')}</span></p>
+  modal(`<h2>Upgrade the hall</h2><p class="sub">Busy stations (red) are your bottlenecks. Next: Shift ${G.shiftIdx+1} · ${next.name}. Cash available: <span class="cashbig">$${G.money.toLocaleString('en')}</span></p>
     <div class="shop"><div class="srow"><div class="nm"><span class="e">🏭</span>Whole hall</div>${grow}</div>${rows}</div>
     <div class="btnrow"><button class="btn primary" id="mNext">Continue to Shift ${G.shiftIdx+1} ▸</button></div>`);
   $('mcard').querySelectorAll('.ubtn').forEach(b => b.onclick = () => {
