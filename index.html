@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logistic Town</title>
+<style>
+:root{
+  --bg:#0e131d; --panel:#151c29; --panel2:#1b2433; --line:#2a3548; --text:#eef2f8; --muted:#8a96ad;
+  --accent:#ff8a1f; --accent2:#ffb15c; --accentDim:rgba(255,138,31,.16);
+  --good:#3ddc84; --bad:#ff5468; --warn:#ffc53d;
+  --emoji:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit}
+#app{display:grid;grid-template-rows:58px 1fr;grid-template-columns:300px 1fr;height:100vh;height:100dvh}
+#top{grid-column:1/3;display:flex;align-items:center;gap:20px;padding:0 16px;background:linear-gradient(#1a2231,#131a26);border-bottom:1px solid var(--line);min-width:0}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.3px;font-size:17px;white-space:nowrap}
+.brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#ff5a1f);display:grid;place-items:center;box-shadow:0 2px 10px rgba(255,138,31,.45)}
+.brand .logo svg{width:18px;height:18px}
+.hgroup{display:flex;flex-direction:column;gap:4px;min-width:0}
+.hgroup label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);white-space:nowrap}
+.hgroup b{font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar{height:8px;border-radius:5px;background:#0b1018;border:1px solid var(--line);overflow:hidden}
+.bar > div{height:100%;border-radius:5px;transition:width .3s}
+#clockGroup{width:190px}
+#clockFill{background:linear-gradient(90deg,var(--accent2),var(--accent))}
+#satGroup{width:170px}
+#satFill{background:var(--good)}
+.spacer{flex:1}
+.tbtn{height:34px;min-width:34px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;white-space:nowrap}
+.tbtn:hover{border-color:var(--accent);color:#fff}
+.tbtn.on{background:var(--accentDim);border-color:var(--accent);color:var(--accent2)}
+.tbtn.off{opacity:.5}
+#side{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:12px 12px 20px;min-height:0}
+#side h3{margin:6px 2px 8px;font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);display:flex;justify-content:space-between}
+#side h3 span{color:var(--text)}
+.empty{font-size:12px;color:var(--muted);padding:10px 4px 14px;font-style:italic}
+.oc{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;position:relative;transition:border-color .15s,transform .1s}
+.oc.inbox{cursor:pointer}
+.oc.inbox:hover{border-color:var(--accent);transform:translateX(2px)}
+.oc.inbox.blocked{opacity:.6}
+.oc.focus{box-shadow:inset 3px 0 0 var(--warn)}
+.oc.late{border-color:rgba(255,84,104,.6)}
+.oc.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.oc-h{display:flex;align-items:center;gap:6px;font-size:12.5px}
+.oc-h .sw{width:11px;height:11px;border-radius:3px;flex:none}
+.oc-h .cust{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.oc-h .due{font-variant-numeric:tabular-nums;font-weight:700;font-size:12px}
+.oc-items{font-family:var(--emoji);font-size:15px;margin:4px 0 5px;letter-spacing:2px}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-size:9.5px;font-weight:700;letter-spacing:.4px;padding:2px 6px;border-radius:5px;border:1px solid;opacity:.95}
+.chip.done{color:#0e131d!important}
+.chip.flag{background:var(--bad);border-color:var(--bad);color:#fff}
+.tbar{height:4px;border-radius:3px;background:#0b1018;margin-top:7px;overflow:hidden}
+.tbar div{height:100%}
+.release-hint{position:absolute;right:9px;bottom:13px;font-size:10px;color:var(--accent2);opacity:0;transition:opacity .15s}
+.oc.inbox:hover .release-hint{opacity:1}
+#floor{position:relative;overflow:hidden;min-width:0;min-height:0}
+#cv{position:absolute;inset:0;display:block;touch-action:none}
+#toasts{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:5;width:min(560px,92%)}
+.toast{background:rgba(21,28,41,.95);border:1px solid var(--line);border-left:4px solid var(--accent);padding:8px 14px;border-radius:9px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.4);animation:tin .25s ease-out;transition:opacity .4s,transform .4s}
+.toast.bad{border-left-color:var(--bad)} .toast.good{border-left-color:var(--good)} .toast.warn{border-left-color:var(--warn)}
+.toast.out{opacity:0;transform:translateY(-6px)}
+@keyframes tin{from{opacity:0;transform:translateY(-8px)}}
+#tip{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:min(620px,92%);background:linear-gradient(135deg,#2a1d10,#1d1712);border:1px solid var(--accent);border-radius:14px;padding:14px 16px 14px 58px;font-size:14px;line-height:1.45;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:6;display:none}
+#tip.show{display:block;animation:tin .3s ease-out}
+#tip .ico{position:absolute;left:14px;top:13px;width:32px;height:32px;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-weight:900;color:#1a1208}
+#tip button{float:right;margin:6px 0 0 12px;background:var(--accent);color:#1a1208;border:0;border-radius:8px;padding:5px 12px;font-weight:700;cursor:pointer}
+#tooltip{position:absolute;pointer-events:none;background:rgba(15,20,30,.97);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:12px;z-index:7;display:none;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#tooltip .tt-h{font-weight:700;margin-bottom:4px;display:flex;gap:6px;align-items:center}
+#tooltip .row{display:flex;gap:6px;align-items:center;margin:2px 0;color:var(--muted)}
+#tooltip .row.done{color:var(--good)} #tooltip .row.next{color:var(--accent2);font-weight:700}
+#tooltip .fl{color:var(--bad);font-weight:700;margin-top:4px}
+#tooltip .items{font-family:var(--emoji);font-size:12px;color:var(--text);margin-bottom:4px}
+#modal{position:fixed;inset:0;background:rgba(6,9,14,.72);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
+#modal.hidden{display:none}
+.mcard{background:linear-gradient(180deg,#1a2231,#141b27);border:1px solid var(--line);border-radius:18px;padding:26px 28px;width:min(720px,100%);max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .25s ease-out}
+@keyframes pop{from{opacity:0;transform:scale(.96)}}
+.mcard h1{margin:0 0 4px;font-size:34px;letter-spacing:.5px}
+.mcard h1 em{font-style:normal;color:var(--accent)}
+.mcard h2{margin:0 0 6px;font-size:24px}
+.mcard .sub{color:var(--muted);margin:0 0 18px;font-size:14px}
+.mcard p{line-height:1.5;font-size:14px}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.btn{border:0;border-radius:11px;padding:12px 20px;font-weight:700;cursor:pointer;font-size:15px;background:var(--panel2);border:1px solid var(--line)}
+.btn:hover{border-color:var(--accent2)}
+.btn.primary{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#1a1208;border:0;box-shadow:0 4px 16px rgba(255,138,31,.35)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.4;cursor:default}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.scard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px;line-height:1.4}
+.scard .t{display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:4px;font-size:14px}
+.scard .t .e{font-family:var(--emoji);font-size:20px}
+.scard.new{border-color:var(--accent);background:linear-gradient(135deg,rgba(255,138,31,.12),var(--panel2))}
+.tag{display:inline-block;font-size:10px;font-weight:800;background:var(--accent);color:#1a1208;border-radius:5px;padding:1px 6px;margin-left:auto}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0;font-size:13px}
+.flow .fs{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px}
+.flow .ar{color:var(--accent)}
+.goal{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 14px}
+.goal div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.goal small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px}
+.goal b{font-size:20px}
+.stars{font-size:40px;letter-spacing:6px;color:#4a5468;margin:4px 0 10px}
+.stars .lit{color:var(--accent);text-shadow:0 0 18px rgba(255,138,31,.6)}
+.kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 6px;font-size:12px;background:var(--panel2)}
+ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
+.shop{display:flex;flex-direction:column;gap:8px}
+.srow{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;flex-wrap:wrap}
+.srow .nm{display:flex;align-items:center;gap:8px;font-weight:700;width:190px;font-size:14px}
+.srow .nm .e{font-family:var(--emoji);font-size:18px}
+.ubtn{flex:1;min-width:130px;border-radius:9px;padding:7px 9px;border:1px solid var(--line);background:#121925;cursor:pointer;text-align:left;font-size:12px;line-height:1.3}
+.ubtn:hover:not(:disabled){border-color:var(--accent)}
+.ubtn:disabled{opacity:.4;cursor:default}
+.ubtn b{color:var(--accent2)}
+.ubtn .lv{color:var(--muted);float:right;margin-left:8px}
+.cashbig{font-size:22px;font-weight:800;color:var(--accent2)}
+.hero{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.hero svg{flex:none}
+@media (max-width:900px){
+  #app{grid-template-columns:1fr;grid-template-rows:auto 1fr 170px}
+  #top{flex-wrap:wrap;gap:10px;padding:8px 12px;grid-column:1}
+  #side{grid-row:3;border-right:0;border-top:1px solid var(--line);display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:8px 16px}
+  #side h3{display:none}
+  #side > div{display:flex;gap:8px}
+  .oc{width:220px;flex:none;margin:0}
+  .brand span.t{display:none}
+  #clockGroup,#satGroup{width:120px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="brand"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#1a1208" stroke-width="2.4" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div><span class="t">Logistic Town</span></div>
+    <div class="hgroup" id="clockGroup"><label id="shiftName">Shift</label><div class="bar"><div id="clockFill" style="width:0%"></div></div></div>
+    <div class="hgroup"><label>Shipped / goal</label><b id="shippedTxt">0 / 0</b></div>
+    <div class="hgroup"><label>Cash</label><b id="cashTxt">$0</b></div>
+    <div class="hgroup" id="satGroup"><label>Customer satisfaction</label><div class="bar"><div id="satFill" style="width:100%"></div></div></div>
+    <div class="spacer"></div>
+    <button class="tbtn" id="bSpeed" title="Game speed (F)">1×</button>
+    <button class="tbtn on" id="bHints" title="Route hints (H). Off = expert mode, +25% pay">💡 Hints</button>
+    <button class="tbtn on" id="bMusic" title="Music (M)">♫</button>
+    <button class="tbtn on" id="bSfx" title="Sound effects (S)">🔊</button>
+    <button class="tbtn" id="bHelp" title="How to play">?</button>
+    <button class="tbtn" id="bPause" title="Pause (Space)">❚❚</button>
+  </header>
+  <aside id="side">
+    <h3>Incoming orders <span id="inCount">0</span></h3>
+    <div id="inbox"></div>
+    <h3>In process <span id="actCount">0</span></h3>
+    <div id="active"></div>
+  </aside>
+  <main id="floor">
+    <canvas id="cv"></canvas>
+    <div id="toasts"></div>
+    <div id="tip"><div class="ico">i</div><button id="tipOk">Got it</button><div id="tipText"></div></div>
+    <div id="tooltip"></div>
+  </main>
+</div>
+<div id="modal" class="hidden"><div class="mcard" id="mcard"></div></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   LOGISTIC TOWN — a warehouse routing game
+   ---------------------------------------------------------------------
+   HOW TO EXTEND
+   1. Add a processing step to STEPS (stage decides ordering: lower
+      stages must be finished first; steps with the same stage can be
+      done in any order). `want(order)` decides if an order needs it.
+   2. Add a station to STATIONS with `handles: '<stepId>'`.
+   3. Add the station id to the `stations` list of the shifts where it
+      should be available (SHIFTS). Layout, routing, UI, help text and
+      the order generator pick it up automatically.
+   ===================================================================== */
+
+// ---------- 1. DATA: items, customers ----------
+const ITEMS = [
+  { name:'Digital caliper',      icon:'📏', tags:['measure','tool'] },
+  { name:'Torque wrench',        icon:'🔧', tags:['measure','tool'] },
+  { name:'Laser distance meter', icon:'📐', tags:['measure','tool'] },
+  { name:'Spirit level',         icon:'🧭', tags:['measure','tool'] },
+  { name:'Cordless drill',       icon:'🪛', tags:['tool'] },
+  { name:'Hammer',               icon:'🔨', tags:['tool'] },
+  { name:'Angle grinder',        icon:'⚙️', tags:['tool'] },
+  { name:'Saw',                  icon:'🪚', tags:['tool'] },
+  { name:'Work jacket',          icon:'🧥', tags:['apparel'] },
+  { name:'Safety vest',          icon:'🦺', tags:['apparel'] },
+  { name:'Work gloves',          icon:'🧤', tags:['apparel'] },
+  { name:'Work trousers',        icon:'👖', tags:['apparel'] },
+];
+const CUSTOMERS = ['Bergmann Bau','Nordhang Montage','Alpenkamm Stahl','Kessling Elektro','Hofstetter Dach','Lindvik Rail',
+  'Brückenwerk Anlagen','Sommerau Sanitär','Vogtland Gerüste','Rheinfeld Service','Falkenstein Metall','Weidner Zimmerei',
+  'Tannberg Tiefbau','Seeblick Haustechnik','Grauholz Fassaden','Morgental Energie'];
+const ORDER_COLORS = ['#ff8a1f','#4f8cff','#3ddc84','#ff5fa2','#22c3e6','#b07cff','#ffd23f','#ff6b5a','#7bd389','#9aa8ff','#f78c6b','#5ce1c6'];
+
+// ---------- 2. DATA: process steps (routing rules) ----------
+// stage: lower stages must be completed before higher ones. Same stage = any order.
+const has = (o, tag) => o.items.some(i => i.tags.includes(tag));
+const STEPS = {
+  pick:        { label:'Commissioning',        short:'PICK',  stage:0, want: () => true },
+  calibration: { label:'Calibration',          short:'CAL',   stage:1, want: o => has(o,'measure') && Math.random() < 0.75 },
+  signing:     { label:'Laser signing',        short:'SIGN',  stage:1, want: o => has(o,'tool') && Math.random() < 0.45 },
+  patching:    { label:'Logo patching',        short:'PATCH', stage:1, want: o => has(o,'apparel') && Math.random() < 0.75 },
+  focus:       { label:'Focus customer check', short:'FOCUS', stage:2, want: o => o.focus },
+  pack:        { label:'Packing & shipping',   short:'SHIP',  stage:9, want: () => true },
+};
+
+// ---------- 3. DATA: stations ----------
+// handles: step it performs. role: 'repair' (clears flags) or 'sink' (ships the order).
+// place: 'left' | 'right' | undefined (auto: distributed above/below the conveyor loop).
+const STATIONS = [
+  { id:'commission', name:'Commissioning', icon:'📦', color:'#4f8cff', handles:'pick', place:'left',
+    slots:2, time:5, queue:4, out:3, defect:{ chance:0.05, reason:'Wrong item picked', redo:false },
+    desc:'Picks the ordered tools from shuttle-storage totes into an order-specific handling unit (HU). Every order starts here.' },
+  { id:'calib', name:'Calibration Lab', icon:'📏', color:'#22c3e6', handles:'calibration',
+    slots:1, time:7, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
+    desc:'Checks that measuring tools measure correctly and issues a certificate. Failed tools go to QA, then back here.' },
+  { id:'sign', name:'Laser Signing', icon:'✒️', color:'#b07cff', handles:'signing',
+    slots:1, time:5, queue:3, out:3, defect:{ chance:0.08, reason:'Engraving blurred', redo:true },
+    desc:'Lasers the customer identifier onto tools so they can be traced on site.' },
+  { id:'patch', name:'Patch Studio', icon:'🧵', color:'#ff5fa2', handles:'patching',
+    slots:1, time:6, queue:3, out:3, defect:{ chance:0.10, reason:'Patch misaligned', redo:true },
+    desc:'Sews custom company logos onto work apparel.' },
+  { id:'care', name:'Focus Customer Care', icon:'⭐', color:'#ffd23f', handles:'focus',
+    slots:1, time:4, queue:3, out:3, defect:{ chance:0.10, reason:'Scratch found', redo:false },
+    desc:'Dedicated final check for focus customers (★). Comes after all other services, right before packing.' },
+  { id:'qa', name:'Quality Assurance', icon:'🔍', color:'#ff5468', role:'repair',
+    slots:1, time:5, queue:4, out:3,
+    desc:'Fixes everything flagged ⚠: failed checks, wrong picks, failed weight checks. A failed service has to be redone afterwards.' },
+  { id:'pack', name:'Packing & Shipping', icon:'🚚', color:'#3ddc84', handles:'pack', role:'sink', place:'right',
+    slots:2, time:4, queue:4, out:0,
+    desc:'Packs the order and loads it on the truck. Last stop: only when every step is done and nothing is flagged.' },
+];
+// Random weight check on every conveyor trip (scanner at each station entrance)
+const TRANSPORT_CHECK = { chance:0.035, reason:'Weight check failed' };
+
+// ---------- 4. DATA: shifts (levels) ----------
+const SHIFTS = [
+  { name:'Monday',    title:'Learning the ropes', duration:150, goal:6,  spawn:[14,18],  items:[1,2], slack:30, stations:['commission','qa','pack'] },
+  { name:'Tuesday',   title:'Precision matters',  duration:180, goal:9,  spawn:[12,15],  items:[1,3], slack:28, stations:['commission','calib','qa','pack'] },
+  { name:'Wednesday', title:'Make it personal',   duration:180, goal:11, spawn:[10,13],  items:[1,3], slack:26, stations:['commission','calib','sign','qa','pack'] },
+  { name:'Thursday',  title:'VIP treatment',      duration:210, goal:14, spawn:[9,11.5], items:[1,3], slack:26, stations:['commission','calib','sign','patch','care','qa','pack'] },
+  { name:'Friday',    title:'The Friday rush',    duration:210, goal:17, spawn:[7.5,9.5],items:[1,3], slack:24, stations:['commission','calib','sign','patch','care','qa','pack'] },
+];
+function shiftConfig(i){
+  if (i < SHIFTS.length) return SHIFTS[i];
+  const k = i - SHIFTS.length + 1, b = SHIFTS[SHIFTS.length-1];
+  return { ...b, name:'Overtime '+k, title:'Demand keeps growing', goal:b.goal + 2*k,
+    spawn:[Math.max(5, b.spawn[0]-0.5*k), Math.max(6.5, b.spawn[1]-0.6*k)], slack:Math.max(18, b.slack-k) };
+}
+
+// ---------- 5. DATA: upgrades ----------
+const UPGRADES = [
+  { id:'slots',   label:'Extra workstation', desc:'+1 parallel slot',  max:2, cost:l => 220 + l*180 },
+  { id:'speed',   label:'Staff training',    desc:'−15% process time', max:3, cost:l => 120 + l*100 },
+  { id:'quality', label:'Quality program',   desc:'−35% defects',      max:2, cost:l => 100 + l*90, needs: d => !!d.defect },
+];
+const GLOBAL_UPGRADES = [
+  { id:'conveyor', label:'Faster conveyor', desc:'+15% belt speed', max:3, cost:l => 150 + l*130 },
+  { id:'buffers',  label:'Bigger buffers',  desc:'+1 IN / OUT space everywhere', max:2, cost:l => 200 + l*180 },
+];
+
+// ===================================================================
+//  ENGINE
+// ===================================================================
+const DEF = Object.fromEntries(STATIONS.map(s => [s.id, s]));
+const STEP_STATION = {}; STATIONS.forEach(s => { if (s.handles) STEP_STATION[s.handles] = s.id; });
+const STEP_COLOR = id => DEF[STEP_STATION[id]]?.color || '#888';
+const rand = (a,b) => a + Math.random()*(b-a);
+const randInt = (a,b) => Math.floor(rand(a, b+1));
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const $ = id => document.getElementById(id);
+
+const W = 1320, H = 800;
+const LOOP = { x0:440, y0:300, x1:1060, y1:500 };
+LOOP.w = LOOP.x1-LOOP.x0; LOOP.h = LOOP.y1-LOOP.y0; LOOP.L = 2*(LOOP.w+LOOP.h);
+const WH = { x:16, y:66, w:184, h:700 };
+
+function loopPos(s){
+  const {x0,y0,x1,y1,w,h,L} = LOOP; s = ((s%L)+L)%L;
+  if (s <= w) return { x:x0+s, y:y0 };
+  if (s <= w+h) return { x:x1, y:y0+(s-w) };
+  if (s <= 2*w+h) return { x:x1-(s-w-h), y:y1 };
+  return { x:x0, y:y1-(s-2*w-h) };
+}
+function loopS(x, y){
+  const {x0,y0,x1,y1,w,h} = LOOP;
+  const cx = clamp(x,x0,x1), cy = clamp(y,y0,y1);
+  const c = [[Math.abs(y-y0), cx-x0],[Math.abs(x-x1), w+cy-y0],[Math.abs(y-y1), w+h+(x1-cx)],[Math.abs(x-x0), 2*w+h+(y1-cy)]];
+  c.sort((a,b) => a[0]-b[0]); return c[0][1];
+}
+function laneOff(p, off){
+  const e = 0.01; let {x,y} = p;
+  if (Math.abs(p.y-LOOP.y0) < e) y -= off;
+  if (Math.abs(p.y-LOOP.y1) < e) y += off;
+  if (Math.abs(p.x-LOOP.x0) < e) x -= off;
+  if (Math.abs(p.x-LOOP.x1) < e) x += off;
+  return { x, y };
+}
+function loopCorners(s0, s1, dir){ // corner points strictly between s0 and s1 going dir
+  const {w,h,L} = LOOP, base = [0, w, w+h, 2*w+h], out = [];
+  const all = []; for (let k=-2; k<=3; k++) base.forEach(c => all.push(c + k*L));
+  if (dir > 0) all.filter(c => c > s0+1e-6 && c < s1-1e-6).sort((a,b)=>a-b).forEach(c => out.push(loopPos(c)));
+  else all.filter(c => c < s0-1e-6 && c > s1+1e-6).sort((a,b)=>b-a).forEach(c => out.push(loopPos(c)));
+  return out;
+}
+function mkPath(pts, portIdx){
+  const cum = [0];
+  for (let i=1; i<pts.length; i++) cum.push(cum[i-1] + Math.hypot(pts[i].x-pts[i-1].x, pts[i].y-pts[i-1].y));
+  return { pts, cum, len:cum[cum.length-1], portAt: portIdx>=0 ? cum[portIdx] : -1, d:0, checked:false };
+}
+function along(path, d){
+  const {pts, cum} = path; d = clamp(d, 0, path.len);
+  for (let i=0; i<pts.length-1; i++){
+    if (cum[i+1] >= d){ const seg = cum[i+1]-cum[i] || 1, t = (d-cum[i])/seg;
+      return { x:pts[i].x + (pts[i+1].x-pts[i].x)*t, y:pts[i].y + (pts[i+1].y-pts[i].y)*t }; }
+  }
+  return { ...pts[pts.length-1] };
+}
+// Build a path: from a station (or loop position s) to a station (or a full circle when toSt is null)
+function buildPath(fromSt, fromS, toSt){
+  const L = LOOP.L, pts = [];
+  const s0 = fromSt ? fromSt.port.s : fromS;
+  let s1, dir;
+  if (toSt){ s1 = toSt.port.s; const cw = ((s1-s0)%L+L)%L; dir = cw <= L-cw ? 1 : -1; s1 = dir>0 ? s0+cw : s0-(L-cw); }
+  else { dir = 1; s1 = s0 + L; }
+  const off = dir > 0 ? 10 : -10;
+  if (fromSt) pts.push({ ...fromSt.dock });
+  pts.push(laneOff(loopPos(s0), off));
+  loopCorners(s0, s1, dir).forEach(p => pts.push(laneOff(p, off)));
+  pts.push(laneOff(loopPos(s1), off));
+  const portIdx = toSt ? pts.length-1 : -1;
+  if (toSt) pts.push({ ...toSt.dock });
+  const p = mkPath(pts, portIdx); p.to = toSt ? toSt.id : null; p.loopS = s0; return p;
+}
+
+// ---------- persistent + runtime state ----------
+let G = null;
+const SAVE_KEY = 'logistic-town-save-v1';
+function newProfile(){ return { shiftIdx:0, money:0, upgrades:{}, global:{ conveyor:0, buffers:0 }, hints:true, seenTips:{}, musicOn:true, sfxOn:true, speed:1, best:0 }; }
+function loadProfile(){ try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && typeof s.shiftIdx === 'number') return { ...newProfile(), ...s }; } catch(e){} return null; }
+function saveProfile(){ try { const { shiftIdx, money, upgrades, global, hints, seenTips, musicOn, sfxOn, best } = G;
+  localStorage.setItem(SAVE_KEY, JSON.stringify({ shiftIdx, money, upgrades, global, hints, seenTips, musicOn, sfxOn, best })); } catch(e){} }
+
+G = { ...newProfile(), mode:'title', stations:[], st:{}, orders:[], hus:[], floats:[], flyers:[], time:0, silent:false };
+const saved = loadProfile(); if (saved){ G.musicOn = saved.musicOn; G.sfxOn = saved.sfxOn; G.hints = saved.hints; G.seenTips = saved.seenTips || {}; }
+
+function makeStation(def){
+  const up = G.upgrades[def.id] || {};
+  return { def, id:def.id, slotCount:def.slots + (up.slots||0), queueMax:def.queue + G.global.buffers,
+    outMax: def.out ? def.out + G.global.buffers : 0, speedMul:Math.pow(0.85, up.speed||0), qualMul:Math.pow(0.65, up.quality||0),
+    slots:[], queue:[], out:[], incoming:0, processed:0, flash:0, scanFlash:0, x:0, y:0, w:160, h:150 };
+}
+function layoutStations(){
+  const list = G.stations, left = list.filter(s => s.def.place==='left'), right = list.filter(s => s.def.place==='right');
+  const auto = list.filter(s => !s.def.place), nTop = Math.ceil(auto.length/2);
+  const rows = [auto.slice(0,nTop), auto.slice(nTop)];
+  const {x0,y0,x1,y1,w,h} = LOOP, CH = 150, SP = 52;
+  rows.forEach((row, ri) => {
+    const spacing = w / Math.max(1,row.length);
+    row.forEach((st, i) => {
+      st.w = Math.min(176, spacing-16); st.h = CH;
+      const cx = x0 + spacing*(i+0.5);
+      st.x = cx - st.w/2;
+      if (ri === 0){ st.y = y0 - SP - CH; st.dock = { x:cx, y:st.y+CH }; st.port = { x:cx, y:y0, s:cx-x0 }; st.side='top'; }
+      else { st.y = y1 + SP; st.dock = { x:cx, y:st.y }; st.port = { x:cx, y:y1, s:w+h+(x1-cx) }; st.side='bottom'; }
+    });
+  });
+  const cy = (y0+y1)/2;
+  left.forEach((st, i) => { st.w=160; st.h=CH; st.x = x0-SP-160; st.y = cy-CH/2 + i*(CH+20); st.dock={ x:st.x+st.w, y:st.y+CH/2 }; st.port={ x:x0, y:st.y+CH/2, s:2*w+h+(y1-(st.y+CH/2)) }; st.side='left'; });
+  right.forEach((st, i) => { st.w=160; st.h=CH; st.x = x1+SP; st.y = cy-CH/2 + i*(CH+20); st.dock={ x:st.x, y:st.y+CH/2 }; st.port={ x:x1, y:st.y+CH/2, s:w+(st.y+CH/2-y0) }; st.side='right'; });
+  // keyboard keys in reading order
+  const ordered = [...left, ...rows[0], ...rows[1], ...right];
+  ordered.forEach((st,i) => st.key = i+1);
+  G.keyOrder = ordered;
+}
+
+function startShift(idx){
+  G.shiftIdx = idx; G.cfg = shiftConfig(idx);
+  G.stations = G.cfg.stations.filter(id => DEF[id]).map(id => makeStation(DEF[id]));
+  G.st = Object.fromEntries(G.stations.map(s => [s.id, s]));
+  layoutStations();
+  Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[],
+    seq: 0, huSeq:0, nextSpawn:2, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
+    truck:{ x:1210, load:0, state:'parked', t:0 } });
+  G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
+  G.mode = 'play';
+}
+
+const activeHas = id => !!G.st[id];
+function pendingSteps(o){ return Object.keys(o.steps).filter(k => o.steps[k]==='todo'); }
+function validTargets(hu){
+  if (hu.flag) return G.stations.filter(s => s.def.role==='repair');
+  const pend = pendingSteps(hu.order); if (!pend.length) return [];
+  const minStage = Math.min(...pend.map(id => STEPS[id].stage));
+  return G.stations.filter(s => s.def.handles && pend.includes(s.def.handles) && STEPS[s.def.handles].stage === minStage);
+}
+const hasRoom = st => st.queue.length + st.incoming < st.queueMax;
+function selectable(hu){
+  if (hu.gone) return false;
+  if (hu.loc === 'out') return true;
+  if (hu.loc === 'transit' && !hu.tr.feed) return hu.tr.to === null || hu.tr.d < hu.tr.portAt;
+  return false;
+}
+function nextHint(hu){
+  if (hu.flag) return 'Quality Assurance';
+  const t = validTargets(hu); return t.length ? t.map(s => s.def.name).join(' or ') : '—';
+}
+
+function makeOrder(){
+  const cfg = G.cfg, n = randInt(cfg.items[0], cfg.items[1]);
+  const pool = [...ITEMS], items = [];
+  for (let i=0; i<n && pool.length; i++) items.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+  const id = ++G.seq;
+  const o = { id, num:4100 + id + G.shiftIdx*100, customer:pick(CUSTOMERS), items, focus:false, steps:{},
+    created:G.time, color:ORDER_COLORS[id % ORDER_COLORS.length], released:false, shipped:false, late:false, hu:null };
+  o.focus = activeHas('care') && Math.random() < 0.28;
+  let allow = cfg.slack;
+  for (const [sid, s] of Object.entries(STEPS)){
+    const stId = STEP_STATION[sid]; if (!stId || !activeHas(stId)) continue;
+    if (s.want(o)){ o.steps[sid] = 'todo'; allow += DEF[stId].time + 6; }
+  }
+  o.allow = Math.round(allow); o.due = G.time + o.allow;
+  G.orders.push(o);
+  sfx('order');
+  if (G.cfg === SHIFTS[0] || G.shiftIdx === 0) tip('release', 'A new order arrived on the left. <b>Click the order card</b> to release it: the shuttle warehouse sends the totes to <b>Commissioning</b>.');
+}
+
+function release(o){
+  if (o.released || G.mode !== 'play') return false;
+  const c = G.st.commission;
+  if (!hasRoom(c)){ toast('Commissioning queue is full. Wait for a free spot.', 'bad'); sfx('error'); return false; }
+  o.released = true;
+  const hu = { id:++G.huSeq, order:o, flag:null, loc:'transit' }; o.hu = hu; G.hus.push(hu);
+  c.incoming++;
+  const cy = c.y + c.h/2;
+  hu.tr = mkPath([{ x:WH.x+WH.w-30, y:cy }, { x:WH.x+WH.w+6, y:cy }, { x:c.x, y:cy }], -1);
+  hu.tr.to = c.id; hu.tr.feed = true; hu.tr.speedMul = 0.6;
+  hideTip('release'); sfx('release'); return true;
+}
+
+function dispatch(hu, st){
+  if (!selectable(hu) || G.mode !== 'play') return false;
+  if (hu.loc === 'transit' && hu.tr.to === st.id) { G.selected = null; return true; }
+  if (!hasRoom(st)){ toast(`${st.def.name} is full. Wait or choose another route.`, 'bad'); sfx('error'); return false; }
+  if (hu.loc === 'out'){
+    const from = G.stations.find(s => s.out.includes(hu));
+    from.out.splice(from.out.indexOf(hu), 1);
+    hu.tr = buildPath(from, 0, st);
+  } else {
+    if (hu.tr.to) G.st[hu.tr.to].incoming--;
+    const p = along(hu.tr, hu.tr.d);
+    hu.tr = buildPath(null, loopS(p.x, p.y), st);
+  }
+  hu.loc = 'transit'; st.incoming++;
+  G.selected = null; sfx('dispatch'); hideTip('route'); if (hu.flag) hideTip('flag');
+  return true;
+}
+
+function circle(hu, s){ hu.loc = 'transit'; hu.tr = buildPath(null, s, null); }
+
+function portCheck(hu, st){
+  let weightFail = false;
+  if (!hu.flag && st.def.role !== 'repair' && Math.random() < TRANSPORT_CHECK.chance){
+    hu.flag = { reason:TRANSPORT_CHECK.reason, station:null }; weightFail = true; G.defects++;
+    st.scanFlash = 1.2;
+  }
+  if (validTargets(hu).includes(st)) return true;
+  st.incoming--;
+  if (weightFail){
+    toast(`⚖ #${hu.order.num}: weight check failed at ${st.def.name}. Route it to Quality Assurance.`, 'warn');
+    sfx('flag'); event('flag');
+  } else {
+    G.wrong++; G.money -= 10; G.earned -= 10; changeSat(-3);
+    const why = hu.flag ? 'it is flagged and must go to Quality Assurance first'
+      : `next step is ${nextHint(hu)}`;
+    toast(`✖ ${st.def.name} rejected #${hu.order.num}: ${why}.`, 'bad');
+    floatText(st.port.x, st.port.y-14, '−$10', '#ff5468'); sfx('error'); st.flash = -1;
+    tip('wrong', 'Rejected! A station only accepts units that need it <b>next</b>. The unit now circles on the conveyor. <b>Click it on the belt</b> and send it somewhere else.');
+  }
+  circle(hu, st.port.s);
+  return false;
+}
+
+function complete(st, hu){
+  const d = st.def, o = hu.order;
+  st.processed++;
+  if (d.role === 'repair'){ hu.flag = null; floatText(st.dock.x, st.y+10, 'Fixed ✓', '#3ddc84'); sfx('fix'); return; }
+  const step = d.handles;
+  if (d.defect && Math.random() < d.defect.chance * st.qualMul){
+    hu.flag = { reason:d.defect.reason, station:d.id }; G.defects++;
+    o.steps[step] = d.defect.redo ? 'todo' : 'done';
+    toast(`⚠ #${o.num}: ${d.defect.reason} at ${d.name}. Send it to Quality Assurance.`, 'warn');
+    sfx('flag'); event('flag');
+  } else o.steps[step] = 'done';
+}
+
+function ship(hu){
+  const o = hu.order; o.shipped = true; hu.gone = true;
+  G.hus.splice(G.hus.indexOf(hu), 1); G.orders.splice(G.orders.indexOf(o), 1);
+  if (G.selected === hu) G.selected = null;
+  const services = Object.keys(o.steps).filter(k => k !== 'pick' && k !== 'pack').length;
+  let pay = 40 + 25*services; if (o.focus) pay *= 1.5;
+  const late = G.time > o.due;
+  if (late){ pay *= 0.4; G.lateShip++; } else { G.onTime++; changeSat(+2); }
+  if (!G.hints) pay *= 1.25;
+  pay = Math.round(pay);
+  G.money += pay; G.earned += pay; G.shipped++;
+  G.shippedLog.unshift({ num:o.num, late, pay, color:o.color }); G.shippedLog.length = Math.min(G.shippedLog.length, 5);
+  const pk = G.st.pack;
+  floatText(pk.x+pk.w/2, pk.y-6, `+$${pay}`, late ? '#ffc53d' : '#3ddc84');
+  G.flyers.push({ x0:pk.x+pk.w/2, y0:pk.y+pk.h, x1:G.truck.x-20, y1:640, t:0, color:o.color });
+  sfx('ship'); event('ship');
+  if (!G.goalToast && G.shipped >= G.cfg.goal){ G.goalToast = true; toast('🎯 Shift goal reached! Everything else is bonus.', 'good'); sfx('fix'); }
+}
+
+function changeSat(d){
+  G.sat = clamp(G.sat + d, 0, 100);
+  if (G.sat <= 0 && G.mode === 'play') endShift(true);
+}
+
+function update(dt){
+  if (G.mode !== 'play') return;
+  G.time += dt;
+  const cfg = G.cfg;
+  // spawn orders
+  if (G.time >= G.nextSpawn && G.time < cfg.duration - 22){
+    makeOrder(); G.nextSpawn = G.time + rand(cfg.spawn[0], cfg.spawn[1]);
+  }
+  // overdue
+  for (const o of G.orders){
+    if (!o.late && G.time > o.due){ o.late = true; changeSat(-6); toast(`⏰ Order #${o.num} for ${o.customer} is overdue!`, 'bad'); sfx('late'); }
+  }
+  // transport
+  for (const hu of G.hus){
+    if (hu.loc !== 'transit') continue;
+    const tr = hu.tr;
+    tr.d += G.convSpeed * (tr.speedMul||1) * dt;
+    if (tr.to && !tr.checked && tr.portAt >= 0 && tr.d >= tr.portAt){
+      tr.checked = true;
+      if (!portCheck(hu, G.st[tr.to])) continue;
+    }
+    if (tr.d >= tr.len){
+      if (tr.to){ const st = G.st[tr.to]; st.incoming--; st.queue.push(hu); hu.loc = 'queue'; hu.tr = null; sfx('clunk'); }
+      else circle(hu, tr.loopS);
+    }
+  }
+  // stations
+  for (const st of G.stations){
+    st.flash = st.flash > 0 ? Math.max(0, st.flash - dt) : Math.min(0, st.flash + dt);
+    st.scanFlash = Math.max(0, st.scanFlash - dt);
+    for (let i=0; i<st.slotCount; i++){
+      let s = st.slots[i];
+      if (!s && st.queue.length){ const hu = st.queue.shift(); hu.loc = 'slot'; s = st.slots[i] = { hu, t:0, dur:st.def.time*st.speedMul*rand(0.88,1.12), done:false, blocked:false }; }
+      if (!s) continue;
+      if (!s.done){ s.t += dt; if (s.t >= s.dur){ s.done = true; complete(st, s.hu); } }
+      if (s.done){
+        const hu = s.hu;
+        if (st.def.role === 'sink' && !hu.flag && !pendingSteps(hu.order).length){ ship(hu); st.slots[i] = null; }
+        else if (st.outMax === 0){ st.slots[i] = null; circle(hu, st.port.s); }
+        else if (st.out.length < st.outMax){
+          st.out.push(hu); hu.loc = 'out'; st.slots[i] = null; s.blocked = false; st.flash = 0.6; sfx('done'); event('ready', hu);
+        } else s.blocked = true;
+      }
+    }
+  }
+  // truck
+  const tk = G.truck; tk.t += dt;
+  if (tk.state === 'leaving'){ tk.x += 260*dt; if (tk.x > W + 200){ tk.state = 'arriving'; tk.x = W + 200; tk.load = 0; } }
+  else if (tk.state === 'arriving'){ tk.x = Math.max(1210, tk.x - 260*dt); if (tk.x === 1210) tk.state = 'parked'; }
+  for (const f of G.flyers){ f.t += dt*1.6; if (f.t >= 1 && !f.done){ f.done = true; tk.load++; if (tk.load >= 4 && tk.state==='parked'){ tk.state='leaving'; sfx('truck'); } } }
+  G.flyers = G.flyers.filter(f => f.t < 1.05);
+  for (const f of G.floats) f.t += dt;
+  G.floats = G.floats.filter(f => f.t < 1.4);
+  if (G.selected && !selectable(G.selected)) G.selected = null;
+  if (G.time >= cfg.duration) endShift(false);
+}
+
+function endShift(failedSat){
+  if (G.mode !== 'play') return;
+  G.mode = 'result'; G.selected = null;
+  const cfg = G.cfg, passed = !failedSat && G.shipped >= cfg.goal;
+  const ratio = G.shipped ? G.onTime / G.shipped : 0;
+  let stars = 0;
+  if (passed){ stars = 1; if (ratio >= 0.7) stars = 2; if (ratio >= 0.9 && G.sat >= 70) stars = 3; }
+  let bonus = 0;
+  if (passed){ bonus = 100 + 40*stars; G.money += bonus; G.best = Math.max(G.best||0, G.shiftIdx+1); }
+  G.result = { passed, failedSat, stars, ratio, bonus };
+  if (!G.silent){ hideTip(); sfx(passed ? 'fanfare' : 'fail'); showResult(); }
+}
+
+// ===================================================================
+//  AUDIO (all synthesized with the Web Audio API)
+// ===================================================================
+const AU = {
+  ctx:null,
+  init(){
+    if (this.ctx){ if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const c = this.ctx = new AC();
+    this.master = c.createGain(); this.master.gain.value = 0.85;
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4;
+    this.master.connect(comp); comp.connect(c.destination);
+    this.sfxBus = c.createGain(); this.sfxBus.gain.value = G.sfxOn ? 0.75 : 0; this.sfxBus.connect(this.master);
+    this.musBus = c.createGain(); this.musBus.gain.value = 0; this.musBus.connect(this.master);
+    const dl = c.createDelay(); dl.delayTime.value = 0.3; const fb = c.createGain(); fb.gain.value = 0.28;
+    const wet = c.createGain(); wet.gain.value = 0.22; this.echo = c.createGain();
+    this.echo.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(this.musBus);
+    const len = c.sampleRate; this.noiseBuf = c.createBuffer(1, len, c.sampleRate);
+    const d = this.noiseBuf.getChannelData(0); for (let i=0; i<len; i++) d[i] = Math.random()*2-1;
+  },
+  osc(type, f, t, dur, peak, o={}){
+    const c = this.ctx, osc = c.createOscillator(), g = c.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(f, t);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + (o.slide || dur));
+    if (o.detune) osc.detune.value = o.detune;
+    const a = o.a || 0.005;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    let node = osc;
+    if (o.lp){ const fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = o.lp; fl.Q.value = o.q || 0.8; osc.connect(fl); node = fl; }
+    node.connect(g); g.connect(o.bus || this.sfxBus); if (o.echo) g.connect(this.echo);
+    osc.start(t); osc.stop(t + dur + 0.05);
+  },
+  noise(t, dur, peak, o={}){
+    const c = this.ctx, src = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    src.buffer = this.noiseBuf; fl.type = o.type || 'highpass'; fl.frequency.setValueAtTime(o.f || 1000, t);
+    if (o.to) fl.frequency.exponentialRampToValueAtTime(o.to, t + dur); fl.Q.value = o.q || 0.8;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + (o.a || 0.003));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(fl); fl.connect(g); g.connect(o.bus || this.sfxBus);
+    src.start(t, Math.random()*0.5); src.stop(t + dur + 0.05);
+  },
+};
+const mtof = m => 440 * Math.pow(2, (m-69)/12);
+const SFX = {
+  click(t){ AU.osc('triangle', 1200, t, 0.04, 0.08); },
+  select(t){ AU.osc('triangle', 740, t, 0.06, 0.12); AU.osc('triangle', 1110, t+0.04, 0.07, 0.09); },
+  release(t){ AU.osc('sine', 420, t, 0.18, 0.14, { to:780 }); AU.noise(t, 0.15, 0.04, { type:'bandpass', f:800, to:3000 }); },
+  dispatch(t){ AU.osc('triangle', 380, t, 0.16, 0.12, { to:900 }); AU.noise(t, 0.2, 0.05, { type:'bandpass', f:500, to:4000, q:2 }); },
+  clunk(t){ AU.osc('sine', 150, t, 0.12, 0.16, { to:60 }); AU.noise(t, 0.05, 0.04, { type:'lowpass', f:900 }); },
+  done(t){ AU.osc('sine', 988, t, 0.2, 0.1); AU.osc('sine', 1319, t+0.08, 0.3, 0.1); },
+  fix(t){ [523,659,784,1047].forEach((f,i) => AU.osc('triangle', f, t+i*0.06, 0.18, 0.09)); },
+  error(t){ AU.osc('square', 220, t, 0.13, 0.07, { lp:1100 }); AU.osc('square', 156, t+0.13, 0.22, 0.07, { lp:900 }); },
+  flag(t){ [0,1,2].forEach(i => AU.osc('square', i%2 ? 660 : 880, t+i*0.12, 0.1, 0.05, { lp:2400 })); },
+  ship(t){ [1047,1319,1568,2093].forEach((f,i) => AU.osc('sine', f, t+i*0.05, 0.25, 0.09)); AU.noise(t+0.18, 0.25, 0.05, { f:6000 }); },
+  order(t){ AU.osc('sine', 660, t, 0.35, 0.07); AU.osc('sine', 990, t+0.1, 0.45, 0.06); },
+  late(t){ AU.osc('sawtooth', 110, t, 0.45, 0.1, { to:70, lp:500 }); },
+  truck(t){ AU.osc('sawtooth', 70, t, 0.9, 0.06, { to:110, lp:300 }); AU.osc('square', 440, t+0.1, 0.12, 0.04, {lp:1500}); AU.osc('square', 440, t+0.3, 0.12, 0.04, {lp:1500}); },
+  fanfare(t){ [[60,0],[64,.12],[67,.24],[72,.36],[67,.52],[72,.64]].forEach(([m,dt]) => { AU.osc('triangle', mtof(m+12), t+dt, 0.35, 0.12); AU.osc('square', mtof(m), t+dt, 0.3, 0.035, { lp:1800 }); }); },
+  fail(t){ [67,63,60,55].forEach((m,i) => AU.osc('triangle', mtof(m), t+i*0.18, 0.4, 0.1)); },
+};
+const lastSfx = {};
+function sfx(n){
+  if (G.silent || !AU.ctx || !G.sfxOn) return;
+  const now = AU.ctx.currentTime; if (lastSfx[n] && now - lastSfx[n] < 0.05) return; lastSfx[n] = now;
+  try { SFX[n](now + 0.01); } catch(e){}
+}
+// Generative music: lo-fi industrial groove, 4-chord loop, layers react to workload
+const Music = {
+  bpm:96, step:0, next:0, timer:null, intensity:0.2,
+  prog:[[57,60,64,67],[53,57,60,64],[48,52,55,59],[55,59,62,65]],
+  start(){ if (!AU.ctx || this.timer) return; this.next = AU.ctx.currentTime + 0.1; this.timer = setInterval(() => this.tick(), 30); this.setOn(G.musicOn); },
+  setOn(on){ if (!AU.ctx) return; const g = AU.musBus.gain, t = AU.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(on ? 0.3 : 0, t + 0.6); },
+  tick(){
+    const c = AU.ctx; if (c.state !== 'running') return;
+    if (this.next < c.currentTime - 0.2) this.next = c.currentTime + 0.05;
+    while (this.next < c.currentTime + 0.15){ this.play(this.step, this.next); this.next += 60/this.bpm/4; this.step++; }
+  },
+  play(s, t){
+    if (!G.musicOn) return;
+    const st = s % 16, bar = Math.floor(s/16), chord = this.prog[Math.floor(bar/2) % 4], I = this.intensity, bus = AU.musBus;
+    const paused = G.mode !== 'play';
+    if (st % 8 === 0 || (I > 0.55 && st === 10)) { AU.osc('sine', 140, t, 0.22, paused ? 0.25 : 0.55, { to:42, slide:0.14, bus }); }
+    if (!paused && (st === 4 || st === 12)) AU.noise(t, 0.14, 0.11, { type:'bandpass', f:1700, q:0.9, bus });
+    if (st % 2 === 1 || (I > 0.45 && st % 2 === 0 && st % 4 !== 0)) AU.noise(t, st % 4 === 2 ? 0.07 : 0.035, st % 4 === 2 ? 0.05 : 0.03, { f:7500, bus });
+    if ([0,3,6,8,11,14].includes(st)) AU.osc('sawtooth', mtof(chord[0]-24 + (st===14 ? 7 : 0)), t, 0.2, 0.09, { lp:420 + I*500, q:3, bus });
+    if (st === 0 && bar % 2 === 0) chord.forEach((m,i) => AU.osc('triangle', mtof(m), t, 4.6, 0.025, { a:0.6, detune:(i-1.5)*6, bus, echo:true }));
+    if (!paused && I > 0.3 && st % 2 === 0){ const m = chord[(st/2 + bar) % 4] + 12; AU.osc('square', mtof(m), t, 0.12, 0.022, { lp:1800, bus, echo:true }); }
+    if (!paused && I > 0.7 && (st === 7 || st === 15)) AU.osc('triangle', mtof(chord[3]+24), t, 0.2, 0.03, { bus, echo:true });
+  },
+};
+
+// ===================================================================
+//  UI helpers: toasts, tips, floats, events
+// ===================================================================
+function toast(msg, kind=''){
+  if (G.silent) return;
+  const box = $('toasts'); const el = document.createElement('div'); el.className = 'toast ' + kind; el.innerHTML = msg;
+  box.appendChild(el); while (box.children.length > 4) box.firstChild.remove();
+  setTimeout(() => el.classList.add('out'), 3600); setTimeout(() => el.remove(), 4100);
+}
+function floatText(x, y, text, color){ G.floats.push({ x, y, text, color, t:0 }); }
+let tipKey = null;
+function tip(key, html){
+  if (G.silent || G.seenTips[key]) return;
+  G.seenTips[key] = true; tipKey = key; $('tipText').innerHTML = html; $('tip').classList.add('show');
+  saveProfile();
+}
+function hideTip(key){ if (!key || key === tipKey) $('tip').classList.remove('show'); }
+$('tipOk').onclick = () => { hideTip(); sfx('click'); };
+function event(name, hu){
+  if (G.silent) return;
+  if (name === 'ready' && hu){
+    const t = validTargets(hu);
+    if (hu.flag) return;
+    tip('route', `Handling unit <b>#${hu.order.num}</b> is ready! <b>Click it</b>, then click the station that is <b style="color:var(--accent)">glowing orange</b> (or press its number key). You can also drag it.`);
+    for (const st of t){ const sid = st.def.handles; if (sid !== 'pick' && sid !== 'pack') tip('step_'+sid,
+      `This order needs <b>${STEPS[sid].label}</b>: route it to <b>${st.def.icon} ${st.def.name}</b>. Services can be done in any order. Focus Customer Care comes after all services, Packing always last.`); }
+  }
+  if (name === 'flag') tip('flag', 'A <b style="color:var(--bad)">⚠ red flag</b> means something went wrong. Flagged units must go to <b>🔍 Quality Assurance</b> first. If a service failed, it has to be redone afterwards.');
+  if (name === 'ship') tip('ship', 'Shipped! 💰 Ship before an order\'s timer runs out: late orders pay less and upset customers. If satisfaction hits zero, the shift is lost.');
+}
+
+// ===================================================================
+//  RENDERING
+// ===================================================================
+const cv = $('cv'), ctx = cv.getContext('2d'), floorEl = $('floor');
+const view = { s:1, ox:0, oy:0, dpr:1 };
+function resize(){
+  const r = floorEl.getBoundingClientRect(); view.dpr = Math.min(2.5, window.devicePixelRatio || 1);
+  cv.width = Math.max(1, Math.round(r.width*view.dpr)); cv.height = Math.max(1, Math.round(r.height*view.dpr));
+  const pad = 8; view.s = Math.min((r.width-pad*2)/W, (r.height-pad*2)/H);
+  view.ox = (r.width - W*view.s)/2; view.oy = (r.height - H*view.s)/2;
+}
+window.addEventListener('resize', resize);
+const EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+const FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+function rr(x, y, w, h, r){ ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function hash(n){ n = Math.sin(n*127.1)*43758.5453; return n - Math.floor(n); }
+const mouse = { x:-1, y:-1, inside:false };
+let hoverHU = null, hoverSt = null, drag = null;
+
+function drawFloor(t){
+  ctx.fillStyle = '#121925'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth = 1;
+  for (let x=0; x<=W; x+=40){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y=0; y<=H; y+=40){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  // walkway paint
+  ctx.strokeStyle = 'rgba(255,197,61,0.12)'; ctx.setLineDash([16,10]); ctx.lineWidth = 3;
+  ctx.strokeRect(LOOP.x0-250, 54, LOOP.w+500, 728); ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.font = `800 54px ${FONT}`; ctx.textAlign = 'center';
+  ctx.fillText('HALL 3', (LOOP.x0+LOOP.x1)/2, (LOOP.y0+LOOP.y1)/2 + 18);
+}
+function drawWarehouse(t){
+  const {x,y,w,h} = WH;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+  rr(x, y, w, h, 14); ctx.fillStyle = '#18202e'; ctx.fill(); ctx.restore();
+  ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.5; rr(x, y, w, h, 14); ctx.stroke();
+  ctx.fillStyle = '#ff8a1f'; ctx.font = `800 11px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('SHUTTLE WAREHOUSE', x+14, y+22);
+  ctx.fillStyle = '#8a96ad'; ctx.font = `500 10px ${FONT}`; ctx.fillText(`${(18420 + Math.floor(t*3)%97).toLocaleString('en')} totes stored`, x+14, y+37);
+  const aisles = 2, aw = (w-28)/aisles, levels = 18, top = y+52, lh = (h-130)/levels;
+  for (let a=0; a<aisles; a++){
+    const ax = x+14 + a*aw;
+    for (let l=0; l<levels; l++){
+      const ly = top + l*lh;
+      for (let side=0; side<2; side++){
+        const rx = ax + side*(aw*0.62) + 2, rw = aw*0.34;
+        ctx.fillStyle = '#222c3e'; ctx.fillRect(rx, ly, rw, lh-3);
+        for (let k=0; k<3; k++){ const hsh = hash(a*1000+l*10+side*3+k);
+          if (hsh > 0.18){ ctx.fillStyle = hsh > 0.8 ? '#ff8a1f' : hsh > 0.55 ? '#3b5b8f' : '#4a5770'; ctx.fillRect(rx + 2 + k*(rw/3), ly+2, rw/3-3, lh-7); } }
+      }
+      // shuttle track & shuttle
+      const tx0 = ax + aw*0.36 + 2, tx1 = ax + aw*0.62;
+      ctx.fillStyle = '#10161f'; ctx.fillRect(tx0, ly + lh/2 - 1, tx1-tx0, 2);
+      const ph = hash(a*77+l*13)*6.28, sp = 0.6 + hash(l*31+a)*0.9;
+      const sx = tx0 + (tx1-tx0-8) * (0.5 + 0.5*Math.sin(t*sp + ph));
+      ctx.fillStyle = '#ffc53d'; ctx.fillRect(sx, ly + 2, 8, lh-6);
+    }
+  }
+  // lift & output
+  const c = G.st.commission, cy = c ? c.y + c.h/2 : 400;
+  const liftX = x + w - 34, ly = top + (h-130 - 20) * (0.5 + 0.5*Math.sin(t*0.9));
+  ctx.fillStyle = '#0f141c'; ctx.fillRect(liftX+8, top, 4, h-130);
+  ctx.fillStyle = '#ff8a1f'; ctx.fillRect(liftX, ly, 20, 14);
+  ctx.fillStyle = '#8a96ad'; ctx.font = `600 10px ${FONT}`; ctx.fillText('Order totes →', x+14, y+h-56);
+  ctx.fillText('to Commissioning', x+14, y+h-42);
+  // feeder belt to commissioning
+  if (c){ conveyorSeg(x+w-30, cy, c.x, cy, 22, t, 1); }
+}
+function conveyorSeg(x0, y0, x1, y1, wdt, t, dirSign){
+  const len = Math.hypot(x1-x0, y1-y0), ang = Math.atan2(y1-y0, x1-x0);
+  ctx.save(); ctx.translate(x0, y0); ctx.rotate(ang);
+  ctx.fillStyle = '#262f42'; ctx.fillRect(0, -wdt/2, len, wdt);
+  ctx.strokeStyle = '#3a4560'; ctx.lineWidth = 2; ctx.setLineDash([2,7]); ctx.lineDashOffset = -t*40*dirSign;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.lineWidth = wdt-8; ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = '#4a5672'; ctx.fillRect(0, -wdt/2, len, 2); ctx.fillRect(0, wdt/2-2, len, 2);
+  ctx.restore();
+}
+function drawLoop(t){
+  const {x0,y0,w,h} = LOOP;
+  ctx.fillStyle = '#232c3e'; ctx.strokeStyle = '#232c3e'; ctx.lineWidth = 46; ctx.lineJoin = 'miter';
+  ctx.strokeRect(x0, y0, w, h);
+  [[10, 1], [-10, -1]].forEach(([off, dir]) => {
+    ctx.save(); ctx.strokeStyle = '#36415a'; ctx.lineWidth = 15; ctx.setLineDash([3,7]);
+    ctx.lineDashOffset = -t * G.convSpeed * 0.25 * dir;
+    ctx.strokeRect(x0-off, y0-off, w+2*off, h+2*off); ctx.restore();
+  });
+  ctx.strokeStyle = '#56637f'; ctx.lineWidth = 2;
+  ctx.strokeRect(x0-23, y0-23, w+46, h+46); ctx.strokeRect(x0+23, y0+23, w-46, h-46);
+  ctx.strokeStyle = 'rgba(86,99,127,0.6)'; ctx.setLineDash([6,6]); ctx.strokeRect(x0, y0, w, h); ctx.setLineDash([]);
+  // direction chevrons
+  ctx.fillStyle = 'rgba(255,138,31,0.35)';
+  for (let s=40; s<LOOP.L; s+=120){
+    [[10,1],[-10,-1]].forEach(([off,dir]) => {
+      const p = laneOff(loopPos(s), off), q = loopPos(s + dir*4), qq = laneOff(q, off);
+      const a = Math.atan2(qq.y-p.y, qq.x-p.x);
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(4,0); ctx.lineTo(-3,-4); ctx.lineTo(-3,4); ctx.closePath(); ctx.fill(); ctx.restore();
+    });
+  }
+}
+function drawSpur(st, t){
+  conveyorSeg(st.dock.x, st.dock.y, st.port.x, st.port.y, 26, t, 0);
+  // scanner arch
+  const mx = (st.dock.x*0.35 + st.port.x*0.65), my = (st.dock.y*0.35 + st.port.y*0.65);
+  const vertical = st.side === 'top' || st.side === 'bottom';
+  ctx.fillStyle = '#3a4560';
+  if (vertical){ ctx.fillRect(mx-17, my-3, 34, 6); } else { ctx.fillRect(mx-3, my-17, 6, 34); }
+  const on = st.scanFlash > 0 ? (Math.floor(t*10)%2 ? '#ff5468' : '#ffc53d') : '#3ddc84';
+  ctx.fillStyle = on; ctx.beginPath(); ctx.arc(vertical ? mx+17 : mx, vertical ? my : my-17, 3, 0, 7); ctx.fill();
+}
+
+function huRect(hu){ return { w:30, h:22 }; }
+function drawHU(hu, x, y, opts={}){
+  const o = hu.order, sel = G.selected === hu, hov = hoverHU === hu;
+  ctx.save(); ctx.translate(x, y);
+  if (opts.scale) ctx.scale(opts.scale, opts.scale);
+  if (sel){ ctx.shadowColor = '#ff8a1f'; ctx.shadowBlur = 16; }
+  else { ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2; }
+  rr(-15, -11, 30, 22, 4); ctx.fillStyle = o.color; ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(-15, 4, 30, 7);
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-15,-4); ctx.lineTo(15,-4); ctx.stroke();
+  ctx.fillStyle = '#10141c'; ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(o.num).slice(-3), 0, 3);
+  if (sel || hov){ ctx.strokeStyle = sel ? '#ffffff' : 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; rr(-16.5, -12.5, 33, 25, 5); ctx.stroke(); }
+  if (o.focus){ ctx.fillStyle = '#ffd23f'; star(11, -11, 5); }
+  // pending step dots
+  const pend = pendingSteps(o).filter(s => s !== 'pick');
+  const dw = 7; let dx = -((pend.length-1)*dw)/2;
+  for (const sid of pend){ ctx.fillStyle = STEP_COLOR(sid); ctx.beginPath(); ctx.arc(dx, 16, 2.6, 0, 7); ctx.fill(); dx += dw; }
+  if (hu.flag){
+    const pulse = 0.75 + 0.25*Math.sin(perfT*8);
+    ctx.fillStyle = `rgba(255,84,104,${pulse})`; ctx.beginPath(); ctx.moveTo(-15, -20); ctx.lineTo(-6, -20); ctx.lineTo(-10.5, -12); ctx.closePath();
+    ctx.beginPath(); ctx.arc(-13, -11, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = `900 10px ${FONT}`; ctx.fillText('!', -13, -7.5);
+  }
+  if (o.late){ ctx.strokeStyle = '#ff5468'; ctx.lineWidth = 1.5; ctx.setLineDash([3,2]); rr(-18, -14, 36, 28, 6); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.restore();
+}
+function star(cx, cy, r){
+  ctx.beginPath();
+  for (let i=0; i<10; i++){ const a = -Math.PI/2 + i*Math.PI/5, rad = i%2 ? r*0.45 : r; ctx.lineTo(cx + Math.cos(a)*rad, cy + Math.sin(a)*rad); }
+  ctx.closePath(); ctx.fill();
+}
+function outPos(st, i){ const sp = Math.min(36, (st.w-60)/Math.max(1, st.outMax-1) ); return { x: st.x + 52 + i*sp, y: st.y + 124 }; }
+
+function drawStation(st, t){
+  const {x,y,w,h,def} = st;
+  const sel = G.selected, targets = sel ? validTargets(sel) : [];
+  const isTarget = sel && targets.includes(st), full = !hasRoom(st);
+  const dim = sel && G.hints && !isTarget;
+  ctx.save();
+  if (dim) ctx.globalAlpha = 0.45;
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 5;
+  rr(x, y, w, h, 12); ctx.fillStyle = '#1a2231'; ctx.fill(); ctx.shadowColor = 'transparent';
+  // header
+  ctx.save(); rr(x, y, w, h, 12); ctx.clip();
+  const grd = ctx.createLinearGradient(x, y, x+w, y); grd.addColorStop(0, def.color); grd.addColorStop(1, shade(def.color, -0.35));
+  ctx.fillStyle = grd; ctx.fillRect(x, y, w, 30);
+  if (st.flash > 0){ ctx.fillStyle = `rgba(255,255,255,${st.flash*0.25})`; ctx.fillRect(x, y, w, h); }
+  if (st.flash < 0){ ctx.fillStyle = `rgba(255,84,104,${-st.flash*0.3})`; ctx.fillRect(x, y, w, h); }
+  ctx.restore();
+  ctx.font = `16px ${EMOJI}`; ctx.textAlign = 'left'; ctx.fillText(def.icon, x+8, y+21);
+  ctx.fillStyle = '#0e131d';
+  let fs = 12.5; ctx.font = `800 ${fs}px ${FONT}`;
+  while (fs > 10 && ctx.measureText(def.name).width > w-60){ fs -= 0.5; ctx.font = `800 ${fs}px ${FONT}`; }
+  ctx.fillText(fitText(def.name, w-60), x+31, y+19.5);
+  // key badge
+  rr(x+w-24, y+7, 17, 17, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(st.key, x+w-15.5, y+19);
+  // slots
+  for (let i=0; i<st.slotCount; i++){
+    const s = st.slots[i], by = y + 38 + i*17, bx = x+10, bw = w-20;
+    rr(bx, by, bw, 13, 4); ctx.fillStyle = '#0f141d'; ctx.fill();
+    if (s){
+      const f = s.done ? 1 : s.t/s.dur;
+      rr(bx, by, Math.max(6, bw*f), 13, 4); ctx.fillStyle = s.blocked ? 'rgba(255,84,104,0.55)' : hexA(def.color, 0.5); ctx.fill();
+      ctx.fillStyle = s.hu.order.color; ctx.fillRect(bx+4, by+3, 9, 7);
+      ctx.fillStyle = '#eef2f8'; ctx.font = `700 9.5px ${FONT}`; ctx.textAlign = 'left';
+      ctx.fillText(s.blocked ? 'BLOCKED: OUT full' : `#${s.hu.order.num}`, bx+17, by+10);
+    } else { ctx.fillStyle = '#4a5468'; ctx.font = `600 9px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('idle', bx+6, by+10); }
+  }
+  // queue pips
+  const qy = y + 98;
+  ctx.fillStyle = '#8a96ad'; ctx.font = `700 9px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('IN', x+10, qy+3);
+  for (let i=0; i<st.queueMax; i++){
+    const px = x + 30 + i*14; ctx.beginPath(); ctx.arc(px, qy, 4.5, 0, 7);
+    if (i < st.queue.length){ ctx.fillStyle = st.queue[i].order.color; ctx.fill(); }
+    else if (i < st.queue.length + st.incoming){ ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 1.5; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]); }
+    else { ctx.strokeStyle = '#3a4560'; ctx.lineWidth = 1.5; ctx.stroke(); }
+  }
+  // out tray
+  if (st.outMax > 0){
+    ctx.fillStyle = '#8a96ad'; ctx.font = `700 9px ${FONT}`; ctx.fillText('OUT', x+10, y+127);
+    for (let i=0; i<st.outMax; i++){ const p = outPos(st, i); rr(p.x-16, p.y-12, 32, 24, 5); ctx.strokeStyle = '#2f3a50'; ctx.lineWidth = 1.2; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]); }
+  } else {
+    ctx.fillStyle = '#8a96ad'; ctx.font = `700 10px ${FONT}`; ctx.fillText(`Shipped today: ${G.shipped}`, x+10, y+128);
+  }
+  ctx.restore();
+  // highlight border
+  let border = '#2c3850', lw = 1.5;
+  if (isTarget && G.hints){ border = full ? '#ff5468' : `rgba(255,138,31,${0.6 + 0.4*Math.sin(t*6)})`; lw = 3; }
+  if (hoverSt === st && sel){ border = isTarget || !G.hints ? '#ffffff' : '#ff5468'; lw = 3; }
+  ctx.strokeStyle = border; ctx.lineWidth = lw; rr(x, y, w, h, 12); ctx.stroke();
+  if (sel && full){ rr(x+w/2-24, y-10, 48, 18, 6); ctx.fillStyle = '#ff5468'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('FULL', x+w/2, y+3); }
+  else if (isTarget && G.hints){ rr(x+w/2-28, y-10, 56, 18, 6); ctx.fillStyle = '#ff8a1f'; ctx.fill(); ctx.fillStyle = '#1a1208'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('NEXT ▾', x+w/2, y+3); }
+  // out HUs
+  st.out.forEach((hu, i) => { const p = outPos(st, i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); });
+}
+const fitCache = {};
+function fitText(s, maxW){
+  const k = s + '|' + maxW + ctx.font; if (fitCache[k]) return fitCache[k];
+  let r = s; while (r.length > 3 && ctx.measureText(r).width > maxW) r = r.slice(0, -2) + '…';
+  if (r !== s && r.endsWith('……')) r = r.slice(0,-1);
+  return fitCache[k] = r;
+}
+function shade(hex, f){ const n = parseInt(hex.slice(1),16); let r=n>>16, g=n>>8&255, b=n&255;
+  r = Math.round(r*(1+f)); g = Math.round(g*(1+f)); b = Math.round(b*(1+f)); return `rgb(${clamp(r,0,255)},${clamp(g,0,255)},${clamp(b,0,255)})`; }
+function hexA(hex, a){ const n = parseInt(hex.slice(1),16); return `rgba(${n>>16},${n>>8&255},${n&255},${a})`; }
+
+function drawBoard(){
+  // routing plan board (generated from STEPS + active stations)
+  const x = 222, y = 538, w = 168, h = 230;
+  rr(x, y, w, h, 12); ctx.fillStyle = 'rgba(26,34,49,0.85)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.fillStyle = '#ff8a1f'; ctx.font = `800 11px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('ROUTING PLAN', x+12, y+20);
+  let yy = y + 42, n = 1;
+  for (const stg of stageList()){
+    ctx.fillStyle = '#ff8a1f'; ctx.font = `800 10px ${FONT}`; ctx.fillText(String(n++), x+12, yy);
+    ctx.fillStyle = '#c9d2e3'; ctx.font = `600 10.5px ${FONT}`;
+    ctx.fillText(stg.length > 1 ? 'Services, any order:' : DEF[STEP_STATION[stg[0]]].name, x+26, yy);
+    if (stg.length > 1){ let xx = x+26; yy += 15; ctx.font = `700 9px ${FONT}`;
+      for (const sid of stg){ const lbl = STEPS[sid].short, tw = ctx.measureText(lbl).width + 10;
+        if (xx + tw > x + w - 8){ xx = x+26; yy += 16; }
+        rr(xx, yy-10, tw, 14, 4); ctx.fillStyle = hexA(STEP_COLOR(sid), 0.25); ctx.fill(); ctx.fillStyle = STEP_COLOR(sid); ctx.fillText(lbl, xx+5, yy+1); xx += tw + 4; } }
+    yy += 22;
+  }
+  ctx.fillStyle = '#ff5468'; ctx.font = `700 10.5px ${FONT}`; ctx.fillText('⚠ Flagged → QA first', x+12, yy+2);
+  ctx.fillStyle = '#8a96ad'; ctx.font = `500 9.5px ${FONT}`; ctx.fillText('only if the order needs it', x+12, y+h-12);
+}
+function stageList(){
+  const map = {};
+  for (const [sid, s] of Object.entries(STEPS)){ const stId = STEP_STATION[sid]; if (stId && activeHas(stId)) (map[s.stage] = map[s.stage] || []).push(sid); }
+  return Object.keys(map).sort((a,b) => a-b).map(k => map[k]);
+}
+function drawDispatchBoard(){
+  const x = 1100, y = 82, w = 196, h = 150;
+  rr(x, y, w, h, 12); ctx.fillStyle = 'rgba(26,34,49,0.85)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.fillStyle = '#ff8a1f'; ctx.font = `800 11px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('OUTBOUND LOG', x+12, y+20);
+  if (!G.shippedLog.length){ ctx.fillStyle = '#5a6680'; ctx.font = `italic 500 11px ${FONT}`; ctx.fillText('No shipments yet', x+12, y+44); }
+  G.shippedLog.forEach((e, i) => {
+    const yy = y + 42 + i*21; ctx.fillStyle = e.color; ctx.fillRect(x+12, yy-8, 10, 10);
+    ctx.fillStyle = '#c9d2e3'; ctx.font = `700 11px ${FONT}`; ctx.fillText('#'+e.num, x+28, yy+1);
+    ctx.fillStyle = e.late ? '#ffc53d' : '#3ddc84'; ctx.fillText(e.late ? 'late' : 'on time', x+86, yy+1);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#c9d2e3'; ctx.fillText('$'+e.pay, x+w-12, yy+1); ctx.textAlign = 'left';
+  });
+}
+function drawTruck(t){
+  const tk = G.truck, x = tk.x, y = 610;
+  // dock
+  ctx.fillStyle = '#1a2231'; ctx.fillRect(1090, 590, 230, 110);
+  ctx.save(); ctx.beginPath(); ctx.rect(1090, 590, 230, 110); ctx.clip();
+  for (let i=0; i<12; i++){ ctx.fillStyle = i%2 ? '#ffc53d' : '#151b26'; ctx.beginPath(); ctx.moveTo(1090+i*22, 700); ctx.lineTo(1100+i*22, 700); ctx.lineTo(1112+i*22, 690); ctx.lineTo(1102+i*22, 690); ctx.fill(); }
+  // trailer
+  ctx.fillStyle = '#e8edf5'; rr(x-90, y, 140, 62, 6); ctx.fill();
+  ctx.fillStyle = '#ff8a1f'; ctx.fillRect(x-90, y+40, 140, 6);
+  ctx.fillStyle = '#1a2231'; ctx.font = `900 13px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('LOGISTIC TOWN', x-20, y+30);
+  // cab
+  ctx.fillStyle = '#ff8a1f'; rr(x+54, y+14, 42, 48, 7); ctx.fill();
+  ctx.fillStyle = '#2b3a55'; rr(x+70, y+20, 22, 16, 3); ctx.fill();
+  ctx.fillStyle = '#0e131d'; [x-66, x-40, x+24, x+80].forEach(wx => { ctx.beginPath(); ctx.arc(wx, y+64, 8, 0, 7); ctx.fill(); });
+  // load bar
+  for (let i=0; i<4; i++){ ctx.fillStyle = i < tk.load ? '#3ddc84' : 'rgba(0,0,0,0.2)'; ctx.fillRect(x-80 + i*16, y+8, 12, 6); }
+  ctx.restore();
+  ctx.fillStyle = '#8a96ad'; ctx.font = `700 10px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('TRUCK DOCK', 1100, 584);
+  // spur from pack to dock
+  const pk = G.st.pack; if (pk){ conveyorSeg(pk.x + pk.w/2, pk.y + pk.h, pk.x + pk.w/2, 600, 18, t, 1); }
+}
+
+let perfT = 0;
+function render(t){
+  perfT = t;
+  const d = view.dpr;
+  ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = '#0e131d'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(d*view.s, 0, 0, d*view.s, d*view.ox, d*view.oy);
+  drawFloor(t);
+  if (!G.stations.length){ return; }
+  drawWarehouse(t);
+  drawLoop(t);
+  G.stations.forEach(st => drawSpur(st, t));
+  drawBoard(); drawDispatchBoard(); drawTruck(t);
+  G.stations.forEach(st => drawStation(st, t));
+  // transit HUs
+  for (const hu of G.hus){
+    if (hu.loc !== 'transit') continue;
+    const p = along(hu.tr, hu.tr.d); hu.px = p.x; hu.py = p.y;
+    drawHU(hu, p.x, p.y);
+    if (hu.tr.to === null && G.hints){ ctx.fillStyle = 'rgba(255,138,31,0.9)'; ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('re-route me', p.x, p.y-17); }
+  }
+  // flyers to truck
+  for (const f of G.flyers){ const k = Math.min(1, f.t), x = f.x0 + (f.x1-f.x0)*k, y = f.y0 + (f.y1-f.y0)*k - Math.sin(k*Math.PI)*50;
+    rr(x-9, y-7, 18, 14, 3); ctx.fillStyle = '#c99a5b'; ctx.fill(); ctx.fillStyle = f.color; ctx.fillRect(x-9, y-2, 18, 3); }
+  // selection line
+  if (G.selected && mouse.inside){
+    const s = G.selected; ctx.strokeStyle = 'rgba(255,138,31,0.8)'; ctx.lineWidth = 2; ctx.setLineDash([6,5]); ctx.lineDashOffset = -t*30;
+    ctx.beginPath(); ctx.moveTo(s.px, s.py); ctx.lineTo(mouse.x, mouse.y); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // floats
+  for (const f of G.floats){ ctx.globalAlpha = 1 - f.t/1.4; ctx.fillStyle = f.color; ctx.font = `900 15px ${FONT}`; ctx.textAlign = 'center';
+    ctx.fillText(f.text, f.x, f.y - f.t*30); ctx.globalAlpha = 1; }
+  if (G.mode === 'paused'){ ctx.fillStyle = 'rgba(10,14,20,0.55)'; ctx.fillRect(0,0,W,H); }
+}
+
+// ---------- side panel & HUD ----------
+function chipHTML(o, sid){
+  const c = STEP_COLOR(sid), done = o.steps[sid] === 'done';
+  return `<span class="chip ${done?'done':''}" style="border-color:${c};color:${c};${done?`background:${c}`:''}">${done?'✓ ':''}${STEPS[sid].short}</span>`;
+}
+function orderCard(o, inbox){
+  const rem = o.due - G.time, frac = clamp(rem / o.allow, 0, 1);
+  const col = rem < 0 ? '#ff5468' : frac < 0.3 ? '#ffc53d' : '#3ddc84';
+  const blocked = inbox && G.st.commission && !hasRoom(G.st.commission);
+  const steps = Object.keys(o.steps).map(s => chipHTML(o, s)).join('');
+  const flag = o.hu && o.hu.flag ? `<span class="chip flag">⚠ ${o.hu.flag.reason}</span>` : '';
+  return `<div class="oc ${inbox?'inbox':''} ${blocked?'blocked':''} ${o.focus?'focus':''} ${rem<0?'late':''}" data-oid="${o.id}">
+    <div class="oc-h"><span class="sw" style="background:${o.color}"></span><b>#${o.num}</b><span class="cust">${o.customer}</span>${o.focus?'<span style="color:var(--warn)">★</span>':''}
+    <span class="due" style="color:${col}">${rem < 0 ? 'LATE' : Math.ceil(rem)+'s'}</span></div>
+    <div class="oc-items" title="${o.items.map(i=>i.name).join(', ')}">${o.items.map(i=>i.icon).join(' ')}</div>
+    <div class="chips">${steps}${flag}</div>
+    <div class="tbar"><div style="width:${frac*100}%;background:${col}"></div></div>
+    ${inbox ? '<span class="release-hint">release ▸</span>' : ''}</div>`;
+}
+function renderSide(){
+  const inbox = G.orders.filter(o => !o.released).sort((a,b) => a.due-b.due);
+  const act = G.orders.filter(o => o.released).sort((a,b) => a.due-b.due);
+  $('inCount').textContent = inbox.length; $('actCount').textContent = act.length;
+  $('inbox').innerHTML = inbox.length ? inbox.map(o => orderCard(o, true)).join('') : '<div class="empty">Waiting for orders…</div>';
+  $('active').innerHTML = act.length ? act.map(o => orderCard(o, false)).join('') : '<div class="empty">Nothing in process.</div>';
+}
+function renderHUD(){
+  const cfg = G.cfg; if (!cfg) return;
+  $('shiftName').textContent = `Shift ${G.shiftIdx+1} · ${cfg.name} · ${clockStr()}`;
+  $('clockFill').style.width = clamp(G.time/cfg.duration*100, 0, 100) + '%';
+  $('shippedTxt').innerHTML = `${G.shipped} / ${cfg.goal}` + (G.shipped >= cfg.goal ? ' <span style="color:var(--good)">✓</span>' : '');
+  $('cashTxt').textContent = '$' + G.money.toLocaleString('en');
+  $('satFill').style.width = G.sat + '%';
+  $('satFill').style.background = G.sat > 60 ? 'var(--good)' : G.sat > 30 ? 'var(--warn)' : 'var(--bad)';
+}
+function clockStr(){ const m = 6*60 + Math.floor(clamp(G.time/G.cfg.duration,0,1) * 8*60); return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
+function syncButtons(){
+  $('bHints').classList.toggle('on', G.hints); $('bHints').classList.toggle('off', !G.hints);
+  $('bMusic').classList.toggle('on', G.musicOn); $('bMusic').classList.toggle('off', !G.musicOn);
+  $('bSfx').classList.toggle('on', G.sfxOn); $('bSfx').classList.toggle('off', !G.sfxOn);
+  $('bSfx').textContent = G.sfxOn ? '🔊' : '🔈';
+  $('bSpeed').textContent = (G.speed||1) + '×'; $('bSpeed').classList.toggle('on', G.speed === 2);
+  $('bPause').textContent = G.mode === 'paused' ? '▶' : '❚❚';
+}
+
+// ---------- tooltip ----------
+function showTooltip(hu, cx, cy){
+  const tt = $('tooltip');
+  if (!hu){ tt.style.display = 'none'; return; }
+  const o = hu.order, pend = pendingSteps(o), nextIds = hu.flag ? [] : validTargets(hu).map(s => s.def.handles);
+  const rows = Object.keys(o.steps).map(sid => {
+    const done = o.steps[sid] === 'done', nx = nextIds.includes(sid);
+    return `<div class="row ${done?'done':nx?'next':''}">${done?'✓':nx?'▸':'○'} ${STEPS[sid].label}</div>`; }).join('');
+  const rem = o.due - G.time;
+  tt.innerHTML = `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>#${o.num} · ${o.customer} ${o.focus?'<span style="color:var(--warn)">★ focus</span>':''}</div>
+    <div class="items">${o.items.map(i => i.icon+' '+i.name).join(', ')}</div>${rows}
+    ${hu.flag ? `<div class="fl">⚠ ${hu.flag.reason} → Quality Assurance</div>` : ''}
+    <div class="row" style="margin-top:4px">${rem<0 ? '<span style="color:var(--bad)">Overdue</span>' : `Due in ${Math.ceil(rem)}s`}</div>`;
+  tt.style.display = 'block';
+  const r = floorEl.getBoundingClientRect(), tw = tt.offsetWidth, th = tt.offsetHeight;
+  let lx = cx + 16, ly = cy + 16; if (lx + tw > r.width - 8) lx = cx - tw - 16; if (ly + th > r.height - 8) ly = cy - th - 16;
+  tt.style.left = lx + 'px'; tt.style.top = ly + 'px';
+}
+
+// ---------- input ----------
+function toWorld(e){ const r = cv.getBoundingClientRect(); return { x:(e.clientX - r.left - view.ox)/view.s, y:(e.clientY - r.top - view.oy)/view.s, cx:e.clientX - r.left, cy:e.clientY - r.top }; }
+function hitHU(p){
+  let best = null, bd = 1e9;
+  for (const hu of G.hus){ if (!selectable(hu) || hu.px == null) continue;
+    const dx = Math.abs(p.x - hu.px), dy = Math.abs(p.y - hu.py);
+    if (dx < 19 && dy < 16){ const d = dx+dy; if (d < bd){ bd = d; best = hu; } } }
+  return best;
+}
+function hitStation(p){ return G.stations.find(st => p.x >= st.x-6 && p.x <= st.x+st.w+6 && p.y >= st.y-12 && p.y <= st.y+st.h+6) || null; }
+function selectHU(hu){ if (G.selected !== hu){ G.selected = hu; sfx('select'); } }
+cv.addEventListener('pointerdown', e => {
+  AU.init(); Music.start();
+  if (G.mode !== 'play') return;
+  const p = toWorld(e); mouse.x = p.x; mouse.y = p.y; mouse.inside = true;
+  const hu = hitHU(p);
+  if (hu){ selectHU(hu); drag = { hu, x:p.x, y:p.y, moved:false }; cv.setPointerCapture(e.pointerId); return; }
+  const st = hitStation(p);
+  if (st && G.selected){ dispatch(G.selected, st); return; }
+  G.selected = null;
+});
+cv.addEventListener('pointermove', e => {
+  const p = toWorld(e); mouse.x = p.x; mouse.y = p.y; mouse.inside = true;
+  if (drag && Math.hypot(p.x-drag.x, p.y-drag.y) > 8) drag.moved = true;
+  hoverHU = drag ? null : hitHU(p); hoverSt = hitStation(p);
+  cv.style.cursor = hoverHU ? 'grab' : (G.selected && hoverSt) ? 'pointer' : drag ? 'grabbing' : 'default';
+  showTooltip(hoverHU, p.cx, p.cy);
+});
+cv.addEventListener('pointerup', e => {
+  if (drag && drag.moved){ const st = hitStation(toWorld(e)); if (st && G.selected === drag.hu) dispatch(drag.hu, st); }
+  drag = null;
+});
+cv.addEventListener('pointerleave', () => { mouse.inside = false; hoverHU = null; hoverSt = null; showTooltip(null); });
+cv.addEventListener('contextmenu', e => { e.preventDefault(); G.selected = null; });
+$('side').addEventListener('pointerdown', e => {
+  AU.init(); Music.start();
+  const card = e.target.closest('.oc.inbox'); if (!card) return;
+  const o = G.orders.find(o => o.id === +card.dataset.oid);
+  if (o && !release(o)){ card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
+  else renderSide();
+});
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (k === ' ' ){ e.preventDefault(); togglePause(); return; }
+  if (k === 'escape'){ if (G.selected) G.selected = null; else if (G.mode === 'play' || G.mode === 'paused') togglePause(); return; }
+  if (k === 'h'){ toggleHints(); return; }
+  if (k === 'm'){ toggleMusic(); return; }
+  if (k === 's'){ toggleSfx(); return; }
+  if (k === 'f'){ toggleSpeed(); return; }
+  if (G.mode !== 'play') return;
+  if (k === 'tab'){ e.preventDefault(); cycleSelect(e.shiftKey ? -1 : 1); return; }
+  if (k === 'r'){ const o = G.orders.filter(o => !o.released).sort((a,b) => a.due-b.due)[0]; if (o) release(o); return; }
+  const n = parseInt(k, 10);
+  if (n >= 1 && n <= 9 && G.selected){ const st = G.keyOrder[n-1]; if (st) dispatch(G.selected, st); }
+});
+function cycleSelect(dir){
+  const list = G.hus.filter(selectable).sort((a,b) => a.order.due - b.order.due);
+  if (!list.length) return;
+  const i = list.indexOf(G.selected); selectHU(list[(i + dir + list.length) % list.length]);
+}
+function togglePause(){
+  if (G.mode === 'play'){ G.mode = 'paused'; showPause(); }
+  else if (G.mode === 'paused'){ G.mode = 'play'; hideModal(); }
+  syncButtons();
+}
+function toggleHints(){ G.hints = !G.hints; toast(G.hints ? '💡 Route hints on' : '🎓 Expert mode: hints off, +25% pay', ''); syncButtons(); saveProfile(); }
+function toggleMusic(){ AU.init(); Music.start(); G.musicOn = !G.musicOn; Music.setOn(G.musicOn); syncButtons(); saveProfile(); }
+function toggleSfx(){ AU.init(); G.sfxOn = !G.sfxOn; if (AU.sfxBus) AU.sfxBus.gain.value = G.sfxOn ? 0.75 : 0; syncButtons(); saveProfile(); }
+function toggleSpeed(){ G.speed = G.speed === 2 ? 1 : 2; syncButtons(); }
+$('bHints').onclick = toggleHints; $('bMusic').onclick = toggleMusic; $('bSfx').onclick = toggleSfx; $('bSpeed').onclick = toggleSpeed;
+$('bPause').onclick = () => { AU.init(); togglePause(); };
+$('bHelp').onclick = () => { AU.init(); if (G.mode === 'play'){ G.mode = 'paused'; syncButtons(); } showHelp(); };
+
+// ===================================================================
+//  MODAL SCREENS
+// ===================================================================
+function modal(html){ $('mcard').innerHTML = html; $('modal').classList.remove('hidden'); $('mcard').scrollTop = 0; }
+function hideModal(){ $('modal').classList.add('hidden'); }
+function bind(id, fn){ const el = $(id); if (el) el.onclick = () => { AU.init(); Music.start(); sfx('click'); fn(); }; }
+const heroSVG = `<svg width="150" height="120" viewBox="0 0 150 120"><rect x="6" y="40" width="44" height="74" rx="6" fill="#18202e" stroke="#2c3850"/>
+  ${[0,1,2,3,4,5].map(i=>`<rect x="12" y="${48+i*11}" width="14" height="7" fill="${i%3?'#4a5770':'#ff8a1f'}"/><rect x="30" y="${48+i*11}" width="14" height="7" fill="${i%2?'#3b5b8f':'#4a5770'}"/>`).join('')}
+  <rect x="56" y="70" width="88" height="36" rx="5" fill="none" stroke="#36415a" stroke-width="10"/>
+  <rect x="64" y="58" width="22" height="16" rx="3" fill="#ff8a1f"/><rect x="108" y="96" width="22" height="16" rx="3" fill="#4f8cff"/><rect x="132" y="70" width="16" height="13" rx="3" fill="#3ddc84"/>
+  <rect x="70" y="10" width="62" height="40" rx="7" fill="#1a2231" stroke="#ff8a1f" stroke-width="2"/><rect x="70" y="10" width="62" height="12" rx="6" fill="#ff8a1f"/>
+  <circle cx="16" cy="28" r="9" fill="#ff8a1f" opacity=".25"/></svg>`;
+function flowHTML(){
+  const stg = stageList();
+  return `<div class="flow">${stg.map(g => `<span class="fs">${g.map(sid => DEF[STEP_STATION[sid]].icon + ' ' + DEF[STEP_STATION[sid]].name).join(' <span style="color:var(--muted)">/</span> ')}</span>`).join('<span class="ar">➜</span>')}</div>`;
+}
+function showTitle(){
+  G.mode = 'title';
+  const sv = loadProfile();
+  modal(`<div class="hero">${heroSVG}<div style="flex:1;min-width:240px"><h1>Logistic <em>Town</em></h1>
+    <p class="sub">Run the distribution centre of a busy tool supplier. Route handling units from the shuttle warehouse through commissioning, special services and quality checks, and get every order onto the truck on time.</p></div></div>
+    <ul class="clean">
+      <li><b>Click an order</b> on the left to release it to Commissioning.</li>
+      <li><b>Click a handling unit</b>, then <b>click its next station</b> (or press the station's number key, or drag it).</li>
+      <li>Each order needs only the services shown on its card. <b style="color:var(--bad)">⚠ Flagged</b> units go to Quality Assurance first.</li>
+      <li>Ship before the timer runs out to keep customers happy.</li>
+    </ul>
+    <div class="btnrow">${sv && sv.shiftIdx > 0 ? `<button class="btn primary" id="mContinue">Continue: Shift ${sv.shiftIdx+1}</button><button class="btn" id="mNew">New game</button>` : `<button class="btn primary" id="mNew">Start the first shift</button>`}
+    <button class="btn" id="mHelp">How to play</button></div>
+    <p style="color:var(--muted);font-size:12px;margin-top:16px">Sound on recommended 🔊 · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">R</span> release · <span class="kbd">Space</span> pause</p>`);
+  bind('mNew', () => { const keepTips = G.seenTips, mo = G.musicOn, so = G.sfxOn; Object.assign(G, newProfile(), { seenTips:keepTips, musicOn:mo, sfxOn:so }); showIntro(0); });
+  bind('mContinue', () => { Object.assign(G, sv); showIntro(sv.shiftIdx); });
+  bind('mHelp', () => showHelp(true));
+}
+function showIntro(idx){
+  G.mode = 'intro'; G.shiftIdx = idx;
+  const cfg = shiftConfig(idx), prev = idx > 0 ? shiftConfig(idx-1).stations : [];
+  // preview stations for flow
+  G.cfg = cfg; G.stations = cfg.stations.map(id => makeStation(DEF[id])); G.st = Object.fromEntries(G.stations.map(s => [s.id, s])); layoutStations();
+  G.orders = []; G.hus = []; G.shippedLog = []; G.time = 0; G.truck = { x:1210, load:0, state:'parked', t:0 }; G.shipped = 0; G.sat = 100;
+  const newOnes = cfg.stations.filter(id => !prev.includes(id));
+  saveProfile();
+  modal(`<p class="sub" style="margin:0;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:12px">Shift ${idx+1}</p>
+    <h2>${cfg.name}: ${cfg.title}</h2>
+    <div class="goal"><div><small>Goal</small><b>Ship ${cfg.goal} orders</b></div><div><small>Shift length</small><b>${Math.round(cfg.duration/60*10)/10} min</b></div><div><small>New order every</small><b>~${Math.round((cfg.spawn[0]+cfg.spawn[1])/2)} s</b></div></div>
+    <p style="margin:6px 0 4px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px">Routing plan</p>${flowHTML()}
+    <p style="margin:2px 0 12px;color:var(--muted);font-size:13px">Skip any station the order doesn't need. <b style="color:var(--bad)">⚠ Flagged</b> units go to 🔍 Quality Assurance first.</p>
+    <div class="grid2">${cfg.stations.map(id => { const d = DEF[id], nw = newOnes.includes(id) && idx > 0;
+      return `<div class="scard ${nw?'new':''}"><div class="t"><span class="e">${d.icon}</span>${d.name}${nw?'<span class="tag">NEW</span>':''}</div>${d.desc}</div>`; }).join('')}</div>
+    <div class="btnrow"><button class="btn primary" id="mStart">Start shift ▸</button></div>`);
+  bind('mStart', () => { hideModal(); hideTip(); startShift(idx); syncButtons(); renderSide();
+    if (idx === 0) setTimeout(() => toast('☀️ Good morning! The first order is on its way…', 'good'), 300);
+    else toast(`Shift ${idx+1} started. Goal: ship ${cfg.goal} orders.`, 'good'); });
+}
+function showResult(){
+  const r = G.result, cfg = G.cfg;
+  const stars = [0,1,2].map(i => `<span class="${i < r.stars ? 'lit' : ''}">★</span>`).join('');
+  modal(`<h2>${r.passed ? 'Shift complete! 🎉' : r.failedSat ? 'Customers walked away 😟' : 'Shift goal missed'}</h2>
+    <p class="sub">${r.passed ? `Great work on ${cfg.name}.` : r.failedSat ? 'Customer satisfaction dropped to zero.' : `You shipped ${G.shipped} of ${cfg.goal} orders.`}</p>
+    ${r.passed ? `<div class="stars">${stars}</div>` : ''}
+    <div class="goal">
+      <div><small>Shipped</small><b>${G.shipped} / ${cfg.goal}</b></div>
+      <div><small>On time</small><b>${G.shipped ? Math.round(r.ratio*100) : 0}%</b></div>
+      <div><small>Wrong routes</small><b>${G.wrong}</b></div>
+      <div><small>Earned</small><b>$${G.earned + r.bonus}</b></div>
+      <div><small>Satisfaction</small><b>${Math.round(G.sat)}%</b></div>
+    </div>
+    ${r.passed ? `<p>Shift bonus: <b style="color:var(--accent2)">$${r.bonus}</b>. Spend your cash on upgrades before the next shift.</p>`
+      : `<p>Tip: release orders steadily, keep OUT trays empty so stations don't block, and send flagged units to QA quickly.</p>`}
+    <div class="btnrow">${r.passed ? `<button class="btn primary" id="mShop">Upgrades & next shift ▸</button>` : `<button class="btn primary" id="mRetry">Retry shift</button>`}
+    <button class="btn" id="mMenu">Main menu</button></div>`);
+  bind('mShop', () => { G.shiftIdx++; saveProfile(); showShop(); });
+  bind('mRetry', () => { G.money = G.startMoney; showIntro(G.shiftIdx); });
+  bind('mMenu', () => { if (!r.passed) G.money = G.startMoney; showTitle(); });
+}
+function showShop(){
+  G.mode = 'shop';
+  const next = shiftConfig(G.shiftIdx);
+  const rows = next.stations.map(id => { const d = DEF[id], up = G.upgrades[id] = G.upgrades[id] || {};
+    const btns = UPGRADES.filter(u => !u.needs || u.needs(d)).map(u => { const lv = up[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max;
+      return `<button class="ubtn" data-st="${id}" data-up="${u.id}" ${maxed || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${u.desc}</button>`; }).join('');
+    return `<div class="srow"><div class="nm"><span class="e">${d.icon}</span>${d.name}</div>${btns}</div>`; }).join('');
+  const grow = GLOBAL_UPGRADES.map(u => { const lv = G.global[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max;
+    return `<button class="ubtn" data-g="${u.id}" ${maxed || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${u.desc}</button>`; }).join('');
+  modal(`<h2>Upgrade the hall</h2><p class="sub">Next: Shift ${G.shiftIdx+1} · ${next.name}. Cash available: <span class="cashbig">$${G.money.toLocaleString('en')}</span></p>
+    <div class="shop"><div class="srow"><div class="nm"><span class="e">🏭</span>Whole hall</div>${grow}</div>${rows}</div>
+    <div class="btnrow"><button class="btn primary" id="mNext">Continue to Shift ${G.shiftIdx+1} ▸</button></div>`);
+  $('mcard').querySelectorAll('.ubtn').forEach(b => b.onclick = () => {
+    if (b.dataset.g){ const u = GLOBAL_UPGRADES.find(x => x.id === b.dataset.g), lv = G.global[u.id] || 0; if (G.money < u.cost(lv)) return; G.money -= u.cost(lv); G.global[u.id] = lv+1; }
+    else { const u = UPGRADES.find(x => x.id === b.dataset.up), up = G.upgrades[b.dataset.st], lv = up[u.id] || 0; if (G.money < u.cost(lv)) return; G.money -= u.cost(lv); up[u.id] = lv+1; }
+    sfx('fix'); saveProfile(); const sc = $('mcard').scrollTop; showShop(); $('mcard').scrollTop = sc; renderHUD();
+  });
+  bind('mNext', () => showIntro(G.shiftIdx));
+}
+function showPause(){
+  modal(`<h2>Paused</h2><p class="sub">Shift ${G.shiftIdx+1} · ${G.cfg.name} · ${clockStr()}</p>
+    <div class="btnrow"><button class="btn primary" id="mResume">Resume ▸</button><button class="btn" id="mHelp2">How to play</button><button class="btn" id="mRestart">Restart shift</button><button class="btn" id="mMenu2">Main menu</button></div>`);
+  bind('mResume', () => togglePause());
+  bind('mHelp2', () => showHelp());
+  bind('mRestart', () => { G.money = G.startMoney; showIntro(G.shiftIdx); });
+  bind('mMenu2', () => { G.money = G.startMoney; showTitle(); });
+}
+function showHelp(fromTitle){
+  const all = STATIONS;
+  const stg = {}; Object.entries(STEPS).forEach(([sid,s]) => (stg[s.stage] = stg[s.stage] || []).push(sid));
+  const flow = Object.keys(stg).sort((a,b)=>a-b).map(k => `<span class="fs">${stg[k].map(sid => DEF[STEP_STATION[sid]].icon+' '+DEF[STEP_STATION[sid]].name).join(' / ')}</span>`).join('<span class="ar">➜</span>');
+  modal(`<h2>How to play</h2>
+    <p>Orders from tool customers arrive on the left. Each order travels in its own <b>handling unit (HU)</b>, a transport box on the conveyor loop. Your job is to route every HU through exactly the stations its order needs.</p>
+    <div class="flow">${flow}</div>
+    <ul class="clean">
+      <li>Every order starts at <b>Commissioning</b> and ends at <b>Packing & Shipping</b>.</li>
+      <li>Services in the same group can be done in any order. Coloured dots under an HU show what it still needs.</li>
+      <li><b style="color:var(--bad)">⚠ Flags</b>: a failed check, a wrong pick or a failed <b>weight check</b> on the conveyor. Flagged HUs go to <b>Quality Assurance</b>. A failed service must be redone after QA.</li>
+      <li>Sending an HU to the wrong station gets it rejected (−$10, −satisfaction). It then circles the belt until you re-route it.</li>
+      <li>Full OUT trays <b>block</b> a station. Keep units moving!</li>
+      <li>Late orders pay 40% and cost satisfaction. Focus customers (★) pay 50% more.</li>
+    </ul>
+    <div class="grid2">${all.map(d => `<div class="scard"><div class="t"><span class="e">${d.icon}</span>${d.name}</div>${d.desc}</div>`).join('')}</div>
+    <p style="font-size:13px;color:var(--muted)">Controls: click an order to release it, click an HU then a station to route it (or drag, or press <span class="kbd">1</span>–<span class="kbd">9</span>). <span class="kbd">Tab</span> selects the most urgent HU, <span class="kbd">R</span> releases the most urgent order, <span class="kbd">H</span> hints, <span class="kbd">F</span> speed, <span class="kbd">Space</span> pause, right-click deselects.</p>
+    <div class="btnrow"><button class="btn primary" id="mBack">${fromTitle ? 'Back' : 'Resume ▸'}</button></div>`);
+  bind('mBack', () => { if (fromTitle) showTitle(); else { hideModal(); if (G.mode === 'paused'){ G.mode = 'play'; syncButtons(); } } });
+}
+
+// ===================================================================
+//  MAIN LOOP
+// ===================================================================
+let last = performance.now(), sideTimer = 0;
+function frame(now){
+  const realDt = Math.min(0.05, (now - last)/1000); last = now;
+  const dt = realDt * (G.speed || 1);
+  if (G.mode === 'play'){ update(dt); Music.intensity = clamp(0.2 + G.orders.length*0.09 + (G.time/G.cfg.duration)*0.25, 0, 1); }
+  render(now/1000);
+  sideTimer -= realDt;
+  if (sideTimer <= 0 && (G.mode === 'play' || G.mode === 'intro')){ sideTimer = 0.2; renderSide(); renderHUD(); }
+  if (hoverHU && !selectable(hoverHU)){ hoverHU = null; showTooltip(null); }
+  requestAnimationFrame(frame);
+}
+resize(); syncButtons(); showTitle(); requestAnimationFrame(frame);
+
+// ---------- test / automation hooks ----------
+window.LT = { G, STATIONS, STEPS, SHIFTS, startShift, update, validTargets, dispatch, release, selectable, hasRoom, endShift,
+  simulate(seconds, policy, dt=1/30){ const s = G.silent; G.silent = true; let t = 0; while (t < seconds && G.mode === 'play'){ policy && policy(G, dt); update(dt); t += dt; } G.silent = s; return G; } };
+</script>
+</body>
+</html>
