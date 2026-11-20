@@ -160,7 +160,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
     <div class="hgroup" id="satGroup"><label>Customer satisfaction</label><div class="bar"><div id="satFill" style="width:100%"></div></div></div>
     <div class="spacer"></div>
     <button class="tbtn" id="bSpeed" title="Game speed (F)">1×</button>
-    <button class="tbtn on" id="bHints" title="Route hints (H). Off = expert mode, +25% pay">💡 Hints</button>
+    <button class="tbtn on" id="bHints" title="Route hints (H): the routing line turns green/red over stations. Off = expert mode, +25% pay">💡 Hints</button>
     <button class="tbtn on" id="bMusic" title="Music (M)">♫</button>
     <button class="tbtn on" id="bSfx" title="Sound effects (S)">🔊</button>
     <button class="tbtn" id="bHelp" title="How to play">?</button>
@@ -800,7 +800,7 @@ function event(name, hu){
     if (hu.kind === 'tote') return;
     const t = validTargets(hu);
     if (hu.flag) return;
-    tip('route', `Handling unit <b>#${hu.order.num}</b> is ready! <b>Click it</b>, then click the station that is <b style="color:var(--accent)">glowing orange</b> (or press its number key). You can also drag it.`);
+    tip('route', `Handling unit <b>#${hu.order.num}</b> is ready! <b>Click it</b>, then click the station it needs next (or press its number key, or drag it). While you point at a station, the line turns <b style="color:var(--good)">green</b> if it's right and <b style="color:var(--bad)">red</b> if it's wrong.`);
     for (const st of t){ const sid = st.def.handles; if (sid !== 'pick' && sid !== 'pack') tip('step_'+sid,
       `This order needs <b>${STEPS[sid].label}</b>: route it to <b>${st.def.icon} ${st.def.name}</b>. Services can be done in any order. Focus Customer Care comes after all services, Packing always last.`); }
   }
@@ -897,9 +897,7 @@ function drawWarehouse(t){
     rr(x+w-30, y+9, 17, 17, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('0', x+w-21.5, y+21); ctx.textAlign = 'left';
     const sel = G.selected, isT = sel && validTargets(sel).includes(ws);
-    if (isT && G.hints){ ctx.strokeStyle = `rgba(255,138,31,${0.6 + 0.4*Math.sin(t*6)})`; ctx.lineWidth = 3; rr(x, y, w, h, 14); ctx.stroke();
-      rr(x+w/2-34, y-10, 68, 18, 6); ctx.fillStyle = '#ff8a1f'; ctx.fill(); ctx.fillStyle = '#1a1208'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('RETURN ▾', x+w/2, y+3); ctx.textAlign = 'left'; }
-    else if (sel && hoverSt === ws){ ctx.strokeStyle = '#ff5468'; ctx.lineWidth = 3; rr(x, y, w, h, 14); ctx.stroke(); }
+    if (sel && hoverSt === ws){ ctx.strokeStyle = !G.hints ? '#ffffff' : isT ? '#3ddc84' : '#ff5468'; ctx.lineWidth = 3; rr(x, y, w, h, 14); ctx.stroke(); }
   }
 }
 function conveyorSeg(x0, y0, x1, y1, wdt, t, dirSign){
@@ -995,9 +993,7 @@ function drawStation(st, t){
   const {x,y,w,h,def} = st;
   const sel = G.selected, targets = sel ? validTargets(sel) : [];
   const isTarget = sel && targets.includes(st), full = !hasRoom(st);
-  const dim = sel && G.hints && !isTarget;
   ctx.save();
-  if (dim) ctx.globalAlpha = 0.45;
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 5;
   rr(x, y, w, h, 12); ctx.fillStyle = '#1a2231'; ctx.fill(); ctx.shadowColor = 'transparent';
   // header
@@ -1053,11 +1049,9 @@ function drawStation(st, t){
   ctx.restore();
   // highlight border
   let border = '#2c3850', lw = 1.5;
-  if (isTarget && G.hints){ border = full ? '#ff5468' : `rgba(255,138,31,${0.6 + 0.4*Math.sin(t*6)})`; lw = 3; }
-  if (hoverSt === st && sel){ border = isTarget || !G.hints ? '#ffffff' : '#ff5468'; lw = 3; }
+  if (hoverSt === st && sel){ border = !G.hints ? '#ffffff' : isTarget ? '#3ddc84' : '#ff5468'; lw = 3; }
   ctx.strokeStyle = border; ctx.lineWidth = lw; rr(x, y, w, h, 12); ctx.stroke();
   if (sel && full){ rr(x+w/2-24, y-10, 48, 18, 6); ctx.fillStyle = '#ff5468'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('FULL', x+w/2, y+3); }
-  else if (isTarget && G.hints){ rr(x+w/2-28, y-10, 56, 18, 6); ctx.fillStyle = '#ff8a1f'; ctx.fill(); ctx.fillStyle = '#1a1208'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('NEXT ▾', x+w/2, y+3); }
   // out HUs
   st.out.forEach((hu, i) => { const p = outPos(st, i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); });
 }
@@ -1148,14 +1142,18 @@ function render(t){
     if (hu.loc !== 'transit') continue;
     const p = along(hu.tr, hu.tr.d); hu.px = p.x; hu.py = p.y;
     drawHU(hu, p.x, p.y);
-    if (hu.tr.to === null && G.hints){ ctx.fillStyle = 'rgba(255,138,31,0.9)'; ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('re-route me', p.x, p.y-17); }
+    if (hu.tr.to === null){ ctx.fillStyle = 'rgba(255,138,31,0.9)'; ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('re-route me', p.x, p.y-17); }
   }
   // flyers to truck
   for (const f of G.flyers){ const k = Math.min(1, f.t), x = f.x0 + (f.x1-f.x0)*k, y = f.y0 + (f.y1-f.y0)*k - Math.sin(k*Math.PI)*50;
     rr(x-9, y-7, 18, 14, 3); ctx.fillStyle = '#c99a5b'; ctx.fill(); ctx.fillStyle = f.color; ctx.fillRect(x-9, y-2, 18, 3); }
   // selection line
   if (G.selected && mouse.inside){
-    const s = G.selected; ctx.strokeStyle = 'rgba(255,138,31,0.8)'; ctx.lineWidth = 2; ctx.setLineDash([6,5]); ctx.lineDashOffset = -t*30;
+    const s = G.selected;
+    // hint: the line turns green over a correct station, red over a wrong one (neutral orange elsewhere / hints off)
+    let col = 'rgba(255,138,31,0.85)';
+    if (G.hints && hoverSt){ col = validTargets(s).includes(hoverSt) ? '#3ddc84' : '#ff5468'; }
+    ctx.strokeStyle = col; ctx.lineWidth = col.startsWith('#') ? 3 : 2; ctx.setLineDash([6,5]); ctx.lineDashOffset = -t*30;
     ctx.beginPath(); ctx.moveTo(s.px, s.py); ctx.lineTo(mouse.x, mouse.y); ctx.stroke(); ctx.setLineDash([]);
   }
   // floats
