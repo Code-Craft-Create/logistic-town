@@ -157,13 +157,15 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .load span{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
 .mcard.wide{width:min(960px,100%)}
 .ugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));grid-auto-rows:1fr;gap:8px}
-.ut{display:block;height:100%;text-align:left;border-radius:11px;padding:9px 10px;border:1px solid var(--line);background:#121925;cursor:pointer;font-size:12px;line-height:1.3;min-height:104px;transition:border-color .15s,transform .1s}
+.ut{display:flex;flex-direction:column;text-align:left;user-select:none;-webkit-user-select:none;border-radius:11px;padding:9px 10px;border:1px solid var(--line);background:#121925;cursor:pointer;font-size:12px;line-height:1.3;min-height:104px;transition:border-color .15s,transform .1s}
 /* inner wrapper does the column layout: Safari does not size a flex <button> to its content, so the footer overflowed */
-.ut-in{display:flex;flex-direction:column;gap:5px;height:100%}
+.ut-in{display:flex;flex-direction:column;gap:5px;flex:1 0 auto}
 .ut-in > *{flex-shrink:0}
-.ut:hover:not(:disabled){border-color:var(--accent)}
-.ut:active:not(:disabled){transform:scale(.98)}
-.ut:disabled{cursor:default}
+/* tiles are divs, not <button>: Safari sizes a button by a fixed intrinsic height, which let long text push the footer out */
+.ut[aria-disabled=false]:hover{border-color:var(--accent)}
+.ut[aria-disabled=false]:active{transform:scale(.98)}
+.ut[aria-disabled=true]{cursor:default}
+.ut:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ut-top{display:flex;align-items:center;gap:8px}
 .ut-ic{width:32px;height:32px;flex:none;border-radius:9px;background:#1c2536;display:grid;place-items:center}
 .ut-ic .ic{width:26px;height:26px}
@@ -3540,10 +3542,10 @@ function shopTile(u, lv, cost, attrs, extra){
     : `<span class="ut-price">$${cost.toLocaleString('en')}</span>`;
   const desc = locked ? u.reqText : u.desc;
   const nxt = extra.next && !maxed && !locked ? `<span class="ut-next">Next: ${extra.next}</span>` : '';
-  return `<button class="ut ${state}${extra.auto ? ' auto' : ''}" ${attrs} ${state === 'buy' ? '' : 'disabled'} aria-label="${u.label}, level ${lv} of ${u.max}"><span class="ut-in">
+  return `<div class="ut ${state}${extra.auto ? ' auto' : ''}" role="button" tabindex="${state === 'buy' ? 0 : -1}" ${attrs} aria-disabled="${state !== 'buy'}" aria-label="${u.label}, level ${lv} of ${u.max}"><span class="ut-in">
     <span class="ut-top"><span class="ut-ic">${ico(u.icon)}</span><span class="ut-name">${u.label}</span></span>
     <span class="ut-desc">${desc}</span>${nxt}
-    <span class="ut-foot"><span class="pips" title="Level ${lv} of ${u.max}">${pips}</span>${foot}</span></span></button>`;
+    <span class="ut-foot"><span class="pips" title="Level ${lv} of ${u.max}">${pips}</span>${foot}</span></span></div>`;
 }
 function showShop(){
   G.mode = 'shop';
@@ -3573,7 +3575,9 @@ function showShop(){
     <p class="shop-note">${note}</p>
     <div class="btnrow stickyrow"><button class="btn primary" id="mNext">${G.shopBack === showPause ? 'Restart' : 'Continue to'} Shift ${G.shiftIdx+1} ▸</button>${G.shopBack === showTitle ? '<button class="btn" id="mShopBack">Back</button>' : ''}</div>`);
   $('mcard').classList.add('wide');
+  $('mcard').querySelectorAll('.ut').forEach(b => b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); b.click(); } });
   $('mcard').querySelectorAll('.ut').forEach(b => b.onclick = () => {
+    if (b.getAttribute('aria-disabled') === 'true') return;
     if (b.dataset.g){ const u = GLOBAL_UPGRADES.find(x => x.id === b.dataset.g), lv = G.global[u.id] || 0; if (lv >= u.max || G.money < u.cost(lv)) return; G.money -= u.cost(lv); G.global[u.id] = lv+1; }
     else { const u = UPGRADES.find(x => x.id === b.dataset.up), up = G.upgrades[b.dataset.st], lv = up[u.id] || 0; if (lv >= u.max || G.money < u.cost(lv) || (u.req && !u.req(up))) return; G.money -= u.cost(lv); up[u.id] = lv+1; }
     sfx('fix'); saveProfile(); const sc = $('modal').scrollTop; showShop(); $('modal').scrollTop = sc; renderHUD();
