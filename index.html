@@ -348,7 +348,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-48';
+const GAME_VERSION = '2026.11.21-49';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -750,12 +750,17 @@ const inCross = p => G.roads && p.x > ROAD.x1 - ROAD.half - 6 && p.x < ROAD.x1 +
 const truckRoom = () => G.truck && G.truck.state === 'parked' ? 4 - G.truck.load - G.flyers.filter(f => !f.done && f.to === 'truck').length : 0;
 function stackPos(i){ const k = i % 8; return { x:1116 + (k % 2)*17, y:DOCK.y0 + 12 + Math.floor(k/2)*19 }; }
 function shipParcel(x, y, color){
-  if (truckRoom() > 0 && !(G.dockStack || []).length) G.flyers.push({ x0:x, y0:y, x1:G.truck.x - 20, y1:640, t:0, color, to:'truck' });
+  if (truckRoom() > 0 && !(G.dockStack || []).length){ const sl = nextTruckSlot(), q = truckSlotPos(sl); G.flyers.push({ x0:x, y0:y, x1:q.x, y1:q.y, t:0, color, to:'truck', slot:sl }); }
   else { const p = stackPos(G.dockStack.length + G.flyers.filter(f => !f.done && f.to === 'stack').length); G.flyers.push({ x0:x, y0:y, x1:p.x, y1:p.y, t:0, color, to:'stack', arc:30 }); }
 }
 function truckCrossBusy(){ return G.roads && [G.truck, G.truckOut].some(tk => tk && truckCrossBusy1(tk)); }
 function truckCrossBusy1(tk){ const g = truckGeo();
   return tk.state === 'backing' || (tk.state === 'leaving' && tk.s < ROAD.x1 + ROAD.half - g.park + TRK.L/2 + 4) || (tk.state === 'arriving' && tk.ay < g.cy + 160); }
+// cargo bay slots of the parked truck (2 x 2 at the back of the trailer), in world coordinates
+function truckSlotPos(i){ const tk = G.truck, hw = TRK.Wd/2, bx = -TRK.L/2 + 3, by = -hw + 5, bh = TRK.Wd - 10;
+  return { x:tk.x + bx + 2 + (i % 2)*16 + 7, y:tk.y + by + 2 + Math.floor(i/2)*(bh/2 - 1) + (bh/2 - 3)/2 }; }
+function nextTruckSlot(){ const tk = G.truck, taken = new Set(G.flyers.filter(f => !f.done && f.to === 'truck').map(f => f.slot));
+  for (let i=0; i<4; i++) if (!(tk.cargo && tk.cargo[i]) && !taken.has(i)) return i; return Math.min(3, tk.load); }
 const newTruck = () => ({ x:0, y:DOCK.cy, ang:0, s:0, load:0, state:'parked', t:0, gate:0 });
 const LOOP = { x0:440, y0:300, x1:1060, y1:500 };
 LOOP.w = LOOP.x1-LOOP.x0; LOOP.h = LOOP.y1-LOOP.y0; LOOP.L = 2*(LOOP.w+LOOP.h);
@@ -1370,13 +1375,13 @@ function update(dt){
   drive(tk);
   for (const f of G.flyers){ f.t += dt*1.6; if (f.t >= 1 && !f.done){ f.done = true;
     if (f.to === 'stack'){ G.dockStack.push(f.color); continue; }
-    const T = G.truck; T.load++; (T.cargo = T.cargo || []).push(f.color);
+    const T = G.truck; T.load++; T.cargo = T.cargo || []; T.cargo[f.slot != null ? f.slot : T.cargo.length] = f.color;
     if (T.load >= 4 && T.state === 'parked'){ T.state = 'leaving'; sfx('truck'); G.truckOut = T;
       G.truck = { ...newTruck(), state:'arriving', ay:H + TRK.L + 60, gate:T.gate, cargo:[] }; } } }
   // parcels waiting in the dock bay go onto the next truck once it has backed in
   G.dockT = Math.max(0, (G.dockT || 0) - dt);
   if ((G.dockStack || []).length && G.dockT === 0 && truckRoom() > 0){ const i = G.dockStack.length - 1, p = stackPos(i), c = G.dockStack.pop();
-    G.flyers.push({ x0:p.x, y0:p.y, x1:G.truck.x - 20, y1:640, t:0.15, color:c, to:'truck', arc:22 }); G.dockT = 0.3; }
+    const sl = nextTruckSlot(), q = truckSlotPos(sl); G.flyers.push({ x0:p.x, y0:p.y, x1:q.x, y1:q.y, t:0.15, color:c, to:'truck', arc:22, slot:sl }); G.dockT = 0.3; }
   G.flyers = G.flyers.filter(f => f.t < 1.05);
   for (const f of G.floats) f.t += dt;
   G.floats = G.floats.filter(f => f.t < 1.4);
@@ -3123,7 +3128,7 @@ function drawTruckTop(tk, t){
   ctx.fillStyle = '#2a3243'; rr(bx, by, bw, bh, 2); ctx.fill();
   ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(bx, by, bw, 2.5);
   for (let i=0; i<4; i++){ const cx = bx + 2 + (i % 2)*16, cy = by + 2 + Math.floor(i/2)*(bh/2 - 1), bwid = 14, bht = bh/2 - 3;
-    if (i < tk.load){ ctx.fillStyle = '#c99a5b'; rr(cx, cy, bwid, bht, 1.5); ctx.fill(); ctx.fillStyle = '#a87c43'; ctx.fillRect(cx + bwid/2 - 0.6, cy, 1.2, bht);
+    if (cargo[i]){ ctx.fillStyle = '#c99a5b'; rr(cx, cy, bwid, bht, 1.5); ctx.fill(); ctx.fillStyle = '#a87c43'; ctx.fillRect(cx + bwid/2 - 0.6, cy, 1.2, bht);
       ctx.fillStyle = cargo[i] || '#ff8a1f'; ctx.fillRect(cx, cy + bht/2 - 1.5, bwid, 3); }
     else { ctx.strokeStyle = 'rgba(232,237,245,0.12)'; ctx.lineWidth = 1; ctx.setLineDash([2, 2]); rr(cx + 0.5, cy + 0.5, bwid - 1, bht - 1, 1.5); ctx.stroke(); ctx.setLineDash([]); } }
   if (moving){ ctx.fillStyle = '#d8dee9'; rr(bx - 1, by - 1, bw + 2, bh + 2, 2); ctx.fill(); ctx.fillStyle = 'rgba(26,34,49,0.08)'; for (let x = bx + 6; x < bx + bw; x += 10) ctx.fillRect(x, by, 1, bh); }
@@ -3190,7 +3195,8 @@ function render(t){
   drawLoosePallets();
   // flyers to truck
   for (const f of G.flyers){ const k = Math.min(1, f.t), x = f.x0 + (f.x1-f.x0)*k, y = f.y0 + (f.y1-f.y0)*k - Math.sin(k*Math.PI)*(f.arc || 50);
-    rr(x-9, y-7, 18, 14, 3); ctx.fillStyle = '#c99a5b'; ctx.fill(); ctx.fillStyle = f.color; ctx.fillRect(x-9, y-2, 18, 3); }
+    const sc = f.to === 'truck' ? 1 - 0.22*k : 1, bw = 18*sc, bh = 14*sc;
+    rr(x - bw/2, y - bh/2, bw, bh, 3*sc); ctx.fillStyle = '#c99a5b'; ctx.fill(); ctx.fillStyle = f.color; ctx.fillRect(x - bw/2, y - 1.5*sc, bw, 3*sc); }
   // selection line
   if (G.selected && mouse.inside){
     const s = G.selected;
