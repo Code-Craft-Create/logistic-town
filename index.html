@@ -434,8 +434,8 @@ const UPGRADES = [
   { id:'slots',   label:'Extra workstation', desc:'+1 parallel slot',  max:2, cost:l => 360 + l*300, needs: d => d.role !== 'storage' },
   { id:'speed',   label:'Staff training',    desc:'−18% process time', max:3, cost:l => 220 + l*170, needs: d => d.role !== 'storage' },
   { id:'quality', label:'Quality program',   desc:'−40% defects',      max:2, cost:l => 160 + l*140, needs: d => !!d.defect },
-  { id:'shuttle', label:'Faster robots',     desc:'robots and lift 40% faster', max:2, cost:l => 200 + l*170, needs: d => d.role === 'storage' },
-  { id:'fetchers',label:'Extra fetch robot', desc:'+1 robot fetching totes at the same time', max:3, cost:l => 240 + l*220, needs: d => d.role === 'storage' },
+  { id:'shuttle', label:'Faster shuttles',   desc:'shuttles and lift 40% faster', max:2, cost:l => 200 + l*170, needs: d => d.role === 'storage' },
+  { id:'fetchers',label:'Extra shuttle',     desc:'+1 shuttle fetching totes at the same time', max:3, cost:l => 240 + l*220, needs: d => d.role === 'storage' },
   { id:'auto',    label:'Auto-retrieval',    desc:'shuttles fetch totes of the most urgent order on their own', max:1, cost:() => 650, needs: d => d.role === 'storage' },
 ];
 const GLOBAL_UPGRADES = [
@@ -1138,9 +1138,9 @@ function drawWarehouse(t){
   if (c) ctx.fillStyle = '#0f141c', ctx.fillRect(liftX+8, Math.min(cy, top), 4, DOCK_Y - Math.min(cy, top));
   ctx.fillStyle = '#ff8a1f'; ctx.fillRect(liftX, ly, 20, 14); ctx.fillStyle = '#c4620b'; ctx.fillRect(liftX, ly+11, 20, 3);
   const busyN = G.robots.filter(r => r.state !== 'idle' && r.state !== 'homing').length;
-  ctx.fillStyle = '#8a96ad'; ctx.font = `600 10px ${FONT}`; ctx.fillText(`Fetch robots: ${busyN}/${G.robots.length} busy`, x+14, y+h-40);
+  ctx.fillStyle = '#8a96ad'; ctx.font = `600 10px ${FONT}`; ctx.fillText(`Shuttles: ${busyN}/${G.robots.length} busy`, x+14, y+h-40);
   if (!G.jobs.length) ctx.fillText('Order totes → Commissioning', x+14, y+h-26);
-  else { ctx.fillStyle = '#ffb15c'; ctx.fillText(`${G.jobs.length} tote${G.jobs.length>1?'s':''} waiting for a robot`, x+14, y+h-26); }
+  else { ctx.fillStyle = '#ffb15c'; ctx.fillText(`${G.jobs.length} tote${G.jobs.length>1?'s':''} waiting for a shuttle`, x+14, y+h-26); }
   // feeder belt to commissioning
   if (c){ conveyorSeg(x+w-30, cy, c.x, cy, 22, t, 1); }
   // requested totes (clickable)
@@ -1740,7 +1740,7 @@ function showHelp(fromTitle){
     <div class="flow">${flow}</div>
     <ul class="clean">
       <li>Click an order's <b>glowing totes</b> in the Shuttle Warehouse. Commissioning starts once all of them have arrived. Hover an order card to see where its totes are.</li>
-      <li>Orange <b>fetch robots</b> bring the totes. You start with 2, so extra clicks wait in line (clock icon). Buy more robots in the shop.</li>
+      <li>Orange <b>shuttles</b> bring the totes. You start with 2, so extra clicks wait in line (clock icon). Buy more shuttles in the shop.</li>
       <li>Every order starts at <b>Commissioning</b> and ends at <b>Packing & Shipping</b>.</li>
       <li><b>Wrong pick</b>: QA takes the wrong item out as a grey <b>↩ return tote</b>. Route it back to the Shuttle Warehouse, click the order's new glowing tote, and send the HU back to Commissioning for a re-pick.</li>
       <li>Services in the same group can be done in any order. Coloured dots under an HU show what it still needs.</li>

@@ -7,8 +7,8 @@ and sound and music are generated with the Web Audio API.
 ## How to play
 - Orders arrive on the left and their totes light up in the **Shuttle Warehouse**. Click each glowing tote to send it to
   **Commissioning**, which starts picking once all of the order's totes have arrived.
-- Fetch robots drive the aisles and bring totes to the lift. Only as many totes as you have robots are fetched at
-  once (start with 2, upgrade to 5); the rest wait in line. Robot count and speed live in `ROBOT` and the warehouse upgrades.
+- Shuttles drive the aisles and bring totes to the lift. Only as many totes as you have shuttles are fetched at
+  once (start with 2, upgrade to 5); the rest wait in line. Shuttle count and speed live in `ROBOT` and the warehouse upgrades.
 - Click a handling unit (HU), then click its next station (or drag it, or press the station's number key).
 - Route each order through only the services it needs: Calibration, Laser Signing, Patching (any order),
   then Focus Customer Care for ★ customers, then Packing & Shipping.
