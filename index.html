@@ -239,7 +239,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-14';
+const GAME_VERSION = '2026.11.21-15';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2059,7 +2059,17 @@ function star(cx, cy, r){
 }
 
 // ---------- station machines: each station is its own machine; units flow IN (left) -> machine -> OUT (right) ----------
-const huItem = hu => hu && (hu.item || (hu.order && hu.order.lines && hu.order.lines[0] && hu.order.lines[0].item)) || null;
+// the tools a station actually works on: stock/returns carry one item; orders only show the items the step applies to (e.g. patching -> sewable clothing)
+function stationItems(st, hu){
+  if (!hu) return [];
+  if (hu.item) return [hu.item];
+  const items = (hu.order && (hu.order.items || (hu.order.lines || []).map(l => l.item))) || [];
+  const step = st && st.def.handles && STEPS[st.def.handles], tag = step && step.tag;
+  const f = tag ? items.filter(i => i.tags.includes(tag)) : items;
+  return f.length ? f : items;
+}
+let CUR_ST = null;
+const huItem = hu => stationItems(CUR_ST, hu)[0] || null;
 const ease = k => k*k*(3 - 2*k);
 const tri = x => 1 - Math.abs(((x % 2) + 2) % 2 - 1);   // 0..1..0 triangle wave, period 2
 function ell(x, y, rx, ry, col){ ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fillStyle = col; ctx.fill(); }
@@ -2156,44 +2166,59 @@ const BODIES = {
     beacon(w - 8, 6, s.on, s.T, '#b07cff');
     return pos;
   },
-  // multi-head embroidery machine: cone rack on top, needle heads, hoops on a pantograph table
+  // embroidery machine: thread cones, one stitching head per workstation, the garment clamped in a hoop gets the logo patch
   patch(w, h, s){
-    const n = s.n, heads = Math.max(3, n), xs = spread(heads, 14, w - 14);
-    // table
-    box(2, 30, w - 4, h - 46, 4, '#2b3346'); ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(4, 32, w - 8, 2);
-    // hoops on the pantograph (wiggle while stitching)
-    const dx = s.on ? Math.sin(s.T*3.1)*2 : 0, dy = s.on ? Math.cos(s.T*2.3)*1.5 : 0, hy = 30 + (h - 46)/2;
-    xs.forEach((x, i) => { const act = i < n && s.slots[i] && !s.slots[i].done;
-      ell(x + dx, hy + dy, 10, 12, '#8a6a40'); ell(x + dx, hy + dy, 8, 10, act ? (s.slots[i].hu.order ? s.slots[i].hu.order.color : '#c7d0de') : '#3a4560');
-      if (act){ const kk = clamp(s.slots[i].t/s.slots[i].dur, 0, 1); ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(x + dx, hy + dy - 3, 4, -Math.PI/2, -Math.PI/2 + kk*Math.PI*2); ctx.lineTo(x + dx, hy + dy - 3); ctx.fill(); } });
-    // machine beam with heads and needles
-    box(0, 12, w, 14, 4, '#ff5fa2'); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(3, 13.5, w - 6, 1.5); ctx.fillStyle = '#d94889'; ctx.fillRect(0, 22, w, 4);
-    xs.forEach((x, i) => { const act = i < n && s.slots[i] && !s.slots[i].done && s.on;
-      box(x - 5, 20, 10, 10, 2, '#d94889'); const ny = act ? Math.abs(Math.sin(s.T*16 + i))*4 : 0; line(x, 28, x, 31 + ny, '#e6ebf3', 1.2); });
-    // thread cones on top
+    const n = s.n, xs = spread(n, w/(2*n), w - w/(2*n)), R = Math.min(w/(2*n) - 3, 21), hy = 30 + R + 6;
+    // thread cones
     const cones = ['#ffd23f', '#4f8cff', '#3ddc84', '#ff5468', '#f4f6fa', '#b07cff', '#ff8a1f', '#22c3e6'];
-    for (let i=0; i<Math.floor((w - 8)/8); i++){ circ(6 + i*8, 6, 3, cones[i % cones.length]); circ(6 + i*8, 6, 1, '#1b2232'); }
-    // finished stack
-    box(6, h - 13, w - 12, 9, 2, '#1b2232'); ctx.fillStyle = '#ff5fa2'; for (let i=0; i<Math.min(5, st_processed(s)); i++) ctx.fillRect(9 + i*7, h - 11, 5, 5);
-    return xs.slice(0, n).map(x => ({ x, y:hy + 18 }));
+    for (let i=0; i<Math.floor((w - 6)/8); i++){ circ(6 + i*8, 5, 3, cones[i % cones.length]); circ(6 + i*8, 5, 1, '#1b2232'); }
+    // pantograph table
+    box(2, 26, w - 4, h - 34, 5, '#3a3346'); ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(5, 28, w - 10, 2);
+    const dx = s.on ? Math.sin(s.T*3.1)*1.6 : 0, dy = s.on ? Math.cos(s.T*2.3)*1.2 : 0;
+    xs.forEach((x, i) => {
+      const sl = s.slots[i], act = sl && !sl.done, kk = sl ? clamp(sl.t/sl.dur, 0, 1) : 0, it = sl ? stationItems(s.st, sl.hu)[0] : null;
+      const cx = x + (act ? dx : 0), cy = hy + (act ? dy : 0);
+      ell(cx, cy, R, R, '#9c7a4a'); ell(cx, cy, R - 2.5, R - 2.5, act || sl ? '#eef2f8' : '#4a4458');
+      if (it) drawIcon(it.icon, cx, cy + 1, R*1.45);
+      // logo patch: stitched round, piece by piece
+      const lx = cx + R*0.28, ly = cy - R*0.2, lr = R*0.26;
+      if (sl){ ctx.fillStyle = '#ff8a1f'; ctx.beginPath(); ctx.moveTo(lx, ly); ctx.arc(lx, ly, lr, -Math.PI/2, -Math.PI/2 + kk*Math.PI*2); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.9; ctx.setLineDash([1.4, 1.1]); ctx.beginPath(); ctx.arc(lx, ly, lr, -Math.PI/2, -Math.PI/2 + kk*Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+        if (kk > 0.98){ ctx.fillStyle = '#fff'; ctx.font = `900 ${Math.max(5, lr)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('LT', lx, ly + lr*0.38); } }
+      // head + needle over the logo
+      box(lx - 5, 14, 10, 12, 2, '#d94889');
+      const ny = act && s.on ? Math.abs(Math.sin(s.T*18 + i))*5 : 0; line(lx, 26, lx, ly - lr - 2 + ny, '#e6ebf3', 1.2);
+      if (act && s.on){ const a = -Math.PI/2 + kk*Math.PI*2; line(lx, 26, lx + Math.cos(a)*lr, ly + Math.sin(a)*lr, 'rgba(255,138,31,0.6)', 0.6); }
+    });
+    // machine beam
+    box(0, 10, w, 7, 3, '#ff5fa2'); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(3, 11, w - 6, 1.4);
+    return xs.map(x => ({ x, y:hy + R - 8, bar:true }));
   },
-  // premium inspection booth: gold-framed carpet, turntable under a ring light, stanchions with rope
+  // VIP final check for focus customers: photo light box with camera, checklist, gold seal
   care(w, h, s){
-    box(0, 0, w, h, 5, '#2a2036'); ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 1.5; rr(3, 3, w - 6, h - 6, 4); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,210,63,0.25)'; ctx.lineWidth = 1; rr(6, 6, w - 12, h - 12, 3); ctx.stroke();
-    const cx = w/2, cy = h*0.4, R = Math.min(w, h)*0.3;
-    if (s.on){ const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, R*2); g.addColorStop(0, 'rgba(255,230,140,0.35)'); g.addColorStop(1, 'rgba(255,230,140,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
-    // ring light of LEDs
-    for (let i=0; i<24; i++){ const a = i/24*Math.PI*2, on = s.on && (Math.floor(s.T*8) + i) % 6 !== 0; circ(cx + Math.cos(a)*(R + 7), cy + Math.sin(a)*(R + 7), 1.4, on ? '#fff2b8' : '#5a5040'); }
-    ell(cx, cy + 2, R, R, '#1b1626'); ell(cx, cy, R, R, '#6f7b94'); ell(cx, cy, R - 4, R - 4, '#8e99ad');
-    const a = s.on ? s.T*1.6 : 0;
-    for (let i=0; i<8; i++){ const aa = a + i*Math.PI/4; circ(cx + Math.cos(aa)*(R - 2), cy + Math.sin(aa)*(R - 2), 0.9, '#ffd23f'); }
-    const it = huItem(s.hu); if (it){ ctx.save(); ctx.translate(cx, cy); ctx.scale(s.on ? Math.cos(a) : 1, 1); drawIcon(it.icon, 0, 0, R*1.1); ctx.restore(); }
-    if (s.on) for (let i=0; i<3; i++){ const ph = (s.T*0.9 + i/3) % 1, sz = Math.sin(ph*Math.PI)*3.5; ctx.fillStyle = '#fff6c9'; ctx.save(); ctx.translate(cx + [-R*0.7, R*0.6, R*0.2][i], cy + [-R*0.5, -R*0.2, R*0.6][i]); star(0, 0, sz); ctx.restore(); }
-    // stanchions + rope
-    const sp = [[9, h - 10], [w - 9, h - 10]]; ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(9, h - 10); ctx.quadraticCurveTo(w/2, h - 4, w - 9, h - 10); ctx.stroke();
-    sp.forEach(([x, y]) => { circ(x, y, 3.2, '#b8860b'); circ(x, y, 1.8, '#ffd23f'); });
-    return spread(s.n, cx - (s.n - 1)*10, cx + (s.n - 1)*10).map(x => ({ x, y:cy + R + 14 }));
+    box(0, 0, w, h, 5, '#221c2e'); ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 1.5; rr(2, 2, w - 4, h - 4, 4); ctx.stroke();
+    ctx.fillStyle = '#ffd23f'; ctx.font = `900 7px ${FONT}`; ctx.textAlign = 'center'; ctx.save(); ctx.translate(w/2, 10); ctx.fillStyle = '#ffd23f'; star(-24, -2.5, 3.5); star(24, -2.5, 3.5); ctx.restore(); ctx.fillText('VIP CHECK', w/2, 10);
+    // light box (photo documentation)
+    const lx = 6, ly = 15, lw = w - 12, lh = Math.round(h*0.46), cy = ly + lh*0.6;
+    const g = ctx.createLinearGradient(0, ly, 0, ly + lh); g.addColorStop(0, s.on ? '#f4f6fa' : '#6b7790'); g.addColorStop(1, s.on ? '#c9d2e3' : '#4a5468');
+    rr(lx, ly, lw, lh, 4); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = '#8a96ad'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.beginPath(); ctx.ellipse(w/2, cy + 9, lw*0.32, 3, 0, 0, 7); ctx.fill();
+    // camera on top
+    box(w/2 - 8, ly - 3, 16, 8, 2, '#1b2232'); circ(w/2, ly + 2, 3, '#2c3850'); circ(w/2, ly + 2, 1.6, '#4f8cff');
+    const flash = s.on && (s.T*0.9) % 1 < 0.07;
+    if (flash){ ctx.fillStyle = 'rgba(255,255,255,0.75)'; rr(lx, ly, lw, lh, 4); ctx.fill(); circ(w/2, ly + 2, 4, '#fff'); }
+    // checklist
+    const items = [['Complete', 1/4], ['Like new', 2/4], ['Photo', 3/4]], ty = ly + lh + 8;
+    items.forEach(([lbl, at], i) => { const y = ty + i*10, ok = s.on && s.k >= at;
+      box(8, y - 3.5, 7, 7, 1.5, ok ? '#3ddc84' : '#1b2232'); ctx.strokeStyle = '#5a6680'; ctx.lineWidth = 0.8; rr(8, y - 3.5, 7, 7, 1.5); ctx.stroke();
+      if (ok) drawIcon('check', 11.5, y, 6, '#0e131d', 4);
+      ctx.fillStyle = ok ? '#e6ebf3' : '#8a96ad'; ctx.font = `700 7px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(lbl, 19, y + 2.5); });
+    const n = s.n, xs = spread(n, lx + 16, lx + lw - 16);
+    // at the end a gold seal is stamped onto the order (drawn on top of the tools)
+    const seal = (px, py, k) => { if (k < 0.82) return; const e = clamp((k - 0.82)/0.08, 0, 1), sc = 1 + (1 - e)*1.8;
+      ctx.save(); ctx.translate(px + 11, py - 8); ctx.scale(sc, sc); ctx.globalAlpha = e; ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = 8;
+      circ(0, 0, 6, '#b8860b'); ctx.fillStyle = '#ffd23f'; star(0, 0, 5); ctx.restore(); };
+    return xs.map((x, i) => ({ x, y:cy, post:(px, py) => { const sl = s.slots[i]; if (sl && !sl.blocked) seal(px, py, sl.done ? 1 : sl.t/sl.dur); } }));
   },
   // QA: an inspector at a light table with a magnifier lamp and a result screen
   qa(w, h, s){
@@ -2335,16 +2360,19 @@ function zoneCorners(x, y, w, h, col){
     ctx.beginPath(); ctx.moveTo(cx + sx*L, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy*L); ctx.stroke(); });
   ctx.lineCap = 'butt';
 }
-function miniHU(hu, x, y, f, blocked){
-  const c = hu.kind === 'stock' || hu.kind === 'pstock' ? '#c98a4b' : hu.kind === 'scrap' ? '#8a3a46' : hu.kind === 'tote' ? '#7d8799' : hu.order.color;
-  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1.5;
-  rr(x - 9, y - 6, 18, 12, 2.5); ctx.fillStyle = c; ctx.fill(); ctx.shadowColor = 'transparent';
-  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x - 9, y + 2, 18, 4);
-  ctx.fillStyle = '#10141c'; ctx.font = `800 7.5px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText(hu.kind === 'stock' || hu.kind === 'pstock' ? 'NEW' : String(hu.order.num).slice(-3), x, y + 2.5);
-  // progress bar under the unit
-  rr(x - 9, y + 7.5, 18, 3, 1.5); ctx.fillStyle = 'rgba(14,19,29,0.9)'; ctx.fill();
-  rr(x - 9, y + 7.5, Math.max(3, 18*f), 3, 1.5); ctx.fillStyle = blocked ? (Math.floor(perfT*4) % 2 ? '#ff5468' : '#ff8a9a') : '#3ddc84'; ctx.fill();
+function toolChip(st, hu, x, y, f, blocked, barOnly){
+  const items = stationItems(st, hu).slice(0, 3), n = items.length;
+  if (!barOnly){
+    const box = hu.kind === 'stock' || hu.kind === 'pstock' ? '#c98a4b' : hu.kind === 'scrap' ? '#8a3a46' : '#2a3346';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1.5;
+    rr(x - 14, y - 9.5, 28, 19, 3.5); ctx.fillStyle = box; ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.fillStyle = hu.order ? hu.order.color : '#8a96ad'; ctx.fillRect(x - 14, y - 9.5, 28, 2.5);   // order colour, matches the order card
+    const sz = n === 1 ? 17 : n === 2 ? 14 : 12;
+    items.forEach((it, i) => drawIcon(it.icon, x + (i - (n - 1)/2)*(n === 3 ? 8 : 9), y + 1, sz));
+  }
+  const by = y + (barOnly ? 13 : 11.5);
+  rr(x - 13, by, 26, 3, 1.5); ctx.fillStyle = 'rgba(14,19,29,0.9)'; ctx.fill();
+  rr(x - 13, by, Math.max(3, 26*f), 3, 1.5); ctx.fillStyle = blocked ? (Math.floor(perfT*4) % 2 ? '#ff5468' : '#ff8a9a') : '#3ddc84'; ctx.fill();
 }
 // layout of a station's floor zone: IN lane (left), machine (middle), OUT spaces (right)
 function cellLayout(st){
@@ -2405,10 +2433,11 @@ function drawStation(st, t){
   const scene = { n:st.slotCount, slots:st.slots, on, k:act ? clamp(act.t/act.dur, 0, 1) : 0, hu:act ? act.hu : null, T, st, state };
   let pos = [];
   ctx.save(); ctx.translate(L.mx, L.my);
+  CUR_ST = st;
   try { pos = (BODIES[def.id] || (() => []))(L.mw, L.mh, scene) || []; } catch(e){ console.error(e); }
   ctx.restore();
   for (let i=0; i<st.slotCount; i++){ const s = st.slots[i], p = pos[i]; if (!s || !p) continue;
-    miniHU(s.hu, L.mx + p.x, L.my + p.y, s.done ? 1 : s.t/s.dur, s.blocked); }
+    toolChip(st, s.hu, L.mx + p.x, L.my + p.y, s.done ? 1 : s.t/s.dur, s.blocked, p.bar); if (p.post) p.post(L.mx + p.x, L.my + p.y); }
   if (blocked){ rr(L.mx + L.mw/2 - 24, L.my + L.mh/2 - 6, 48, 12, 3); ctx.fillStyle = 'rgba(255,84,104,0.92)'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 7.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('OUT FULL', L.mx + L.mw/2, L.my + L.mh/2 + 2.5); }
   // ---- OUT (right): painted floor spaces, or the day's count for end stations
   if (st.outMax > 0){
