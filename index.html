@@ -181,6 +181,28 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .ut.auto.poor .ut-price{background:none}
 .shop-note{color:var(--muted);font-size:12.5px;margin:10px 2px 0}
 .stickyrow{position:sticky;bottom:0;margin:12px 0 0;padding:12px 0 2px;background:linear-gradient(180deg,rgba(20,27,39,0),rgba(20,27,39,.97) 40%);z-index:1}
+.kicker{margin:0;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:12px}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.stats span{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13.5px;color:#c9d1e0}
+.stats .ic{width:16px;height:16px;color:var(--accent)}
+.stats b{color:var(--text,#fff);font-size:15px}
+.newbox{display:flex;flex-direction:column;gap:6px;margin:0 0 14px}
+.newbox .nw{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--accent);background:linear-gradient(135deg,rgba(255,138,31,.14),var(--panel2));border-radius:12px;padding:9px 12px;font-size:14px;cursor:help}
+.newbox .nw .tag{margin:0}
+.newbox .nw .ic{width:22px;height:22px}
+.newbox .br{color:#c9d1e0}
+.flow.route{margin:6px 0;gap:5px}
+.flow.route .fs{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;padding:4px 8px;cursor:help}
+.flow.route .or{color:var(--muted);font-size:12px}
+.flow.route.sub2{margin-top:2px}
+.flow .fs.info{border-style:dashed}
+.flow .hint{color:var(--muted);font-size:12px;margin-left:4px}
+[data-tip]{position:relative}
+[data-tip].tipon{border-color:var(--accent)!important}
+.tipc{display:none}
+#itip{position:fixed;z-index:40;display:none;max-width:290px;background:rgba(15,20,30,.98);border:1px solid var(--accent);border-radius:10px;padding:9px 11px;font-size:12.5px;line-height:1.45;color:#d6dceb;box-shadow:0 10px 30px rgba(0,0,0,.55);pointer-events:none}
+#itip.on{display:block}
+#itip b{color:#fff}
 .cashbig{font-size:22px;font-weight:800;color:var(--accent2)}
 .toolstrip{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
 .toolstrip span{width:34px;height:34px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent2)}
@@ -304,7 +326,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-30';
+const GAME_VERSION = '2026.11.21-31';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -552,40 +574,40 @@ const STEPS = {
 // handles: step it performs. role: 'repair' (clears flags) or 'sink' (ships the order).
 // place: 'left' | 'right' | undefined (auto: distributed above/below the conveyor loop).
 const STATIONS = [
-  { id:'warehouse', name:'Shuttle Warehouse', icon:'warehouse', color:'#ff8a1f', role:'storage', accepts:['tote','stock'], place:'warehouse',
+  { id:'warehouse', brief:"Click an order's glowing totes to fetch them.", name:'Shuttle Warehouse', icon:'warehouse', color:'#ff8a1f', role:'storage', accepts:['tote','stock'], place:'warehouse',
     slots:2, time:1.2, queue:6, out:0,
     desc:'Stores every tool in totes. Click an order\'s glowing totes to send them to Commissioning. Returned totes (↩) and new stock from Goods-in go back here.' },
-  { id:'hbw', name:'High-Bay Warehouse', icon:'hbw', color:'#ff8a1f', role:'storage', accepts:['pstock'], place:'hbw',
+  { id:'hbw', brief:'Oversize tools on pallets. Pallets skip Commissioning.', name:'High-Bay Warehouse', icon:'hbw', color:'#ff8a1f', role:'storage', accepts:['pstock'], place:'hbw',
     slots:1, time:1.5, queue:4, out:0,
     desc:'Hochregallager for Euro pallets with oversize tools (compressors, welders, table saws). Click a glowing pallet: the stacker crane brings it to the pallet I/O. Pallets skip Commissioning and go straight to their first service or to Packing. Transporters with a driver move pallets over the hall roads to every station\'s pallet bay. New pallets from Goods-in are stored here.' },
-  { id:'commission', name:'Commissioning', icon:'box', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
+  { id:'commission', brief:'Picks each order into its handling unit.', name:'Commissioning', icon:'box', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
     slots:1, time:5, queue:4, out:3, defect:{ chance:0.07, reason:'Wrong item picked', redo:true, returnTote:true },
     desc:'Picks the tools from the delivered totes into an order-specific handling unit (HU). Starts once all of the order\'s totes have arrived.' },
-  { id:'goodsin', name:'Goods-in', icon:'goodsin', color:'#c98a4b', handles:'receive', role:'source', noKey:true,
+  { id:'goodsin', brief:'Customer returns and new stock arrive here.', name:'Goods-in', icon:'goodsin', color:'#c98a4b', handles:'receive', role:'source', noKey:true,
     slots:1, time:3.5, queue:3, out:3,
     desc:'Wareneingang. Trucks unload here on their own: new stock (cardboard boxes) goes to the Shuttle Warehouse, cutting tools sent back by customers go to Regrinding, measuring tools sent back go to the Calibration Lab. Keep its OUT tray clear.' },
-  { id:'regrind', name:'Regrinding', icon:'regrind', color:'#9aa8ff', handles:'regrind',
+  { id:'regrind', brief:'Resharpens returned drills and cutters.', name:'Regrinding', icon:'regrind', color:'#9aa8ff', handles:'regrind',
     slots:1, time:8, queue:3, out:3, defect:{ chance:0.10, reason:'Cutting edge chipped', redo:true },
     desc:'Sharpens customer drills and milling cutters (Bohrer, Fräser). Afterwards they may still need Laser Signing and the focus customer check, then Packing.' },
-  { id:'calib', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
+  { id:'calib', brief:'Checks and certifies measuring tools.', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
     slots:1, time:9, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
     desc:'Checks that measuring tools (calipers, meters, levels…) measure correctly and issues a certificate. Failed tools go to QA, then back here. Measuring tools returned by customers that fail are not repaired: no guarantee, straight back to the customer.' },
-  { id:'sign', name:'Laser Signing', icon:'laser', color:'#b07cff', handles:'signing',
+  { id:'sign', brief:'Lasers the customer ID onto tools.', name:'Laser Signing', icon:'laser', color:'#b07cff', handles:'signing',
     slots:1, time:6, queue:3, out:3, defect:{ chance:0.08, reason:'Engraving blurred', redo:true },
     desc:'Lasers the customer identifier onto tools so they can be traced on site.' },
-  { id:'patch', name:'Patch Studio', icon:'needle', color:'#ff5fa2', handles:'patching',
+  { id:'patch', brief:'Sews company logos onto workwear.', name:'Patch Studio', icon:'needle', color:'#ff5fa2', handles:'patching',
     slots:1, time:8, queue:3, out:3, defect:{ chance:0.10, reason:'Patch misaligned', redo:true },
     desc:'Sews custom company logos onto sewable clothing: jackets, vests, trousers and caps (not gloves, helmets or boots).' },
-  { id:'care', name:'Focus Customer Care', icon:'star', color:'#ffd23f', handles:'focus',
+  { id:'care', brief:'Final check for focus customers (★).', name:'Focus Customer Care', icon:'star', color:'#ffd23f', handles:'focus',
     slots:1, time:5, queue:3, out:3, defect:{ chance:0.10, reason:'Scratch found', redo:false },
     desc:'Dedicated final check for focus customers (★ star). Comes after all other services, right before packing.' },
-  { id:'qa', name:'Quality Assurance', icon:'magnifier', color:'#ff5468', role:'repair',
+  { id:'qa', brief:'Fixes flagged units or rejects defective items.', name:'Quality Assurance', icon:'magnifier', color:'#ff5468', role:'repair',
     slots:1, time:7, queue:4, out:3, issue:{ chance:0.35, reason:'Item defective' },
     desc:'Checks everything flagged with a warning. Either it can be corrected and continues its route (a failed service is redone), or the item is defective: it goes to Retoure and a new one must be commissioned.' },
-  { id:'retoure', name:'Retoure', icon:'retoure', color:'#a07cff', role:'returns', accepts:'scrap', place:'right',
+  { id:'retoure', brief:'Takes defective items. The order needs a new pick.', name:'Retoure', icon:'retoure', color:'#a07cff', role:'returns', accepts:'scrap', place:'right',
     slots:1, time:3, queue:4, out:0,
     desc:'Takes back defective items found by QA (red boxes), separate from Packing. The order needs a freshly commissioned replacement.' },
-  { id:'pack', name:'Packing & Shipping', icon:'truck', color:'#3ddc84', handles:'pack', role:'sink', place:'right',
+  { id:'pack', brief:'Last stop: packs and loads the truck.', name:'Packing & Shipping', icon:'truck', color:'#3ddc84', handles:'pack', role:'sink', place:'right',
     slots:1, time:5, queue:4, out:0,
     desc:'Packs the order and loads it on the truck. Last stop: only when every step is done and nothing is flagged.' },
 ];
@@ -3124,8 +3146,27 @@ $('bHelp').onclick = () => { AU.init(); if (G.mode === 'play'){ G.mode = 'paused
 // ===================================================================
 //  MODAL SCREENS
 // ===================================================================
-function modal(html){ $('mcard').classList.remove('wide'); $('mcard').innerHTML = html; $('modal').classList.remove('hidden'); $('mcard').scrollTop = 0; }
-function hideModal(){ $('modal').classList.add('hidden'); }
+function modal(html){ hideITip(); $('mcard').classList.remove('wide'); $('mcard').innerHTML = html; $('modal').classList.remove('hidden'); $('mcard').scrollTop = 0; }
+function hideModal(){ hideITip(); $('modal').classList.add('hidden'); }
+// ---------- info tooltips in screens: hover with a mouse, tap on touch ----------
+const itip = document.createElement('div'); itip.id = 'itip'; document.body.appendChild(itip);
+let itipFor = null, lastPtr = 'mouse';
+function showITip(el){
+  const c = el.querySelector('.tipc'); if (!c) return;
+  itip.innerHTML = c.innerHTML; itip.classList.add('on'); itipFor = el; el.classList.add('tipon');
+  const r = el.getBoundingClientRect(), t = itip.getBoundingClientRect();
+  const x = Math.max(8, Math.min(innerWidth - t.width - 8, r.left + r.width/2 - t.width/2));
+  let y = r.bottom + 8; if (y + t.height > innerHeight - 8) y = Math.max(8, r.top - t.height - 8);
+  itip.style.left = x + 'px'; itip.style.top = y + 'px';
+}
+function hideITip(){ itip.classList.remove('on'); if (itipFor) itipFor.classList.remove('tipon'); itipFor = null; }
+document.addEventListener('pointerdown', e => { lastPtr = e.pointerType || 'mouse'; }, true);
+document.addEventListener('pointerover', e => { if (e.pointerType !== 'mouse') return; const el = e.target.closest && e.target.closest('[data-tip]'); if (el && el !== itipFor) showITip(el); });
+document.addEventListener('pointerout', e => { if (e.pointerType !== 'mouse' || !itipFor) return; if (!e.relatedTarget || !itipFor.contains(e.relatedTarget)) { const el = e.target.closest && e.target.closest('[data-tip]'); if (el === itipFor) hideITip(); } });
+document.addEventListener('click', e => { const el = e.target.closest && e.target.closest('[data-tip]');
+  if (el && lastPtr !== 'mouse'){ if (itipFor === el) hideITip(); else showITip(el); } else if (!el) hideITip(); });
+$('modal').addEventListener('scroll', hideITip, { passive:true });
+window.addEventListener('resize', hideITip);
 // ---------- cheats (testing): tap the version number 5 times quickly on the title or pause screen ----------
 let cheatTaps = [], cheatBack = null;
 document.addEventListener('click', e => {
@@ -3152,11 +3193,6 @@ const heroSVG = `<svg width="150" height="120" viewBox="0 0 150 120"><rect x="6"
   <rect x="64" y="58" width="22" height="16" rx="3" fill="#ff8a1f"/><rect x="108" y="96" width="22" height="16" rx="3" fill="#4f8cff"/><rect x="132" y="70" width="16" height="13" rx="3" fill="#3ddc84"/>
   <rect x="70" y="10" width="62" height="40" rx="7" fill="#1a2231" stroke="#ff8a1f" stroke-width="2"/><rect x="70" y="10" width="62" height="12" rx="6" fill="#ff8a1f"/>
   <circle cx="16" cy="28" r="9" fill="#ff8a1f" opacity=".25"/></svg>`;
-function flowHTML(){
-  const stg = stageList();
-  return `<div class="flow">${stg.map(g => `<span class="fs">${g.map(sid => ico(DEF[STEP_STATION[sid]].icon) + DEF[STEP_STATION[sid]].name).join(' <span style="color:var(--muted)">/</span> ')}</span>`).join('<span class="ar">➜</span>')}</div>`
-    + (activeHas('goodsin') && activeHas('regrind') ? returnsFlowHTML() : '');
-}
 function returnsFlowHTML(){
   const st = id => `<span class="fs">${ico(DEF[id].icon)}${DEF[id].name}</span>`;
   return `<div class="flow"><span style="color:var(--muted);font-size:12px">Customer returns:</span>${st('goodsin')}<span class="ar">➜</span>${st('regrind')}<span class="ar">➜</span><span class="fs">${ico('laser')}Laser / ${ico('star')}Focus <span style="color:var(--muted)">(if needed)</span></span><span class="ar">➜</span>${st('pack')}</div>
@@ -3191,13 +3227,21 @@ function showIntro(idx){
   G.orders = []; G.hus = []; G.fetch = []; G.jobs = []; G.robots = []; G.inbound = []; resetPallets(); G.shippedLog = []; G.time = 0; G.truck = { x:1210, load:0, state:'parked', t:0 }; G.shipped = 0; G.sat = 100;
   const newOnes = cfg.stations.filter(id => !prev.includes(id));
   saveProfile();
-  modal(`<p class="sub" style="margin:0;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:12px">Shift ${idx+1}</p>
-    <h2>${cfg.name}: ${cfg.title}</h2>
-    <div class="goal"><div><small>Goal</small><b>Ship ${cfg.goal} orders</b></div><div><small>Shift length</small><b>${Math.round(cfg.duration/60*10)/10} min</b></div><div><small>New order every</small><b>~${Math.round((cfg.spawn[0]+cfg.spawn[1])/2)} s</b></div></div>
-    <p style="margin:6px 0 4px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px">Routing plan</p>${flowHTML()}
-    <p style="margin:2px 0 12px;color:var(--muted);font-size:13px">Skip any station the order doesn't need. <b style="color:var(--bad)">Flagged</b> units go to Quality Assurance first.</p>
-    <div class="grid2">${cfg.stations.map(id => { const d = DEF[id], nw = newOnes.includes(id) && idx > 0;
-      return `<div class="scard ${nw?'new':''}"><div class="t">${ico(d.icon)}${d.name}${nw?'<span class="tag">NEW</span>':''}</div>${d.desc}</div>`; }).join('')}</div>
+  const stTip = id => `<span class="tipc"><b>${DEF[id].name}</b><br>${DEF[id].desc}</span>`;
+  const chip = id => `<span class="fs" data-tip>${ico(DEF[id].icon)}${DEF[id].name}${stTip(id)}</span>`;
+  const route = stageList().map(g => g.map(sid => chip(STEP_STATION[sid])).join('<span class="or">/</span>')).join('<span class="ar">➜</span>');
+  const side = cfg.stations.filter(id => ['qa','retoure'].includes(id)).map(chip).join('');
+  const returns = activeHas('goodsin') && activeHas('regrind') ? `<span class="fs info" data-tip>${ico('goodsin')}Returns &amp; restock<span class="tipc"><b>Returns &amp; restock</b><br>
+    Drills and cutters: Goods-in ➜ Regrinding ➜ Laser / Focus if needed ➜ Packing.<br>
+    Measuring tools: Goods-in ➜ Calibration Lab ➜ Focus if needed ➜ Packing. If one fails, it goes straight back via Packing, not to QA.<br>
+    New stock (cardboard box) goes to the Shuttle Warehouse.</span></span>` : '';
+  const fresh = idx > 0 ? newOnes : [];
+  modal(`<p class="kicker">Shift ${idx+1} · ${cfg.name}</p>
+    <h2>${cfg.title}</h2>
+    <div class="stats"><span>${ico('target')}Ship <b>${cfg.goal}</b> orders</span><span>${ico('clock')}<b>${Math.round(cfg.duration/60*10)/10}</b> min</span><span>${ico('tote')}New order every <b>~${Math.round((cfg.spawn[0]+cfg.spawn[1])/2)} s</b></span></div>
+    ${fresh.length ? `<div class="newbox">${fresh.map(id => `<div class="nw" data-tip><span class="tag">NEW</span>${ico(DEF[id].icon)}<b>${DEF[id].name}</b><span class="br">${DEF[id].brief}</span>${stTip(id)}</div>`).join('')}</div>` : ''}
+    <div class="flow route">${route}</div>
+    <div class="flow route sub2"><span class="hint" style="margin:0 2px 0 0">Off the route:</span>${side}${returns}<span class="hint">Flagged units go to QA first. ${'ontouchstart' in window ? 'Tap' : 'Hover'} a station for details.</span></div>
     <div class="btnrow"><button class="btn primary" id="mStart">Start shift ▸</button></div>`);
   bind('mStart', () => { hideModal(); tipQueue.length = 0; hideTip(null); startShift(idx); syncButtons(); renderSide();
     if (idx === 0) setTimeout(() => toast(ico('sun') + ' Good morning! The first order is on its way…', 'good'), 300);
@@ -3217,7 +3261,7 @@ function showResult(){
       <div><small>Satisfaction</small><b>${Math.round(G.sat)}%</b></div>
     </div>
     ${r.passed ? `<p>Shift bonus: <b style="color:var(--accent2)">$${r.bonus}</b>. Spend your cash on upgrades before the next shift.</p>`
-      : `<p>You keep <b style="color:var(--accent2)">$${r.kept}</b> (half of what you earned this shift) to spend on upgrades before retrying.</p><p>Tip: check which stations were busiest in the shop, retrieve totes steadily, keep OUT trays empty so stations don't block, and send flagged units to QA quickly.</p>`}
+      : `<p>You keep <b style="color:var(--accent2)">$${r.kept}</b> (half of what you earned this shift) to spend on upgrades before retrying.</p><div class="flow route"><span class="fs info" data-tip>${ico('bulb')}Tips for the retry<span class="tipc">Check which stations were busiest in the shop, retrieve totes steadily, keep OUT trays empty so stations don't block, and send flagged units to QA quickly.</span></span></div>`}
     <div class="btnrow">${r.passed ? `<button class="btn primary" id="mShop">Upgrades & next shift ▸</button>` : `<button class="btn primary" id="mRetry">Upgrade & retry ▸</button>`}
     <button class="btn" id="mMenu">Main menu</button></div>`);
   bind('mShop', () => { G.shiftIdx++; G.shopUpto = G.shiftIdx; saveProfile(); showShop(); });
