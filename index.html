@@ -346,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-44';
+const GAME_VERSION = '2026.11.21-45';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2007,7 +2007,7 @@ function drawHBW(t){
   rr(HOLD.x - 18, HOLD.y - 14, (HOLD.per - 1)*HOLD.sp + 36, 58, 6); ctx.strokeStyle = 'rgba(255,138,31,0.45)'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
   ctx.fillText('PALLET BUFFER', HOLD.x + (HOLD.per-1)*HOLD.sp/2, HOLD.y + 58);
   rr(HOLD_T.x - 16, HOLD_T.y - 14, (HOLD.per - 1)*HOLD_T.sp + 32, 30, 6); ctx.strokeStyle = 'rgba(255,138,31,0.45)'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
-  ctx.font = `700 7.5px ${FONT}`; ctx.fillText('PALLET BUFFER', HOLD_T.x + HOLD_T.sp, HOLD_T.y + 26); ctx.fillText('TRANSPORTERS', DEPOT_T.x + DEPOT_T.sp, DEPOT_T.y + 26); ctx.textAlign = 'left';
+  ctx.font = `700 7.5px ${FONT}`; ctx.fillText('PALLET BUFFER', HOLD_T.x + HOLD_T.sp, HOLD_T.y + 26); ctx.fillText('TRANSPORTERS', DEPOT_T.x + DEPOT_T.sp, DEPOT_T.y + 36); ctx.textAlign = 'left';
   drawAutoBadge(st, HB_BAYS[0].x - 17, HB_BAYS[0].y - 34);
   // selection target glow
   const sel = G.selected;
