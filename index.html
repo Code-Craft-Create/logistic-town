@@ -346,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-41';
+const GAME_VERSION = '2026.11.21-42';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -744,6 +744,13 @@ function truckAt(s){ const g = truckGeo();
   s -= g.a; if (s <= g.arc){ const th = s/TRK.R; return { x:g.wx + 20 + TRK.R*Math.sin(th), y:g.cy - TRK.R + TRK.R*Math.cos(th), ang:-th }; }
   s -= g.arc; return { x:g.lx, y:g.cy - TRK.R - s, ang:-Math.PI/2 }; }
 const inCross = p => G.roads && p.x > ROAD.x1 - ROAD.half - 6 && p.x < ROAD.x1 + ROAD.half + 6 && p.y > DOCK.y0 - 8 && p.y < DOCK.y1 + 8;
+// a shipped parcel flies onto the docked truck, or waits in the dock bay while no truck is there
+const truckRoom = () => G.truck && G.truck.state === 'parked' ? 4 - G.truck.load - G.flyers.filter(f => !f.done && f.to === 'truck').length : 0;
+function stackPos(i){ const k = i % 8; return { x:1116 + (k % 2)*17, y:DOCK.y0 + 12 + Math.floor(k/2)*19 }; }
+function shipParcel(x, y, color){
+  if (truckRoom() > 0 && !(G.dockStack || []).length) G.flyers.push({ x0:x, y0:y, x1:G.truck.x - 20, y1:640, t:0, color, to:'truck' });
+  else { const p = stackPos(G.dockStack.length + G.flyers.filter(f => !f.done && f.to === 'stack').length); G.flyers.push({ x0:x, y0:y, x1:p.x, y1:p.y, t:0, color, to:'stack', arc:30 }); }
+}
 function truckCrossBusy(){ const tk = G.truck; if (!G.roads || !tk) return false; const g = truckGeo();
   return tk.state === 'backing' || (tk.state === 'leaving' && tk.s < ROAD.x1 + ROAD.half - g.park + TRK.L/2 + 4) || (tk.state === 'arriving' && tk.ay < g.cy + 160); }
 const newTruck = () => ({ x:0, y:DOCK.cy, ang:0, s:0, load:0, state:'parked', t:0, gate:0 });
@@ -901,7 +908,7 @@ function startShift(idx){
   G.stations = G.cfg.stations.filter(id => DEF[id]).map(id => makeStation(DEF[id]));
   G.st = Object.fromEntries(G.stations.map(s => [s.id, s]));
   layoutStations();
-  Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[],
+  Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[], dockStack:[], dockT:0,
     seq: 0, huSeq:0, nextSpawn:2, spawned:0, bays:BAYS.map(() => ({ units:[], incoming:0 })), crane:null, autoRouted:0, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
     truck:newTruck() });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
@@ -1208,7 +1215,7 @@ function ship(hu){
   G.shippedLog.unshift({ num:o.num, late, pay, color:o.color }); G.shippedLog.length = Math.min(G.shippedLog.length, 5);
   const pk = G.st.pack;
   floatText(pk.x+pk.w/2, pk.y-6, `+$${pay}`, late ? '#ffc53d' : '#3ddc84');
-  G.flyers.push({ x0:pk.x+pk.w/2, y0:pk.y+pk.h, x1:G.truck.x-20, y1:640, t:0, color:o.color });
+  shipParcel(pk.x+pk.w/2, pk.y+pk.h, o.color);
   sfx('ship'); event('ship');
   if (!G.goalToast && G.shipped >= G.cfg.goal){ G.goalToast = true; toast(ico('target') + ' Shift goal reached! Everything else is bonus.', 'good'); sfx('fix'); }
 }
@@ -1352,7 +1359,13 @@ function update(dt){
   }
   const tq = tk.state === 'arriving' ? { x:tg.lx, y:tk.ay, ang:-Math.PI/2 } : truckAt(tk.state === 'parked' ? 0 : tk.s);
   tk.x = tq.x; tk.y = tq.y; tk.ang = tq.ang;
-  for (const f of G.flyers){ f.t += dt*1.6; if (f.t >= 1 && !f.done){ f.done = true; tk.load++; if (tk.load >= 4 && tk.state==='parked'){ tk.state='leaving'; sfx('truck'); } } }
+  for (const f of G.flyers){ f.t += dt*1.6; if (f.t >= 1 && !f.done){ f.done = true;
+    if (f.to === 'stack'){ G.dockStack.push(f.color); continue; }
+    tk.load++; if (tk.load >= 4 && tk.state==='parked'){ tk.state='leaving'; sfx('truck'); } } }
+  // parcels waiting in the dock bay go onto the next truck once it has backed in
+  G.dockT = Math.max(0, (G.dockT || 0) - dt);
+  if ((G.dockStack || []).length && G.dockT === 0 && truckRoom() > 0){ const i = G.dockStack.length - 1, p = stackPos(i), c = G.dockStack.pop();
+    G.flyers.push({ x0:p.x, y0:p.y, x1:G.truck.x - 20, y1:640, t:0.15, color:c, to:'truck', arc:22 }); G.dockT = 0.3; }
   G.flyers = G.flyers.filter(f => f.t < 1.05);
   for (const f of G.floats) f.t += dt;
   G.floats = G.floats.filter(f => f.t < 1.4);
@@ -3086,6 +3099,9 @@ function drawTruck(t){
   if (G.roads) drawTruckCrossing(t);
   drawWallGate(t);
   drawTruckTop(tk, t);
+  const ds = G.dockStack || [];                                                       // parcels waiting for the next truck
+  ds.forEach((c, i) => { if (i >= 8) return; const p = stackPos(i); rr(p.x - 8, p.y - 7, 16, 14, 2); ctx.fillStyle = '#c99a5b'; ctx.fill(); ctx.fillStyle = c; ctx.fillRect(p.x - 8, p.y - 1.5, 16, 3); });
+  if (ds.length > 8){ ctx.fillStyle = '#ffb15c'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('+' + (ds.length - 8), 1124, DOCK.y1 + 12); }
   ctx.fillStyle = '#8a96ad'; ctx.font = `700 10px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('TRUCK DOCK', 1100, 584);
   const pk = G.st.pack; if (pk){ conveyorSeg(pk.x + pk.w/2, pk.y + pk.h, pk.x + pk.w/2, 600, 18, t, 1); }
 }
@@ -3118,7 +3134,7 @@ function render(t){
   (G.bays || []).forEach((q, bi) => q.units.forEach((hu, i) => { const p = bayPosAt(BAYS[bi], i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); }));
   drawLoosePallets();
   // flyers to truck
-  for (const f of G.flyers){ const k = Math.min(1, f.t), x = f.x0 + (f.x1-f.x0)*k, y = f.y0 + (f.y1-f.y0)*k - Math.sin(k*Math.PI)*50;
+  for (const f of G.flyers){ const k = Math.min(1, f.t), x = f.x0 + (f.x1-f.x0)*k, y = f.y0 + (f.y1-f.y0)*k - Math.sin(k*Math.PI)*(f.arc || 50);
     rr(x-9, y-7, 18, 14, 3); ctx.fillStyle = '#c99a5b'; ctx.fill(); ctx.fillStyle = f.color; ctx.fillRect(x-9, y-2, 18, 3); }
   // selection line
   if (G.selected && mouse.inside){
