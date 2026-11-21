@@ -1691,7 +1691,8 @@ function drawWarehouse(t){
     ctx.fillStyle = '#10141c'; ctx.font = `800 8px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(o.num).slice(-3), q.x+8*sc+11, q.y-17*sc+8.5); ctx.textAlign = 'left';
   });
   for (const o of G.orders) if (!o.pallet) o.lines.forEach(l => {
-    if (l.state !== 'queued' && !(l.state === 'retrieving' && !G.robots.some(r => r.job && r.job.line === l && r.carry))) return;
+    // placeholder in the rack only until a shuttle has grabbed the tote (not while it rides the lift / feeder belt)
+    if (l.state !== 'queued' && !(l.state === 'retrieving' && G.robots.some(r => r.job && r.job.line === l && !r.carry))) return;
     const q = rackPos(l.slot);
     ctx.save(); ctx.globalAlpha = 0.85; drawTote(q.x, q.y, o.color, l.item.icon, false, false, false); ctx.restore();
     ctx.strokeStyle = o.color; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]); rr(q.x-17, q.y-12, 34, 24, 5); ctx.stroke(); ctx.setLineDash([]);
