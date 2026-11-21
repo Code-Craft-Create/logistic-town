@@ -346,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-42';
+const GAME_VERSION = '2026.11.21-43';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2471,6 +2471,23 @@ function lightTower(x, y, state, T){ // red / amber / green stack
 const spread = (n, a, b) => Array.from({ length:n }, (_, i) => a + (b - a)*(n === 1 ? 0.5 : i/(n - 1)));
 
 // Each body draws inside (0,0)-(w,h) and returns the slot positions (where the unit being worked on sits).
+// where the logo patch sits on each garment (offset from the icon centre, in 24-unit icon space): always on the solid body
+const PATCH_SPOT = { jacket:[-3.2, -1.6], vest:[-3, -2.2], trousers:[-2.6, -4.3], cap:[-1.5, -0.9] };
+// the game logo: an isometric box, orange stroke with a black border; k (0..1) reveals it stitch by stitch. Returns the needle point.
+const LOGO_SEGS = [[12,3,21,8],[21,8,21,16],[21,16,12,21],[12,21,3,16],[3,16,3,8],[3,8,12,3],[3,8,12,13],[12,13,21,8],[12,13,12,21]];
+function drawLogoStitch(x, y, r, k){
+  const f = r/9, P = (a, b) => ({ x:x + (a - 12)*f, y:y + (b - 12)*f });
+  const lens = LOGO_SEGS.map(([a,b,c,d]) => Math.hypot(c - a, d - b)), tot = lens.reduce((a, b) => a + b, 0);
+  let left = k*tot, tip = P(12, 3);
+  const segs = [];
+  LOGO_SEGS.forEach(([a,b,c,d], i) => { if (left <= 0) return; const t = Math.min(1, left/lens[i]); left -= lens[i];
+    const p = P(a, b), q = P(a + (c - a)*t, b + (d - b)*t); segs.push([p, q]); tip = q; });
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  [['#14100c', Math.max(1.6, r*0.42)], ['#ff8a1f', Math.max(0.9, r*0.22)]].forEach(([col, lw]) => {
+    ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); segs.forEach(([p, q]) => { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); }); ctx.stroke(); });
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+  return tip;
+}
 const BODIES = {
   // goods-to-person pick port: the gantry picks every tool out of its tote and packs it into the order's handling unit
   commission(w, h, s){
@@ -2589,15 +2606,14 @@ const BODIES = {
       const cx = x + (act ? dx : 0), cy = hy + (act ? dy : 0);
       ell(cx, cy, R, R, '#9c7a4a'); ell(cx, cy, R - 2.5, R - 2.5, act || sl ? '#eef2f8' : '#4a4458');
       if (it) drawIcon(it.icon, cx, cy + 1, R*1.45);
-      // logo patch: stitched round, piece by piece
-      const lx = cx + R*0.28, ly = cy - R*0.2, lr = R*0.26;
-      if (sl){ ctx.fillStyle = '#ff8a1f'; ctx.beginPath(); ctx.moveTo(lx, ly); ctx.arc(lx, ly, lr, -Math.PI/2, -Math.PI/2 + kk*Math.PI*2); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.9; ctx.setLineDash([1.4, 1.1]); ctx.beginPath(); ctx.arc(lx, ly, lr, -Math.PI/2, -Math.PI/2 + kk*Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
-        if (kk > 0.98){ ctx.fillStyle = '#fff'; ctx.font = `900 ${Math.max(5, lr)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('LT', lx, ly + lr*0.38); } }
+      // the Logistic Town logo (the cube) is embroidered onto the garment's body, stitch line by stitch line
+      const an = PATCH_SPOT[it ? it.icon : ''] || [0, 0], u = R*1.45/24, lx = cx + an[0]*u, ly = cy + 1 + an[1]*u, lr = R*0.18;
+      let tip = null;
+      if (sl && it) tip = drawLogoStitch(lx, ly, lr, kk);
       // head + needle over the logo
-      box(lx - 5, 14, 10, 12, 2, '#d94889');
-      const ny = act && s.on ? Math.abs(Math.sin(s.T*18 + i))*5 : 0; line(lx, 26, lx, ly - lr - 2 + ny, '#e6ebf3', 1.2);
-      if (act && s.on){ const a = -Math.PI/2 + kk*Math.PI*2; line(lx, 26, lx + Math.cos(a)*lr, ly + Math.sin(a)*lr, 'rgba(255,138,31,0.6)', 0.6); }
+      const nx = tip ? tip.x : lx, nyy = tip ? tip.y : ly;
+      box(nx - 5, 14, 10, 12, 2, '#d94889');
+      const ny = act && s.on ? Math.abs(Math.sin(s.T*18 + i))*4 : 0; line(nx, 26, nx, nyy - 2 + ny, '#e6ebf3', 1.2);
     });
     // machine beam
     box(0, 10, w, 7, 3, '#ff5fa2'); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(3, 11, w - 6, 1.4);
