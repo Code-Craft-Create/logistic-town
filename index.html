@@ -86,6 +86,13 @@ button{font:inherit;color:inherit}
 :root{--sidew:300px}
 #msgs{position:fixed;left:env(safe-area-inset-left,0px);bottom:env(safe-area-inset-bottom,0px);width:var(--sidew);padding:8px;display:flex;flex-direction:column;gap:6px;z-index:6;pointer-events:none}
 #toasts{display:flex;flex-direction:column;gap:5px;pointer-events:none}
+/* right of the hall: newest on top, a column of messages */
+#msgs.m-right{padding:0;flex-direction:column}
+#msgs.m-right #toasts{flex-direction:column-reverse}
+/* below the hall: tip on the left, messages next to it */
+#msgs.m-bottom{padding:0;flex-direction:row;align-items:flex-start;gap:10px;overflow:hidden}
+#msgs.m-bottom #tip{flex:0 1 46%;order:2}
+#msgs.m-bottom #toasts{flex:1;flex-direction:column-reverse;max-width:440px}
 .toast{background:rgba(21,28,41,.96);border:1px solid var(--line);border-left:4px solid var(--accent);padding:7px 10px;line-height:1.35;border-radius:9px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.4);animation:tin .25s ease-out;transition:opacity .4s,transform .4s}
 .toast.bad{border-left-color:var(--bad)} .toast.good{border-left-color:var(--good)} .toast.warn{border-left-color:var(--warn)}
 .toast.out{opacity:0;transform:translateX(-10px)}
@@ -336,7 +343,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-34';
+const GAME_VERSION = '2026.11.21-35';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2083,7 +2090,7 @@ function toast(msg, kind=''){
   setTimeout(() => el.classList.add('out'), 3600); setTimeout(() => el.remove(), 4100);
 }
 // keep the order list scrollable above the message stack so messages never cover an order card
-if (window.ResizeObserver) new ResizeObserver(() => { const h = $('msgs').offsetHeight; $('side').style.paddingBottom = (h > 20 ? h + 8 : 20) + 'px'; }).observe($('msgs'));
+if (window.ResizeObserver) new ResizeObserver(() => { if (!$('msgs').classList.contains('m-side')) return; const h = $('msgs').offsetHeight; $('side').style.paddingBottom = (h > 20 ? h + 8 : 20) + 'px'; }).observe($('msgs'));
 function floatText(x, y, text, color){ G.floats.push({ x, y, text, color, t:0 }); }
 let tipKey = null;
 const tipQueue = [];
@@ -2124,7 +2131,18 @@ function resize(){
   const r = floorEl.getBoundingClientRect(); view.dpr = Math.min(2.5, window.devicePixelRatio || 1);
   cv.width = Math.max(1, Math.round(r.width*view.dpr)); cv.height = Math.max(1, Math.round(r.height*view.dpr));
   const pad = 8; view.s = Math.min((r.width-pad*2)/W, (r.height-pad*2)/H);
-  view.ox = (r.width - W*view.s)/2; view.oy = (r.height - H*view.s)/2;
+  // the hall sits top-left, right next to the order column; event messages use the strip that is left over
+  const hw = W*view.s, hh = H*view.s, spareR = r.width - hw - pad*2, spareB = r.height - hh - pad*2;
+  view.ox = pad; view.oy = spareR < 140 && spareB >= 70 ? pad : (r.height - hh)/2;
+  placeMsgs(r, spareR >= 140 ? 'right' : spareB >= 70 ? 'bottom' : 'side', hw, hh, spareR, spareB);
+}
+function placeMsgs(r, mode, hw, hh, spareR, spareB){
+  const m = $('msgs'); if (!m) return;
+  m.className = 'm-' + mode; m.style.cssText = '';
+  if (mode === 'right') Object.assign(m.style, { left:(r.left + hw + 16) + 'px', top:(r.top + 8) + 'px', bottom:'auto', width:Math.min(340, spareR) + 'px' });
+  else if (mode === 'bottom') Object.assign(m.style, { left:(r.left + 8) + 'px', top:(r.top + hh + 14) + 'px', bottom:'auto', width:hw + 'px', height:Math.max(0, spareB - 6) + 'px' });
+  $('side').style.paddingBottom = '';
+  if (mode === 'side'){ const h = m.offsetHeight; $('side').style.paddingBottom = (h > 20 ? h + 8 : 20) + 'px'; }
 }
 window.addEventListener('resize', resize);
 const FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
