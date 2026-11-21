@@ -343,7 +343,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-38';
+const GAME_VERSION = '2026.11.21-39';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -568,6 +568,10 @@ const CICONS = {
   u_conveyor: [[C.steel,'M2 13h20v1.6H2z'],[C.dark,'M2 14.6h20v3.6a2.4 2.4 0 0 1-2.4 2.4H4.4A2.4 2.4 0 0 1 2 18.2z'],[C.metal,'M4.5 17.6a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z M10.8 17.6a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z M17.1 17.6a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z'],
     [C.orange,'M10 6h10l-.9 7h-8.2z'],[C.amber,'M9.6 5h10.8v1.6H9.6z'],[C.amber,'M2 6.5h5v1.3H2z M3.2 9.2h3.8v1.3H3.2z']],
   u_buffers: [[C.steel,'M3 16.5h13l-1 4.8H4z'],[C.orange,'M2.4 15h14.2v1.8H2.4z'],[C.steel,'M3 9.6h13l-1 4.6H4z'],[C.orange,'M2.4 8.2h14.2V10H2.4z'],[C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M18.2 3.4h1.6v1.8h1.8v1.6h-1.8v1.8h-1.6V6.8h-1.8V5.2h1.8z']],
+  u_autobays: [[C.steel,'M10.9 6h2.2v14h-2.2z M6 20h12v2H6z M2.5 7.4h14v1.8h-14z'],[C.amber,'M5.5 9.2L2.6 14.5h5.8z M13.5 9.2l-2.9 5.3h5.8z'],[C.deep,'M2.6 14.5h5.8a2.9 2 0 0 1-5.8 0z M10.6 14.5h5.8a2.9 2 0 0 1-5.8 0z'],
+    [C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M19.9 2.6l-3 4h1.9l-.8 2.9 3-4.1h-1.9z']],
+  u_autofix: [[C.metal,'M14.6 2.2a5.2 5.2 0 0 0-4.9 7L2.6 16.3a2 2 0 0 0 0 2.8l2 2a2 2 0 0 0 2.8 0l7.1-7.1a5.2 5.2 0 0 0 7-4.9l-3 3-3.1-.8-.8-3.1z'],[C.dark,'M4.2 18.2a1 1 0 1 0 2 0a1 1 0 1 0-2 0z'],[C.orange,'M1.4 7.2a6 6 0 0 1 4-4.6l.5 1.4a4.6 4.6 0 0 0-3.1 3.5z M3.9 8a3.4 3.4 0 0 1 2.3-2.6l.5 1.3a2 2 0 0 0-1.4 1.5z'],
+    [C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M19.9 2.6l-3 4h1.9l-.8 2.9 3-4.1h-1.9z']],
   u_service: [[C.metal,'M14.6 2.2a5.2 5.2 0 0 0-4.9 7L2.6 16.3a2 2 0 0 0 0 2.8l2 2a2 2 0 0 0 2.8 0l7.1-7.1a5.2 5.2 0 0 0 7-4.9l-3 3-3.1-.8-.8-3.1z'],[C.dark,'M4.2 18.2a1 1 0 1 0 2 0a1 1 0 1 0-2 0z'],[C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M18.2 3.4h1.6v1.8h1.8v1.6h-1.8v1.8h-1.6V6.8h-1.8V5.2h1.8z']],
   lock: [[C.steel,'M7 10V7.5a5 5 0 0 1 10 0V10h-2.2V7.5a2.8 2.8 0 0 0-5.6 0V10z'],[C.amber,'M4.5 10h15v11h-15z'],[C.dark,'M11 14h2v4h-2z']],
   done: [[C.green,'M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0z'],[C.white,'M6.8 12.2l1.8-1.8 2.3 2.3 4.6-4.6 1.8 1.8-6.4 6.4z']],
@@ -690,6 +694,9 @@ const GLOBAL_UPGRADES = [
   { id:'buffers',  icon:'u_buffers', label:'Bigger buffers',  desc:'+1 IN / OUT space everywhere', max:2, cost:l => 300 + l*250 },
   { id:'service',  icon:'u_service', label:'Extra service worker', desc:'+1 technician to repair broken automation', max:2, cost:l => [700, 1100][l], needs: () => autoBought() >= MAINT.after },
   { id:'repairs',  icon:'u_repairs', label:'Rapid repair kit', desc:'service workers walk 30% faster and repair 30% quicker', max:2, cost:l => [450, 800][l], needs: () => autoBought() >= MAINT.after },
+  // very expensive late-game automation of the two remaining manual chores
+  { id:'autobays', icon:'u_autobays', label:'Smart sorting bays', desc:'units in the sorting bays (failed weight check, rejected) are routed on automatically', max:1, cost:() => 4000, needs: () => (G.shopUpto != null ? G.shopUpto : G.shiftIdx) >= AUTO.unlockAfter },
+  { id:'autofix',  icon:'u_autofix', label:'Service dispatcher', desc:'a broken auto-router calls a service worker by itself', max:1, cost:() => 4500, needs: () => autoBought() >= MAINT.after },
 ];
 
 // ===================================================================
@@ -1270,6 +1277,14 @@ function update(dt){
       const o = G.orders.filter(o => o.pallet && o.lines.some(l => l.state === 'stored')).sort((a, b) => a.due - b.due)[0];
       if (o){ const s0 = G.silent; G.silent = true; retrieve(o, o.lines.findIndex(l => l.state === 'stored')); G.silent = s0; } }
   }
+  if (G.global.autobays && G.bays){
+    G.bayT = (G.bayT || 0) - dt;
+    if (G.bayT <= 0){ G.bayT = 1.5;
+      for (const q of G.bays){ const hu = q.units.find(h => h !== G.selected && validTargets(h).some(hasRoom)); if (!hu) continue;
+        const t = validTargets(hu).filter(hasRoom).sort((p, r) => (p.queue.length + p.incoming) - (r.queue.length + r.incoming));
+        const sel = G.selected, s0 = G.silent; G.silent = true; dispatch(hu, t[0]); G.silent = s0; if (sel && sel !== hu) G.selected = sel; break; }
+    }
+  }
   updateRobots(dt); updateCrane(dt); updateMovers(dt);
   for (const f of G.fetch){ f.path.d += RETRIEVE_SPEED*(1 + 0.4*(wu.shuttle||0))*dt; if (f.path.d >= f.path.len){ f.line.state = 'atPick'; f.done = true; } }
   G.fetch = G.fetch.filter(f => !f.done);
@@ -1375,6 +1390,7 @@ function drawAutoBadge(st, x, y){
 function breakDown(st){
   const a = st.auto; a.state = 'broken'; a.brokeT = 0; a.rep = 0; G.breakdowns++;
   st.flash = -0.8; sfx('error');
+  if (G.global.autofix){ toast(`${ico('wrench')} ${st.def.name}: automation broke down. The dispatcher sent a service worker.`, 'warn'); sendService(st); return; }
   toast(`${ico('wrench')} ${st.def.name}: automation broke down. Click it to send a service worker.`, 'bad');
   tip('maint', `<b>Automation needs maintenance.</b> With this much automation in the hall, auto-routers wear out and break down. A broken one shows a red <b>BROKEN</b> badge. <b>Click the station</b> (with nothing selected) to send a service worker from the <b>Service</b> room. While it is broken, you route that station's units by hand.`);
 }
