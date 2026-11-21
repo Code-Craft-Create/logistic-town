@@ -239,7 +239,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-18';
+const GAME_VERSION = '2026.11.21-19';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2288,10 +2288,13 @@ const BODIES = {
     if (s.on){ const sy = dy + 4 + tri(T*1.2)*(h - dy - 14); ctx.fillStyle = 'rgba(255,84,104,0.6)'; ctx.fillRect(5, sy, w - 10, 1.2); }
     // arms resting on the desk; one hand holds a magnifier over the item
     const mx = px + 7 + (s.on ? Math.sin(T*1.7)*6 : 4), my = dy + 13 + (s.on ? Math.sin(T*3.4)*2.5 : 2);
-    ctx.lineCap = 'round'; line(px - 10, py + 20, px - 8, dy + 6, '#e8edf5', 5.5); line(px + 10, py + 20, mx - 4, my + 2, '#e8edf5', 5.5); ctx.lineCap = 'butt';
-    circ(px - 8, dy + 7, 2.6, '#f1c27d'); circ(mx - 4, my + 2, 2.6, '#f1c27d');
-    ctx.beginPath(); ctx.arc(mx + 1, my - 2, 7, 0, 7); ctx.fillStyle = 'rgba(160,210,255,0.28)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.8; ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(mx - 1, my - 4, 2.2, 0, 7); ctx.fill();
+    // hand above, handle points down to the lens, which sits over the tool
+    const hx = mx - 3, hy = my - 9, lx = mx + 1, ly = my + 3;
+    ctx.lineCap = 'round'; line(px - 10, py + 20, px - 8, dy + 6, '#e8edf5', 5.5); line(px + 10, py + 20, hx, hy, '#e8edf5', 5.5);
+    line(hx, hy, lx - 1.6, ly - 6.6, '#5a3a22', 2.6); ctx.lineCap = 'butt';
+    circ(px - 8, dy + 7, 2.6, '#f1c27d'); circ(hx, hy, 2.6, '#f1c27d');
+    ctx.beginPath(); ctx.arc(lx, ly, 6.5, 0, 7); ctx.fillStyle = 'rgba(160,210,255,0.28)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.8; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(lx - 2, ly - 2, 2, 0, 7); ctx.fill();
     };
     // result screen on an arm (right)
     const sx = w - 22; box(sx, 16, 18, 24, 2, '#0b0f17'); ctx.strokeStyle = '#3a4560'; ctx.lineWidth = 1; rr(sx, 16, 18, 24, 2); ctx.stroke(); line(sx + 9, 40, sx + 9, dy, '#3a4560', 2);
