@@ -343,7 +343,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-35';
+const GAME_VERSION = '2026.11.21-36';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -723,7 +723,8 @@ const pick = a => a[Math.floor(Math.random()*a.length)];
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const $ = id => document.getElementById(id);
 
-let W = 1320, H = 800; // grows when the high-bay warehouse and the roads are part of the hall
+let W = 1320, H = 800;
+const TRUCK_PARK = 1200; // x of the parked truck at the dock (trailer starts 90 px left of it, cab ends 96 px right) // grows when the high-bay warehouse and the roads are part of the hall
 const LOOP = { x0:440, y0:300, x1:1060, y1:500 };
 LOOP.w = LOOP.x1-LOOP.x0; LOOP.h = LOOP.y1-LOOP.y0; LOOP.L = 2*(LOOP.w+LOOP.h);
 const WH = { x:16, y:66, w:184, h:700 };
@@ -870,7 +871,7 @@ function startShift(idx){
   layoutStations();
   Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[],
     seq: 0, huSeq:0, nextSpawn:2, spawned:0, bays:BAYS.map(() => ({ units:[], incoming:0 })), crane:null, autoRouted:0, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
-    truck:{ x:1210, load:0, state:'parked', t:0 } });
+    truck:{ x:TRUCK_PARK, load:0, state:'parked', t:0, gate:0 } });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
   resetPallets();
   G.maint = autoBought() >= MAINT.after; G.serviceQ = []; G.breakdowns = 0; G.repairs = 0;
@@ -1295,8 +1296,10 @@ function update(dt){
   updateWorkers(dt);
   // truck
   const tk = G.truck; tk.t += dt;
-  if (tk.state === 'leaving'){ tk.x += 260*dt; if (tk.x > W + 200){ tk.state = 'arriving'; tk.x = W + 200; tk.load = 0; } }
-  else if (tk.state === 'arriving'){ tk.x = Math.max(1210, tk.x - 260*dt); if (tk.x === 1210) tk.state = 'parked'; }
+  // the gate in the outer wall opens before the truck pulls out and closes once it has backed in again
+  tk.gate = clamp((tk.gate || 0) + (tk.state === 'parked' ? -1 : 1) * dt * 1.8, 0, 1);
+  if (tk.state === 'leaving'){ if (tk.gate >= 1) tk.x += 260*dt; if (tk.x > W + 220){ tk.state = 'arriving'; tk.x = W + 220; tk.load = 0; } }
+  else if (tk.state === 'arriving'){ tk.x = Math.max(TRUCK_PARK, tk.x - 200*dt); if (tk.x === TRUCK_PARK) tk.state = 'parked'; }
   for (const f of G.flyers){ f.t += dt*1.6; if (f.t >= 1 && !f.done){ f.done = true; tk.load++; if (tk.load >= 4 && tk.state==='parked'){ tk.state='leaving'; sfx('truck'); } } }
   G.flyers = G.flyers.filter(f => f.t < 1.05);
   for (const f of G.floats) f.t += dt;
@@ -2130,9 +2133,10 @@ const view = { s:1, ox:0, oy:0, dpr:1 };
 function resize(){
   const r = floorEl.getBoundingClientRect(); view.dpr = Math.min(2.5, window.devicePixelRatio || 1);
   cv.width = Math.max(1, Math.round(r.width*view.dpr)); cv.height = Math.max(1, Math.round(r.height*view.dpr));
-  const pad = 8; view.s = Math.min((r.width-pad*2)/W, (r.height-pad*2)/H);
+  const pad = 8, OUTW = 40; // OUTW: a strip of the outside world beyond the right wall (street, gate)
+  view.s = Math.min((r.width-pad*2)/(W+OUTW), (r.height-pad*2)/H);
   // the hall sits top-left, right next to the order column; event messages use the strip that is left over
-  const hw = W*view.s, hh = H*view.s, spareR = r.width - hw - pad*2, spareB = r.height - hh - pad*2;
+  const hw = (W+OUTW)*view.s, hh = H*view.s, spareR = r.width - hw - pad*2, spareB = r.height - hh - pad*2;
   view.ox = pad; view.oy = spareR < 140 && spareB >= 70 ? pad : (r.height - hh)/2;
   placeMsgs(r, spareR >= 140 ? 'right' : spareB >= 70 ? 'bottom' : 'side', hw, hh, spareR, spareB);
 }
@@ -2941,23 +2945,68 @@ function drawDispatchBoard(){
     ctx.textAlign = 'right'; ctx.fillStyle = '#c9d2e3'; ctx.fillText('$'+e.pay, x+w-12, yy+1); ctx.textAlign = 'left';
   });
 }
+// outer wall on the right edge of the hall; just beyond it a hint of the outside world (yard, street, lamp)
+const DOCK = { y0:598, y1:690 };
+function drawOutside(t){
+  const wx = W - 12, far = W + 4000;
+  // outside ground: dark yard with a grass verge, fading into the night
+  ctx.fillStyle = '#0a0e14'; ctx.fillRect(wx, -4000, far - wx, H + 8000);
+  ctx.fillStyle = '#122016'; ctx.fillRect(wx + 30, -4000, far, H + 8000);
+  ctx.fillStyle = 'rgba(40,70,44,0.5)'; for (let i=0; i<40; i++){ const y = i*28 - 40 + hash(i)*14; ctx.fillRect(wx + 34 + hash(i+7)*20, y, 2, 3); }
+  // the street outside the gate, running along the wall
+  ctx.fillStyle = '#23272f'; ctx.fillRect(wx + 6, -4000, 26, H + 8000);
+  ctx.fillStyle = '#23272f'; ctx.fillRect(wx, DOCK.y0, 40, DOCK.y1 - DOCK.y0);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)'; for (let y = -40; y < H + 40; y += 30) if (y < DOCK.y0 - 8 || y > DOCK.y1 + 4) ctx.fillRect(wx + 18, y, 2, 14);
+  // a street lamp throws warm light onto the drive
+  const lx = wx + 22, ly = DOCK.y0 - 30, g = ctx.createRadialGradient(lx, ly, 2, lx, ly, 90);
+  g.addColorStop(0, 'rgba(255,200,120,0.28)'); g.addColorStop(1, 'rgba(255,200,120,0)'); ctx.fillStyle = g; ctx.fillRect(lx - 90, ly - 90, 180, 180);
+  ctx.fillStyle = '#ffe2b0'; ctx.beginPath(); ctx.arc(lx, ly, 3, 0, 7); ctx.fill();
+}
+function drawWallGate(t){
+  const tk = G.truck, wx = W - 12, k = tk.gate || 0, e = k*k*(3 - 2*k), open = DOCK.y1 - DOCK.y0;
+  // wall with the gate opening
+  ctx.fillStyle = '#3a4458'; ctx.fillRect(wx - 3, -4000, 6, DOCK.y0 - 4 + 4000); ctx.fillRect(wx - 3, DOCK.y1 + 4, 6, H + 4000);
+  ctx.fillStyle = '#56627a'; ctx.fillRect(wx - 3, -4000, 1.5, DOCK.y0 - 4 + 4000); ctx.fillRect(wx - 3, DOCK.y1 + 4, 1.5, H + 4000);
+  // gate posts
+  ctx.fillStyle = '#5b667c'; ctx.fillRect(wx - 5, DOCK.y0 - 8, 10, 6); ctx.fillRect(wx - 5, DOCK.y1 + 2, 10, 6);
+  // sliding gate leaf: slides up along the outside of the wall
+  const gy = DOCK.y0 - 2 - e * (open + 2), gh = open + 4;
+  ctx.save(); ctx.beginPath(); ctx.rect(wx + 3, gy, 5, gh); ctx.clip();
+  ctx.fillStyle = '#1b1f27'; ctx.fillRect(wx + 3, gy, 5, gh);
+  ctx.fillStyle = '#ffc53d'; for (let y = gy - 10; y < gy + gh; y += 12) { ctx.beginPath(); ctx.moveTo(wx + 3, y); ctx.lineTo(wx + 8, y + 5); ctx.lineTo(wx + 8, y + 11); ctx.lineTo(wx + 3, y + 6); ctx.fill(); }
+  ctx.restore();
+  // warning lights blink while the gate moves or stands open
+  const on = (k > 0.01) && Math.floor(t * 4) % 2 === 0;
+  [DOCK.y0 - 5, DOCK.y1 + 5].forEach(y => { ctx.fillStyle = on ? '#ffb000' : '#5a4a2a'; ctx.beginPath(); ctx.arc(wx - 9, y, 2.6, 0, 7); ctx.fill();
+    if (on){ ctx.fillStyle = 'rgba(255,176,0,0.25)'; ctx.beginPath(); ctx.arc(wx - 9, y, 8, 0, 7); ctx.fill(); } });
+}
 function drawTruck(t){
-  const tk = G.truck, x = tk.x, y = 610;
-  // dock
-  ctx.fillStyle = '#1a2231'; ctx.fillRect(1090, 590, 230, 110);
-  ctx.save(); ctx.beginPath(); ctx.rect(1090, 590, 230, 110); ctx.clip();
+  const tk = G.truck, x = tk.x, y = 610, wx = W - 12;
+  drawOutside(t);
+  // loading bay: concrete apron with a painted drive lane up to the gate
+  ctx.fillStyle = '#1a2231'; ctx.fillRect(1090, 590, wx - 1090, 110);
+  ctx.fillStyle = '#20252e'; ctx.fillRect(1100, DOCK.y0, wx - 1100, DOCK.y1 - DOCK.y0);
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(1100, DOCK.y0, wx - 1100, 1.5); ctx.fillRect(1100, DOCK.y1 - 1.5, wx - 1100, 1.5);
+  ctx.fillStyle = '#ffc53d'; ctx.fillRect(1100, DOCK.y0, 4, DOCK.y1 - DOCK.y0); // dock edge
+  ctx.save(); ctx.beginPath(); ctx.rect(1090, 590, wx - 1090, 110); ctx.clip();
   for (let i=0; i<12; i++){ ctx.fillStyle = i%2 ? '#ffc53d' : '#151b26'; ctx.beginPath(); ctx.moveTo(1090+i*22, 700); ctx.lineTo(1100+i*22, 700); ctx.lineTo(1112+i*22, 690); ctx.lineTo(1102+i*22, 690); ctx.fill(); }
-  // trailer
+  ctx.restore();
+  // the truck: visible inside the hall and for a few metres outside the gate
+  ctx.save(); ctx.beginPath(); ctx.rect(1090, 590, W + 60 - 1090, 110); ctx.clip();
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; rr(x-88, y+4, 188, 64, 8); ctx.fill();
   ctx.fillStyle = '#e8edf5'; rr(x-90, y, 140, 62, 6); ctx.fill();
   ctx.fillStyle = '#ff8a1f'; ctx.fillRect(x-90, y+40, 140, 6);
   ctx.fillStyle = '#1a2231'; ctx.font = `900 13px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('LOGISTIC TOWN', x-20, y+30);
-  // cab
   ctx.fillStyle = '#ff8a1f'; rr(x+54, y+14, 42, 48, 7); ctx.fill();
   ctx.fillStyle = '#2b3a55'; rr(x+70, y+20, 22, 16, 3); ctx.fill();
-  ctx.fillStyle = '#0e131d'; [x-66, x-40, x+24, x+80].forEach(wx => { ctx.beginPath(); ctx.arc(wx, y+64, 8, 0, 7); ctx.fill(); });
-  // load bar
+  if (tk.state !== 'parked'){ ctx.fillStyle = 'rgba(255,240,200,0.9)'; ctx.fillRect(x+94, y+17, 3, 6); ctx.fillRect(x+94, y+52, 3, 6); }
+  ctx.fillStyle = '#0e131d'; [x-66, x-40, x+24, x+80].forEach(wx2 => { ctx.beginPath(); ctx.arc(wx2, y+64, 8, 0, 7); ctx.fill(); });
   for (let i=0; i<4; i++){ ctx.fillStyle = i < tk.load ? '#3ddc84' : 'rgba(0,0,0,0.2)'; ctx.fillRect(x-80 + i*16, y+8, 12, 6); }
   ctx.restore();
+  // fade the truck into the dark as it drives away
+  const fg = ctx.createLinearGradient(wx + 6, 0, W + 60, 0); fg.addColorStop(0, 'rgba(10,14,20,0)'); fg.addColorStop(1, 'rgba(10,14,20,1)');
+  ctx.fillStyle = fg; ctx.fillRect(wx + 6, 590, W + 60 - wx, 110);
+  drawWallGate(t);
   ctx.fillStyle = '#8a96ad'; ctx.font = `700 10px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('TRUCK DOCK', 1100, 584);
   // spur from pack to dock
   const pk = G.st.pack; if (pk){ conveyorSeg(pk.x + pk.w/2, pk.y + pk.h, pk.x + pk.w/2, 600, 18, t, 1); }
@@ -3286,7 +3335,7 @@ function showIntro(idx){
   const cfg = shiftConfig(idx), prev = idx > 0 ? shiftConfig(idx-1).stations : [];
   // preview stations for flow
   G.cfg = cfg; G.stations = cfg.stations.map(id => makeStation(DEF[id])); G.st = Object.fromEntries(G.stations.map(s => [s.id, s])); layoutStations();
-  G.orders = []; G.hus = []; G.fetch = []; G.jobs = []; G.robots = []; G.inbound = []; resetPallets(); G.shippedLog = []; G.time = 0; G.truck = { x:1210, load:0, state:'parked', t:0 }; G.shipped = 0; G.sat = 100;
+  G.orders = []; G.hus = []; G.fetch = []; G.jobs = []; G.robots = []; G.inbound = []; resetPallets(); G.shippedLog = []; G.time = 0; G.truck = { x:TRUCK_PARK, load:0, state:'parked', t:0, gate:0 }; G.shipped = 0; G.sat = 100;
   const newOnes = cfg.stations.filter(id => !prev.includes(id));
   saveProfile();
   const stTip = id => `<span class="tipc"><b>${DEF[id].name}</b><br>${DEF[id].desc}</span>`;
