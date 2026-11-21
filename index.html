@@ -343,7 +343,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-37';
+const GAME_VERSION = '2026.11.21-38';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -3075,6 +3075,8 @@ function render(t){
   drawLoop(t); drawBays(t);
   G.stations.forEach(st => drawSpur(st, t));
   drawBoard(); drawDispatchBoard(); drawTruck(t); drawServiceRoom(t);
+  // transporters near the truck crossing are drawn again on top of the crossing paint
+  if (G.roads) (G.movers||[]).forEach(m => { if (m.x > ROAD.x1 - ROAD.half - 40 && m.y > DOCK.y0 - 40 && m.y < DOCK.y1 + 40) drawMover(m, t); });
   G.stations.forEach(st => drawStation(st, t));
   (G.workers || []).forEach(k => drawWorker(k, t));
   // transit HUs
