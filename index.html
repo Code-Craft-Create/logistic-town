@@ -241,7 +241,12 @@ const ITEMS = [
   { name:'Twist drill bit',        icon:'drillbit',    tags:['cutting','tool'] },
   { name:'End mill cutter',        icon:'endmill',     tags:['cutting','tool'] },
   { name:'Face mill cutter',       icon:'facemill',    tags:['cutting','tool'] },
+  // oversize tools: stored on Euro pallets in the high-bay warehouse, moved by transporters on the hall roads
+  { name:'Air compressor',         icon:'compressor',  tags:['oversize','tool'] },
+  { name:'Welding machine',        icon:'welder',      tags:['oversize','tool'] },
+  { name:'Table saw',              icon:'tablesaw',    tags:['oversize','tool'] },
 ];
+const SMALL = i => !i.tags.includes('cutting') && !i.tags.includes('oversize');
 const CUSTOMERS = ['Bergmann Bau','Nordhang Montage','Alpenkamm Stahl','Kessling Elektro','Hofstetter Dach','Lindvik Rail',
   'Brückenwerk Anlagen','Sommerau Sanitär','Vogtland Gerüste','Rheinfeld Service','Falkenstein Metall','Weidner Zimmerei',
   'Tannberg Tiefbau','Seeblick Haustechnik','Grauholz Fassaden','Morgental Energie'];
@@ -347,6 +352,14 @@ const CICONS = {
     [C.amber,'M10.6 1.8h2.8v3h-2.8z M10.6 19.2h2.8v3h-2.8z M1.8 10.6h3v2.8h-3z M19.2 10.6h3v2.8h-3z'],
     [C.amber,'M4.2 6.2l2-2 2.1 2.1-2 2z M15.7 17.7l2-2 2.1 2.1-2 2z M15.7 6.3l2.1-2.1 2 2-2.1 2.1z M4.2 17.8l2.1-2.1 2 2-2.1 2.1z'],
     [C.dark,'M9.6 12a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0z']],
+  // ---------- oversize tools (Euro pallets)
+  compressor: [[C.red,'M4.5 10.5h13a3.7 3.7 0 0 1 0 7.4h-13a3.7 3.7 0 0 1 0-7.4z'],[C.white,'M3 12.6h17.5v1H3z'],[C.dark,'M6 5.5h7.5v5H6z'],[C.steel,'M7 6.6h5.5v1.2H7z M7 8.5h5.5v1.2H7z'],
+    [C.white,'M15.2 6.6a2.1 2.1 0 1 0 4.2 0a2.1 2.1 0 1 0-4.2 0z'],[C.red,'M17 6.7l1.2-1 .3.3-1 1.2z'],[C.dark,'M3.6 20a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0-3.4 0z M15.6 20a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0-3.4 0z']],
+  welder: [[C.blue,'M2.5 7.5h14.5v12H2.5z'],[C.navyD,'M2.5 17.5h14.5v2H2.5z'],[C.dark,'M4.3 9.3h6.4v7H4.3z'],[C.lcd,'M5.2 10.2h4.6v2.2H5.2z'],[C.amber,'M5.4 14.4a1 1 0 1 0 2 0a1 1 0 1 0-2 0z M8 14.4a1 1 0 1 0 2 0a1 1 0 1 0-2 0z'],
+    [C.steel,'M6.5 4.5h6.5v3h-1.5V6h-3.5v1.5H6.5z'],[C.dark,'M17 12.5c3 0 4.6 1.8 4.6 4.3V21h-1.6v-4.2c0-1.6-1-2.7-3-2.7z'],[C.red,'M12.3 10.5a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z']],
+  tablesaw: [[C.dark,'M4 13h1.7v8H4z M18.3 13H20v8h-1.7z'],[C.orange,'M5 13h14v3.4H5z'],[C.steel,'M7.4 9.5a4.6 4.6 0 0 1 9.2 0z'],[C.white,'M11.4 6.2l.6-1.3.6 1.3z M14.6 7.4l1.2-.6-.3 1.3z M8.2 7.4L7 6.8l.3 1.3z'],
+    [C.metal,'M1.5 9.5h21v3.5h-21z'],[C.dark,'M2.5 7.6h4.2v1.9H2.5z'],[C.amber,'M10 3.5h4v1.4h-4z']],
+  pallet: [[C.cardboard,'M5.5 3.5h13v6h-13z'],[C.cardboardD,'M11 3.5h2v6h-2z'],[C.wood,'M2 9.5h20v2.5H2z'],[C.woodD,'M3 12h3.2v3H3z M10.4 12h3.2v3h-3.2z M17.8 12H21v3h-3.2z'],[C.wood,'M2 15h20v2.2H2z']],
   // ---------- clothing
   jacket: [[C.navy,'M8 3l4 2.6L16 3l5 4-2.5 4.6-1.5-.6v10H7V11l-1.5.6L3 7z'],[C.navyD,'M8 3l4 3.6L16 3l-1.6-.6L12 4.6 9.6 2.4z'],[C.metal,'M11.5 6.5h1V21h-1z'],
     [C.amber,'M7 15h10v1.6H7z'],[C.navyD,'M8 12h2.6v1H8z M13.4 12H16v1h-2.6z']],
@@ -366,6 +379,8 @@ const CICONS = {
   needle: [[C.pink,'M3 8.5h13v12H3z'],[C.pinkL,'M5 10.5h9v8H5z'],[C.white,'M7.5 12.5l2 1.2 2-1.2v3.5l-2 1.2-2-1.2z'],[C.metal,'M13.4 13.2l7.7-10 1.1.9-7.7 10z'],[C.dark,'M20.6 3.6l.6.5-.3.4-.6-.5z']],
   star: [[C.yellow,'M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.3l-5.8 3 1.1-6.4-4.7-4.6 6.5-.9z'],[C.white,'M12 6l1 2.2-1 .5z']],
   magnifier: [[C.dark,'M14.4 16l1.6-1.6 6.2 6.2-1.6 1.6z'],[C.metal,'M3 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0z'],[C.glass,'M4.8 10a5.2 5.2 0 1 0 10.4 0a5.2 5.2 0 1 0-10.4 0z'],[C.green,'M6.8 10.2l1.1-1.1 1.6 1.6 3.4-3.7 1.1 1-4.5 4.9z']],
+  hbw: [[C.metal,'M2.5 21.5V4.5L12 2l9.5 2.5v17z'],[C.dark,'M4.5 6.5h15v15h-15z'],[C.wood,'M5.5 8h5v2.2h-5z M13.5 8h5v2.2h-5z M5.5 12.4h5v2.2h-5z M13.5 12.4h5v2.2h-5z M5.5 16.8h5V19h-5z M13.5 16.8h5V19h-5z'],
+    [C.orange,'M11.2 6.5h1.6v15h-1.6z'],[C.amber,'M10.3 12.8h3.4v2h-3.4z']],
   goodsin: [[C.metal,'M2 21.5V8l10-5.5L22 8v13.5z'],[C.steel,'M2 8l10-5.5L22 8l-1 1.5-9-5-9 5z'],[C.dark,'M5.5 11h13v10.5h-13z'],
     [C.steel,'M5.5 11h13v1.2h-13z M5.5 13.4h13v1.2h-13z'],[C.cardboard,'M7 16.5h5v5H7z'],[C.cardboardL,'M12.5 18h4.5v3.5h-4.5z'],
     [C.green,'M11 3.8h2v2.6h2.2L12 9.6 8.8 6.4H11z']],
@@ -405,6 +420,9 @@ const STATIONS = [
   { id:'warehouse', name:'Shuttle Warehouse', icon:'warehouse', color:'#ff8a1f', role:'storage', accepts:['tote','stock'], place:'warehouse',
     slots:2, time:1.2, queue:6, out:0,
     desc:'Stores every tool in totes. Click an order\'s glowing totes to send them to Commissioning. Returned totes (↩) and new stock from Goods-in go back here.' },
+  { id:'hbw', name:'High-Bay Warehouse', icon:'hbw', color:'#ff8a1f', role:'storage', accepts:['pstock'], place:'hbw',
+    slots:1, time:1.5, queue:4, out:0,
+    desc:'Hochregallager for Euro pallets with oversize tools (compressors, welders, table saws). Click a glowing pallet: the stacker crane brings it to the pallet I/O. Transporters with a driver move pallets over the hall roads to every station\'s pallet bay. New pallets from Goods-in are stored here.' },
   { id:'commission', name:'Commissioning', icon:'box', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
     slots:1, time:5, queue:4, out:3, defect:{ chance:0.07, reason:'Wrong item picked', redo:true, returnTote:true },
     desc:'Picks the tools from the delivered totes into an order-specific handling unit (HU). Starts once all of the order\'s totes have arrived.' },
@@ -455,6 +473,7 @@ const SHIFTS = [
   { name:'Thursday',  title:'VIP treatment',      duration:130, goal:13, spawn:[5.5,7],  items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
   { name:'Friday',    title:'The Friday rush',    duration:140, goal:16, spawn:[4.5,6],  items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
   { name:'Saturday',  title:'Returns and restock', duration:150, goal:21, spawn:[4,5.3], items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','goodsin','regrind','qa','retoure','pack'] },
+  { name:'Next Monday', title:'Heavy lifting', duration:160, goal:21, spawn:[4,5.3], items:[1,3], slack:22, stations:['warehouse','hbw','commission','calib','sign','patch','care','goodsin','regrind','qa','retoure','pack'] },
 ];
 function shiftConfig(i){
   if (i < SHIFTS.length) return SHIFTS[i];
@@ -468,9 +487,12 @@ const UPGRADES = [
   { id:'slots',   label:'Extra workstation', desc:'+1 parallel slot',  max:2, cost:l => 360 + l*300, needs: d => d.role !== 'storage' },
   { id:'speed',   label:'Staff training',    desc:'−18% process time', max:3, cost:l => 220 + l*170, needs: d => d.role !== 'storage' },
   { id:'quality', label:'Quality program',   desc:'−40% defects',      max:2, cost:l => 160 + l*140, needs: d => !!d.defect },
-  { id:'shuttle', label:'Faster shuttles',   desc:'shuttles and lift 40% faster', max:2, cost:l => 200 + l*170, needs: d => d.role === 'storage' },
-  { id:'fetchers',label:'Extra shuttle',     desc:'+1 shuttle fetching totes at the same time', max:3, cost:l => 240 + l*220, needs: d => d.role === 'storage' },
-  { id:'auto',    label:'Auto-retrieval',    desc:'shuttles fetch totes of the most urgent order on their own', max:1, cost:() => 650, needs: d => d.role === 'storage' },
+  { id:'shuttle', label:'Faster shuttles',   desc:'shuttles and lift 40% faster', max:2, cost:l => 200 + l*170, needs: d => d.id === 'warehouse' },
+  { id:'fetchers',label:'Extra shuttle',     desc:'+1 shuttle fetching totes at the same time', max:3, cost:l => 240 + l*220, needs: d => d.id === 'warehouse' },
+  { id:'auto',    label:'Auto-retrieval',    desc:'shuttles fetch totes of the most urgent order on their own', max:1, cost:() => 650, needs: d => d.id === 'warehouse' },
+  { id:'movers',  label:'Extra transporter', desc:'+1 pallet transporter with driver', max:2, cost:l => 280 + l*240, needs: d => d.id === 'hbw' },
+  { id:'drive',   label:'Driver training',   desc:'transporters 20% faster', max:2, cost:l => 200 + l*170, needs: d => d.id === 'hbw' },
+  { id:'crane',   label:'Faster stacker crane', desc:'crane 40% faster', max:2, cost:l => 180 + l*160, needs: d => d.id === 'hbw' },
 ];
 const GLOBAL_UPGRADES = [
   { id:'conveyor', label:'Faster conveyor', desc:'+15% belt speed', max:3, cost:l => 220 + l*180 },
@@ -508,7 +530,7 @@ const pick = a => a[Math.floor(Math.random()*a.length)];
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const $ = id => document.getElementById(id);
 
-const W = 1320, H = 800;
+let W = 1320, H = 800; // grows when the high-bay warehouse and the roads are part of the hall
 const LOOP = { x0:440, y0:300, x1:1060, y1:500 };
 LOOP.w = LOOP.x1-LOOP.x0; LOOP.h = LOOP.y1-LOOP.y0; LOOP.L = 2*(LOOP.w+LOOP.h);
 const WH = { x:16, y:66, w:184, h:700 };
@@ -614,6 +636,24 @@ function layoutStations(){
   const ordered = [...left, ...rows[0], ...rows[1], ...right].filter(st => !st.def.noKey);
   ordered.forEach((st,i) => st.key = i+1);
   G.keyOrder = ordered;
+  // high-bay warehouse, ring road and pallet bays
+  list.filter(s => s.def.place === 'hbw').forEach(st => { st.x = HB.x; st.y = HB.y; st.w = HB.w; st.h = HB.h; st.dock = { x:HB.x, y:HB.y }; st.port = { x:0, y:0, s:0 }; st.side = 'bottom'; });
+  G.roads = list.some(s => s.def.place === 'hbw');
+  W = G.roads ? 1362 : 1320; H = G.roads ? 1012 : 800;
+  G.spurs = [];
+  if (G.roads){
+    for (const st of list){ if (st.def.role === 'storage') continue;
+      const cx = st.x + st.w/2, cy = st.y + st.h/2;
+      st.bay = st.side === 'top' ? { x:cx, y:ROAD.y0 + 36, vert:false } : st.side === 'bottom' ? { x:cx, y:ROAD.y1 - 38, vert:false }
+        : st.side === 'right' ? { x:ROAD.x1 - 38, y:cy, vert:true } : { x:cx, y:st.y - 25, vert:false };
+      const j = ringPos(ROAD, ringS(ROAD, st.bay.x, st.bay.y)), dx = st.bay.x - j.x, dy = st.bay.y - j.y, d = Math.hypot(dx, dy) || 1;
+      G.spurs.push({ a:j, b:{ x:st.bay.x - dx/d*12, y:st.bay.y - dy/d*12 }, w:20 });
+    }
+    HB_BAYS.forEach(b => G.spurs.push({ a:{ x:b.x, y:ROAD.y1 }, b:{ x:b.x, y:b.y - 12 }, w:20 }));
+    for (let i=0; i<DEPOT.max; i++){ const q = depotPos(i); G.spurs.push({ a:{ x:q.x, y:ROAD.y1 }, b:{ x:q.x, y:q.y - 16 }, w:18 }); }
+    for (let i=0; i<HOLD.per; i++){ const q = holdPos(i); G.spurs.push({ a:{ x:q.x, y:ROAD.y1 }, b:{ x:q.x, y:q.y - 12 }, w:18 }); }
+  } else list.forEach(st => st.bay = null);
+  if (typeof cv !== 'undefined') resize();
 }
 
 function startShift(idx){
@@ -622,9 +662,10 @@ function startShift(idx){
   G.st = Object.fromEntries(G.stations.map(s => [s.id, s]));
   layoutStations();
   Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[],
-    seq: 0, huSeq:0, nextSpawn:2, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
+    seq: 0, huSeq:0, nextSpawn:2, crane:null, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
     truck:{ x:1210, load:0, state:'parked', t:0 } });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
+  resetPallets();
   G.mode = 'play';
 }
 
@@ -640,7 +681,7 @@ function validTargets(hu){
 const hasRoom = st => st.queue.length + st.incoming < st.queueMax;
 function selectable(hu){
   if (hu.gone) return false;
-  if (hu.loc === 'out') return true;
+  if (hu.loc === 'out' || hu.loc === 'await') return true;
   if (hu.loc === 'transit' && !hu.tr.feed) return hu.tr.to === null || hu.tr.d < hu.tr.portAt;
   return false;
 }
@@ -658,20 +699,22 @@ function makeOrder(){
     : gi && activeHas('calib') && r < INBOUND.regrindShare + INBOUND.recalShare ? 'recal' : 'new';
   const returns = type !== 'new';
   const n = returns ? randInt(1, 2) : randInt(cfg.items[0], cfg.items[1]);
-  const pool = ITEMS.filter(i => type === 'regrind' ? i.tags.includes('cutting') : type === 'recal' ? i.tags.includes('measure') : !i.tags.includes('cutting')), items = [];
-  for (let i=0; i<n && pool.length; i++) items.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+  const pallet = type === 'new' && activeHas('hbw') && Math.random() < PALLET.share;
+  const pool = ITEMS.filter(i => type === 'regrind' ? i.tags.includes('cutting') : type === 'recal' ? i.tags.includes('measure') : pallet ? i.tags.includes('oversize') : SMALL(i)), items = [];
+  const nItems = pallet ? 1 : n;
+  for (let i=0; i<nItems && pool.length; i++) items.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
   const id = ++G.seq;
   const o = { id, num:4100 + id + G.shiftIdx*100, customer:pick(CUSTOMERS), items, focus:false, steps:{},
-    created:G.time, color:ORDER_COLORS[id % ORDER_COLORS.length], released:false, shipped:false, late:false, hu:null, type };
+    created:G.time, color:ORDER_COLORS[id % ORDER_COLORS.length], released:false, shipped:false, late:false, hu:null, type, pallet };
   o.focus = activeHas('care') && Math.random() < 0.28;
   // returned tools travel in the customer's parcel (already 'picked' into the HU); new orders wait in the rack
-  o.lines = items.map(item => returns ? { item, state:'picked', slot:null } : { item, state:'stored', slot:freeRackSlot() });
+  o.lines = items.map(item => returns ? { item, state:'picked', slot:null } : { item, state:'stored', slot:pallet ? hbwSlot() : freeRackSlot() });
   let allow = cfg.slack;
   for (const [sid, s] of Object.entries(STEPS)){
     const stId = STEP_STATION[sid]; if (!stId || !activeHas(stId)) continue;
     if (s.want(o)){ o.steps[sid] = 'todo'; allow += DEF[stId].time + 6; }
   }
-  allow += returns ? 0 : 4*o.lines.length;
+  allow += returns ? 0 : pallet ? PALLET.extraTime : 4*o.lines.length;
   o.allow = Math.round(allow); o.due = G.time + o.allow;
   G.orders.push(o);
   sfx('order');
@@ -679,6 +722,7 @@ function makeOrder(){
     tip('recal', `Customer return! <b>#${o.num}</b> sent measuring tools back for <b>re-calibration</b>. After Goods-in, route it to the <b>Calibration Lab</b>. If a tool is out of tolerance there is no guarantee: it goes <b>straight back to the customer</b> (Packing), not to QA.`); return; }
   if (returns){ G.inbound.push({ o });
     tip('regrind', `Customer return! <b>#${o.num}</b> sent back blunt cutting tools. The parcel is unloaded at <b>Goods-in</b> on its own. Then route it to <b>Regrinding</b>, then the services on its card, then Packing.`); return; }
+  if (pallet) tip('pallet', `Oversize order! <b>#${o.num}</b> needs a <b>${items[0].name}</b> on a Euro pallet. Its pallet is <b style="color:var(--accent)">glowing in the High-Bay Warehouse</b> (bottom). Click it: the stacker crane brings it to the pallet I/O.`);
   if (G.cfg === SHIFTS[0] || G.shiftIdx === 0) tip('release', 'A new order arrived! Its totes are <b style="color:var(--accent)">glowing in the Shuttle Warehouse</b> (same colour as the order card). <b>Click each glowing tote</b> to send it to Commissioning.');
 }
 
@@ -688,7 +732,7 @@ RACK.aw = (WH.w-28)/RACK.aisles; RACK.lh = (WH.h-130)/RACK.levels;
 function rackPos(sl){ const ax = WH.x+14 + sl.a*RACK.aw, rw = RACK.aw*0.34;
   return { x: ax + sl.side*(RACK.aw*0.62) + 2 + rw/2, y: RACK.top + sl.l*RACK.lh + (RACK.lh-3)/2 }; }
 function freeRackSlot(){
-  const used = new Set(); (G.orders||[]).forEach(o => (o.lines||[]).forEach(l => l.state==='stored' && l.slot && used.add(l.slot.a+'-'+l.slot.l+'-'+l.slot.side)));
+  const used = new Set(); (G.orders||[]).forEach(o => (o.lines||[]).forEach(l => !o.pallet && l.state==='stored' && l.slot && used.add(l.slot.a+'-'+l.slot.l+'-'+l.slot.side)));
   for (let i=0; i<60; i++){ const sl = { a:randInt(0,RACK.aisles-1), l:randInt(0,RACK.levels-1), side:randInt(0,1) }; if (!used.has(sl.a+'-'+sl.l+'-'+sl.side)) return sl; }
   return { a:0, l:0, side:0 };
 }
@@ -696,6 +740,7 @@ function linesDone(o){ return o.lines.filter(l => l.state==='atPick' || l.state=
 // Click on a glowing tote: the shuttle brings it to Commissioning. The first tote opens the order's HU there.
 function retrieve(o, li){
   const line = o.lines[li]; if (!line || line.state !== 'stored' || G.mode !== 'play') return false;
+  if (o.pallet){ line.state = 'queued'; G.craneJobs.push({ o, line }); hideTip('pallet'); sfx('release'); return true; }
   const c = G.st.commission;
   if (!o.hu){
     if (!hasRoom(c)){ toast('Commissioning is full. Wait for a free spot before starting a new order.', 'bad'); sfx('error'); return false; }
@@ -768,14 +813,17 @@ function drawRobot(r, t){
   ctx.restore();
 }
 function rackHit(p){
+  const hb = hbwHit(p); if (hb) return hb;
   if (p.x < WH.x || p.x > WH.x+WH.w || p.y < WH.y || p.y > WH.y+WH.h) return null;
   let best = null, bd = 1e9;
-  for (const o of G.orders) o.lines.forEach((l, li) => { if (l.state !== 'stored') return; const q = rackPos(l.slot), d = Math.hypot(p.x-q.x, p.y-q.y); if (d < 24 && d < bd){ bd = d; best = { o, li }; } });
+  for (const o of G.orders) if (!o.pallet) o.lines.forEach((l, li) => { if (l.state !== 'stored') return; const q = rackPos(l.slot), d = Math.hypot(p.x-q.x, p.y-q.y); if (d < 24 && d < bd){ bd = d; best = { o, li }; } });
   return best;
 }
 
 function dispatch(hu, st){
   if (!selectable(hu) || G.mode !== 'play') return false;
+  if (isPallet(hu)) return dispatchPallet(hu, st);
+  if (st.def.place === 'hbw'){ toast('The High-Bay Warehouse only takes pallets.', 'bad'); sfx('error'); return false; }
   if (hu.loc === 'transit' && hu.tr.to === st.id) { G.selected = null; return true; }
   if (!hasRoom(st)){ toast(`${st.def.name} is full. Wait or choose another route.`, 'bad'); sfx('error'); return false; }
   if (hu.loc === 'out'){
@@ -796,7 +844,7 @@ function circle(hu, s){ hu.loc = 'transit'; hu.tr = buildPath(null, s, null); }
 
 function portCheck(hu, st){
   let weightFail = false;
-  if (!hu.kind && !hu.flag && st.def.role !== 'repair' && Math.random() < TRANSPORT_CHECK.chance){
+  if (!hu.kind && !hu.pallet && !hu.flag && st.def.role !== 'repair' && Math.random() < TRANSPORT_CHECK.chance){
     hu.flag = { reason:TRANSPORT_CHECK.reason, station:null }; weightFail = true; G.defects++;
     st.scanFlash = 1.2;
   }
@@ -811,9 +859,10 @@ function portCheck(hu, st){
       : `next step is ${nextHint(hu)}`;
     toast(`${ico('x')} ${st.def.name} rejected ${hu.kind === 'tote' ? 'the return tote' : hu.kind === 'scrap' ? 'the defective item' : hu.kind === 'stock' ? 'the new stock' : '#'+hu.order.num}: ${why}.`, 'bad');
     floatText(st.port.x, st.port.y-14, '−$10', '#ff5468'); sfx('error'); st.flash = -1;
-    tip('wrong', 'Rejected! A station only accepts units that need it <b>next</b>. The unit now circles on the conveyor. <b>Click it on the belt</b> and send it somewhere else.');
+    tip(hu.pallet ? 'wrong_pallet' : 'wrong', hu.pallet ? 'Rejected! A station only accepts pallets that need it <b>next</b>. The transporter parks it in the <b>pallet buffer</b>: click it there and send it somewhere else.'
+      : 'Rejected! A station only accepts units that need it <b>next</b>. The unit now circles on the conveyor. <b>Click it on the belt</b> and send it somewhere else.');
   }
-  circle(hu, st.port.s);
+  if (!hu.pallet) circle(hu, st.port.s);
   return false;
 }
 
@@ -833,7 +882,7 @@ function complete(st, hu){
       tip('return', `QA found the wrong item. Two jobs now: 1) route the grey <b>↩ return tote</b> back to the <b>Shuttle Warehouse</b> (key <span class="kbd">0</span>), 2) click the order's new <b style="color:var(--accent)">glowing tote</b> in the warehouse and send HU <b>#${o.num}</b> back to <b>Commissioning</b> for a re-pick.`);
       return;
     }
-    if (f && d.issue && o.type !== 'recal' && Math.random() < d.issue.chance){
+    if (f && d.issue && o.type !== 'recal' && !o.pallet && Math.random() < d.issue.chance){
       // not fixable: the item is defective -> goes to Retoure, a replacement must be commissioned
       const li = Math.floor(Math.random()*o.lines.length), line = o.lines[li];
       line.state = 'stored'; line.slot = freeRackSlot(); o.steps.pick = 'todo';
@@ -891,7 +940,7 @@ function ship(hu){
 }
 
 function isReady(st, hu){
-  if (!st.def.needsTotes || hu.kind) return true;
+  if (!st.def.needsTotes || hu.kind || hu.pallet) return true;
   const o = hu.order; return o.lines.every(l => l.state === 'atPick' || l.state === 'picked') && o.lines.some(l => l.state === 'atPick');
 }
 function removeObj(hu){ hu.gone = true; const i = G.hus.indexOf(hu); if (i >= 0) G.hus.splice(i, 1); if (G.selected === hu) G.selected = null; }
@@ -914,11 +963,14 @@ function update(dt){
     G.stockT -= dt;
     if (G.stockT <= 0 && G.time < cfg.duration - 15){
       G.stockT = rand(INBOUND.stockEvery[0], INBOUND.stockEvery[1]);
-      G.inbound.push({ stock:true, item:pick(ITEMS.filter(i => !i.tags.includes('cutting'))) });
+      const pal = activeHas('hbw') && Math.random() < PALLET.stockShare;
+      G.inbound.push({ stock:true, pallet:pal, item:pick(ITEMS.filter(i => pal ? i.tags.includes('oversize') : SMALL(i))) });
     }
     while (G.inbound.length && hasRoom(gi)){
       const d = G.inbound.shift(); let hu;
-      if (d.stock){ hu = { id:++G.huSeq, kind:'stock', item:d.item, order:{ num:'NEW', color:STOCK_COLOR, due:1e9, customer:'Supplier', steps:{} }, flag:null, loc:'queue' };
+      if (d.stock && d.pallet){ hu = { id:++G.huSeq, kind:'pstock', pallet:true, item:d.item, order:{ num:'NEW', color:STOCK_COLOR, due:1e9, customer:'Supplier', steps:{} }, flag:null, loc:'queue' };
+        tip('pstock', `A <b>new pallet</b> of oversize tools is being unloaded at <b>Goods-in</b>. When it's ready, send it to the <b>High-Bay Warehouse</b>: a transporter takes it there.`); }
+      else if (d.stock){ hu = { id:++G.huSeq, kind:'stock', item:d.item, order:{ num:'NEW', color:STOCK_COLOR, due:1e9, customer:'Supplier', steps:{} }, flag:null, loc:'queue' };
         tip('stock', `A delivery of <b>new stock</b> (cardboard box) is being unloaded at <b>Goods-in</b>. When it's ready, route it to the <b>Shuttle Warehouse</b> (key <span class="kbd">0</span>) so it can be stored.`); }
       else { hu = { id:++G.huSeq, order:d.o, flag:null, loc:'queue' }; d.o.hu = hu; d.o.released = true; }
       G.hus.push(hu); gi.queue.push(hu);
@@ -949,11 +1001,11 @@ function update(dt){
     if (G.autoT <= 0 && !G.jobs.length){
       G.autoT = 1.4;
       const c = G.st.commission;
-      const o = G.orders.filter(o => o.lines.some(l => l.state === 'stored') && (o.hu || hasRoom(c))).sort((a,b) => (b.hu?1:0)-(a.hu?1:0) || a.due-b.due)[0];
+      const o = G.orders.filter(o => !o.pallet && o.lines.some(l => l.state === 'stored') && (o.hu || hasRoom(c))).sort((a,b) => (b.hu?1:0)-(a.hu?1:0) || a.due-b.due)[0];
       if (o){ const s0 = G.silent; G.silent = true; retrieve(o, o.lines.findIndex(l => l.state === 'stored')); G.silent = s0; }
     }
   }
-  updateRobots(dt);
+  updateRobots(dt); updateCrane(dt); updateMovers(dt);
   for (const f of G.fetch){ f.path.d += RETRIEVE_SPEED*(1 + 0.4*(wu.shuttle||0))*dt; if (f.path.d >= f.path.len){ f.line.state = 'atPick'; f.done = true; } }
   G.fetch = G.fetch.filter(f => !f.done);
   // stations
@@ -967,7 +1019,7 @@ function update(dt){
         const qi = st.queue.findIndex(h => isReady(st, h));
         if (qi >= 0){ const hu = st.queue.splice(qi, 1)[0]; hu.loc = 'slot';
           let dur = st.def.time*st.speedMul*rand(0.88,1.12);
-          if (st.def.needsTotes){ const o = hu.order; dur *= 0.45 + 0.55*o.lines.filter(l => l.state==='atPick').length/o.lines.length; }
+          if (st.def.needsTotes && !hu.pallet){ const o = hu.order; dur *= 0.45 + 0.55*o.lines.filter(l => l.state==='atPick').length/o.lines.length; }
           s = st.slots[i] = { hu, t:0, dur, done:false, blocked:false }; }
       }
       if (!s) continue;
@@ -976,7 +1028,7 @@ function update(dt){
         const hu = s.hu;
         if (st.def.accepts){ removeObj(hu); st.slots[i] = null;
           const fx = st.dock.x + (st.side === 'right' ? 60 : 20);
-          if (hu.kind === 'stock'){ G.stocked++; G.money += INBOUND.stockPay; G.earned += INBOUND.stockPay; floatText(fx, st.dock.y-16, `Restocked +$${INBOUND.stockPay}`, '#3ddc84'); }
+          if (hu.kind === 'stock' || hu.kind === 'pstock'){ G.stocked++; G.money += INBOUND.stockPay; G.earned += INBOUND.stockPay; floatText(fx, st.dock.y-16, `Restocked +$${INBOUND.stockPay}`, '#3ddc84'); }
           else floatText(fx, st.dock.y-16, st.def.role === 'storage' ? 'Stored ✓' : 'Returned ✓', '#3ddc84');
           sfx('clunk'); }
         else if (st.def.role === 'sink' && !hu.kind && !hu.flag && !pendingSteps(hu.order).length){ ship(hu); st.slots[i] = null; }
@@ -1014,6 +1066,376 @@ function endShift(failedSat){
   G.result = { passed, failedSat, stars, ratio, bonus, kept };
   G.lastLoad = Object.fromEntries(G.stations.map(s => [s.id, clamp(s.busyT / Math.max(1, G.time), 0, 1)]));
   if (!G.silent){ tipQueue.length = 0; hideTip(null); sfx(passed ? 'fanfare' : 'fail'); showResult(); }
+}
+
+// ===================================================================
+//  HIGH-BAY PALLET WAREHOUSE, INDOOR ROADS AND TRANSPORTERS
+//  Oversize tools live on Euro pallets in the high-bay warehouse (bottom). A stacker crane brings a
+//  requested pallet to the pallet I/O. Pallets never ride the conveyor: transporters with a driver
+//  carry them over a ring road to the pallet bay of each station. Same stations, same routing rules.
+// ===================================================================
+const ROAD = { x0:214, y0:40, x1:1336, y1:800, half:12, lane:6 };
+ROAD.w = ROAD.x1-ROAD.x0; ROAD.h = ROAD.y1-ROAD.y0; ROAD.L = 2*(ROAD.w+ROAD.h);
+const HB = { x:236, y:826, w:664, h:178, cols:24, aisleY:915, ioX:886 };
+const HB_BAYS = [{ x:930, y:852 }, { x:964, y:852 }];
+const DEPOT = { x:1014, y:904, sp:30, max:4 };
+const HOLD = { x:1168, y:852, sp:32, per:4 };
+const MOVER = { base:2, speed:165, load:0.7 };
+const CRANE = { speed:240, grab:0.8, drop:0.45 };
+const PALLET = { share:0.22, stockShare:0.4, extraTime:14 };
+
+function ringPos(R, s){
+  const {x0,y0,x1,y1,w,h,L} = R; s = ((s%L)+L)%L;
+  if (s <= w) return { x:x0+s, y:y0 };
+  if (s <= w+h) return { x:x1, y:y0+(s-w) };
+  if (s <= 2*w+h) return { x:x1-(s-w-h), y:y1 };
+  return { x:x0, y:y1-(s-2*w-h) };
+}
+function ringS(R, x, y){
+  const {x0,y0,x1,y1,w,h} = R, cx = clamp(x,x0,x1), cy = clamp(y,y0,y1);
+  const c = [[Math.hypot(x-cx, y-y0), cx-x0],[Math.hypot(x-x1, y-cy), w+cy-y0],[Math.hypot(x-cx, y-y1), w+h+(x1-cx)],[Math.hypot(x-x0, y-cy), 2*w+h+(y1-cy)]];
+  c.sort((a,b) => a[0]-b[0]); return c[0][1];
+}
+function ringLane(R, p, off){
+  const e = 0.01; let {x,y} = p;
+  if (Math.abs(p.y-R.y0) < e) y -= off; if (Math.abs(p.y-R.y1) < e) y += off;
+  if (Math.abs(p.x-R.x0) < e) x -= off; if (Math.abs(p.x-R.x1) < e) x += off;
+  return { x, y };
+}
+function ringCorners(R, s0, s1, dir){
+  const {w,h,L} = R, base = [0, w, w+h, 2*w+h], all = [], out = [];
+  for (let k=-2; k<=3; k++) base.forEach(c => all.push(c + k*L));
+  if (dir > 0) all.filter(c => c > s0+1e-6 && c < s1-1e-6).sort((a,b)=>a-b).forEach(c => out.push(ringPos(R, c)));
+  else all.filter(c => c < s0-1e-6 && c > s1+1e-6).sort((a,b)=>b-a).forEach(c => out.push(ringPos(R, c)));
+  return out;
+}
+// Road route: leave the bay, drive on the right-hand lane the short way round, turn into the target bay.
+// The check point (portAt) is where the transporter turns off the ring road at the destination.
+function roadPath(from, to, stopShort){
+  const R = ROAD, L = R.L, s0 = ringS(R, from.x, from.y); let s1 = ringS(R, to.x, to.y);
+  const cw = ((s1-s0)%L+L)%L, dir = cw <= L-cw ? 1 : -1; s1 = dir > 0 ? s0+cw : s0-(L-cw);
+  const off = dir > 0 ? -R.lane : R.lane;
+  const pts = [{ x:from.x, y:from.y }, ringLane(R, ringPos(R, s0), off)];
+  ringCorners(R, s0, s1, dir).forEach(p => pts.push(ringLane(R, p, off)));
+  pts.push(ringLane(R, ringPos(R, s1), off));
+  const portIdx = pts.length-1, a = pts[portIdx];
+  const dx = to.x-a.x, dy = to.y-a.y, d = Math.hypot(dx, dy) || 1, k = stopShort ? Math.min(stopShort, d-1) : 0;
+  pts.push({ x:to.x - dx/d*k, y:to.y - dy/d*k });
+  return mkPath(pts, portIdx);
+}
+const isPallet = hu => !!(hu && hu.pallet);
+function resetPallets(){
+  Object.assign(G, { crane:{ x:HB.ioX, tx:HB.ioX, state:'idle', job:null, t:0, carry:false }, craneJobs:[], hbwOut:[null, null], hbwFeed:[], holding:[], movers:[] });
+}
+function hbSlotPos(sl){ return { x: HB.x + 28 + sl.c*26, y: sl.r === 0 ? (sl.d ? 858 : 882) : (sl.d ? 972 : 948) }; }
+function hbwSlot(){
+  const used = new Set(); (G.orders||[]).forEach(o => o.pallet && o.lines.forEach(l => l.state === 'stored' && l.slot && used.add(l.slot.c+'-'+l.slot.r+'-'+l.slot.d)));
+  for (let i=0; i<80; i++){ const sl = { h:1, c:randInt(0, HB.cols-1), r:randInt(0,1), d:randInt(0,1) }; if (!used.has(sl.c+'-'+sl.r+'-'+sl.d)) return sl; }
+  return { h:1, c:0, r:0, d:0 };
+}
+function moverCount(){ return MOVER.base + ((G.upgrades.hbw||{}).movers || 0); }
+function depotPos(i){ return { x: DEPOT.x + i*DEPOT.sp, y: DEPOT.y }; }
+function holdPos(i){ return { x: HOLD.x + (i%HOLD.per)*HOLD.sp, y: HOLD.y + Math.floor(i/HOLD.per)*30 }; }
+function bayPos(st, i){ const b = st.bay, n = Math.max(1, st.outMax); return b.vert ? { x:b.x, y:b.y + (i-(n-1)/2)*27 } : { x:b.x + (i-(n-1)/2)*30, y:b.y }; }
+function dropPoint(st){ return st.def.place === 'hbw' ? { x:(HB_BAYS[0].x + HB_BAYS[1].x)/2, y:HB_BAYS[0].y } : st.bay; }
+function palletSpot(hu){
+  let i;
+  if ((i = G.hbwOut.indexOf(hu)) >= 0) return HB_BAYS[i];
+  if ((i = G.holding.indexOf(hu)) >= 0) return holdPos(i);
+  for (const st of G.stations) if ((i = st.out.indexOf(hu)) >= 0) return st.bay ? bayPos(st, i) : outPos(st, i);
+  return null;
+}
+function takePallet(hu){
+  const i = G.hbwOut.indexOf(hu); if (i >= 0){ G.hbwOut[i] = null; return; }
+  for (const arr of [G.holding, ...G.stations.map(s => s.out)]){ const k = arr.indexOf(hu); if (k >= 0){ arr.splice(k, 1); return; } }
+}
+function forkPos(m, ext=16){ return { x: m.x + Math.cos(m.ang)*ext, y: m.y + Math.sin(m.ang)*ext }; }
+function turnTo(a, b, step){ let d = ((b - a + Math.PI) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI) - Math.PI; return Math.abs(d) <= step ? b : a + Math.sign(d)*step; }
+function syncMovers(){
+  G.movers = G.movers || [];
+  while (G.movers.length < Math.min(DEPOT.max, moverCount())){ const i = G.movers.length, p = depotPos(i);
+    G.movers.push({ i, x:p.x, y:p.y, ang:Math.PI/2, state:'idle', path:null, job:null, t:0, v:0, rev:0, from:null, to:null }); }
+}
+function moverGo(m, to, state, stopShort){
+  m.path = roadPath({ x:m.x, y:m.y }, to, stopShort); m.state = state;
+  // back out of a bay (reverse) instead of spinning round on the spot
+  const p = m.path.pts; let k = 1; while (k < p.length-1 && Math.hypot(p[k].x-m.x, p[k].y-m.y) < 0.5) k++;
+  const dx = p[k].x-m.x, dy = p[k].y-m.y;
+  m.rev = (dx*Math.cos(m.ang) + dy*Math.sin(m.ang)) < -0.3*Math.hypot(dx, dy) ? m.path.cum[k] : 0;
+}
+// Dispatch a pallet: it waits in its bay until a transporter picks it up (re-routing is allowed until then)
+function dispatchPallet(hu, st){
+  if (st.def.id === 'warehouse'){ toast('The Shuttle Warehouse only takes totes. Pallets are stored in the High-Bay Warehouse.', 'bad'); sfx('error'); return false; }
+  if (hu.loc === 'await' && hu.dest === st){ G.selected = null; return true; }
+  if (!hasRoom(st)){ toast(`${st.def.name} is full. Wait or choose another route.`, 'bad'); sfx('error'); return false; }
+  if (hu.loc === 'await' && hu.dest) hu.dest.incoming--;
+  hu.dest = st; hu.loc = 'await'; st.incoming++;
+  G.selected = null; sfx('dispatch'); hideTip('route'); hideTip('pallet_route'); if (hu.flag) hideTip('flag');
+  return true;
+}
+function updateMovers(dt){
+  if (!G.roads) return;
+  syncMovers();
+  const up = G.upgrades.hbw || {}, vmax = MOVER.speed * (1 + 0.2*(up.drive || 0));
+  for (const hu of G.hus){
+    if (hu.loc !== 'await' || hu.mover) continue;
+    const sp = palletSpot(hu); if (!sp) continue;
+    const free = G.movers.filter(m => m.state === 'idle' || m.state === 'homing'); if (!free.length) break;
+    free.sort((a,b) => Math.hypot(a.x-sp.x, a.y-sp.y) - Math.hypot(b.x-sp.x, b.y-sp.y));
+    const m = free[0]; m.job = hu; hu.mover = m; moverGo(m, sp, 'toPick', 16);
+  }
+  for (const m of G.movers){
+    if (m.path){
+      const rem = m.path.len - m.path.d;
+      m.v = Math.min(vmax, m.v + 280*dt, Math.max(36, rem*2.4));
+      const bx = m.x, by = m.y;
+      m.path.d = Math.min(m.path.len, m.path.d + m.v*dt);
+      const q = along(m.path, m.path.d); m.x = q.x; m.y = q.y;
+      const dx = q.x-bx, dy = q.y-by;
+      if (Math.hypot(dx, dy) > 0.05){ let a = Math.atan2(dy, dx); if (m.path.d < m.rev) a += Math.PI; m.ang = turnTo(m.ang, a, 10*dt); }
+      if (m.state === 'toDrop' && !m.path.checked && m.path.portAt >= 0 && m.path.d >= m.path.portAt){
+        m.path.checked = true; const hu = m.job, st = hu.dest;
+        if (!portCheck(hu, st)){ hu.dest = null; moverGo(m, holdPos(G.holding.length + G.movers.filter(o => o !== m && o.state === 'toHold').length), 'toHold', 16); continue; }
+      }
+      if (m.path.d < m.path.len) continue;
+      m.path = null; m.v = 0;
+      if (m.state === 'toPick'){ const hu = m.job; m.from = palletSpot(hu) || forkPos(m); takePallet(hu); hu.loc = 'carried'; m.state = 'load'; m.t = 0; sfx('clunk'); }
+      else if (m.state === 'toDrop'){ m.state = 'unload'; m.t = 0; m.to = dropPoint(m.job.dest); }
+      else if (m.state === 'toHold'){ m.state = 'unloadHold'; m.t = 0; m.to = holdPos(G.holding.length); }
+      else if (m.state === 'homing'){ m.state = 'idle'; }
+      continue;
+    }
+    if (m.state === 'load'){ m.t += dt; if (m.t >= MOVER.load){ const hu = m.job;
+      if (hu.dest) moverGo(m, dropPoint(hu.dest), 'toDrop', 16); else moverGo(m, holdPos(G.holding.length), 'toHold', 16); } }
+    else if (m.state === 'unload' || m.state === 'unloadHold'){ m.t += dt; if (m.t >= MOVER.load){
+      const hu = m.job; hu.mover = null; m.job = null;
+      if (m.state === 'unload'){ const st = hu.dest; hu.dest = null; st.incoming--; st.queue.push(hu); hu.loc = 'queue'; sfx('clunk'); }
+      else { G.holding.push(hu); hu.loc = 'out'; tip('pallet_hold', 'A rejected pallet was parked in the <b>pallet buffer</b> (bottom right). <b>Click it</b> and send it to the right station.'); }
+      moverGo(m, depotPos(m.i), 'homing', 0); } }
+  }
+}
+function updateCrane(dt){
+  if (!G.st.hbw) return;
+  const c = G.crane, sp = CRANE.speed * (1 + 0.4*((G.upgrades.hbw||{}).crane || 0));
+  const freeBay = () => [0,1].find(i => !G.hbwOut[i] && !G.hbwFeed.some(f => f.bay === i));
+  if (c.state === 'idle'){
+    const job = G.craneJobs.find(j => j.line.state === 'queued');
+    if (job){ G.craneJobs.splice(G.craneJobs.indexOf(job), 1); job.line.state = 'retrieving'; c.job = job; c.tx = hbSlotPos(job.line.slot).x; c.state = 'toSlot'; }
+    else c.tx = HB.ioX;
+  }
+  if (c.state === 'toSlot' || c.state === 'toIO' || c.state === 'idle'){
+    const d = c.tx - c.x, step = sp*dt*clamp(Math.abs(d)/30, 0.3, 1);
+    if (Math.abs(d) <= Math.max(step, 0.5)){ c.x = c.tx;
+      if (c.state === 'toSlot'){ c.state = 'grab'; c.t = 0; } else if (c.state === 'toIO'){ c.state = 'drop'; c.t = 0; } }
+    else c.x += Math.sign(d)*step;
+  } else if (c.state === 'grab'){ c.t += dt; if (c.t >= CRANE.grab){ c.carry = true; c.state = 'toIO'; c.tx = HB.ioX; } }
+  else if (c.state === 'drop'){
+    const bi = freeBay();
+    if (bi != null){ c.t += dt; if (c.t >= CRANE.drop){
+      const job = c.job; c.job = null; c.carry = false; c.state = 'idle';
+      const hu = { id:++G.huSeq, order:job.o, pallet:true, flag:null, loc:'feed' }; job.o.hu = hu; job.o.released = true; job.line.state = 'picked'; G.hus.push(hu);
+      const b = HB_BAYS[bi]; G.hbwFeed.push({ hu, bay:bi, path:mkPath([{ x:HB.ioX, y:HB.aisleY }, { x:b.x, y:HB.aisleY }, { x:b.x, y:b.y }], -1) }); sfx('clunk');
+    } }
+  }
+  for (const f of G.hbwFeed){ f.path.d += 110*dt; if (f.path.d >= f.path.len){ f.done = true; G.hbwOut[f.bay] = f.hu; f.hu.loc = 'out'; sfx('done'); event('ready', f.hu);
+    tip('pallet_route', `The pallet for <b>#${f.hu.order.num}</b> is out. <b>Click it</b> and click its next station: a transporter drives it over the hall roads to the station's pallet bay.`); } }
+  G.hbwFeed = G.hbwFeed.filter(f => !f.done);
+}
+function hbwHit(p){
+  if (!G.st.hbw || p.x < HB.x || p.x > HB.x+HB.w || p.y < HB.y || p.y > HB.y+HB.h) return null;
+  let best = null, bd = 1e9;
+  for (const o of G.orders){ if (!o.pallet) continue; o.lines.forEach((l, li) => { if (l.state !== 'stored') return; const q = hbSlotPos(l.slot), d = Math.hypot(p.x-q.x, p.y-q.y); if (d < 18 && d < bd){ bd = d; best = { o, li }; } }); }
+  return best;
+}
+
+// ---------- drawing ----------
+function drawRoads(t){
+  if (!G.roads) return;
+  const R = ROAD;
+  ctx.save(); ctx.lineCap = 'butt';
+  const ASPHALT = '#2a3241';
+  for (const s of G.spurs){ ctx.strokeStyle = 'rgba(214,222,236,0.22)'; ctx.lineWidth = s.w + 3; ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.b.x, s.b.y); ctx.stroke(); }
+  ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = R.half*2 + 8; ctx.strokeRect(R.x0, R.y0 + 2, R.w, R.h);
+  ctx.strokeStyle = ASPHALT; ctx.lineWidth = R.half*2 + 2; ctx.strokeRect(R.x0, R.y0, R.w, R.h);
+  for (const s of G.spurs){ ctx.strokeStyle = ASPHALT; ctx.lineWidth = s.w; ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.b.x, s.b.y); ctx.stroke();
+    // stop line where the spur meets the bay
+    const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y, d = Math.hypot(dx, dy) || 1, ux = dx/d, uy = dy/d, mx = s.a.x + ux*Math.min(d, R.half + 4), my = s.a.y + uy*Math.min(d, R.half + 4);
+    ctx.strokeStyle = 'rgba(244,246,250,0.55)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(mx - uy*s.w/2, my + ux*s.w/2); ctx.lineTo(mx + uy*s.w/2, my - ux*s.w/2); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(214,222,236,0.5)'; ctx.lineWidth = 1.3; ctx.lineJoin = 'miter';
+  ctx.strokeRect(R.x0-R.half, R.y0-R.half, R.w+2*R.half, R.h+2*R.half); ctx.strokeRect(R.x0+R.half, R.y0+R.half, R.w-2*R.half, R.h-2*R.half);
+  ctx.strokeStyle = 'rgba(255,197,61,0.8)'; ctx.lineWidth = 1.6; ctx.setLineDash([10,8]); ctx.strokeRect(R.x0, R.y0, R.w, R.h); ctx.setLineDash([]);
+  // painted arrows: inner lane clockwise, outer lane counter-clockwise (right-hand traffic)
+  ctx.fillStyle = 'rgba(214,222,236,0.4)';
+  for (let s=90; s<R.L; s+=200){
+    [[-R.lane, 1], [R.lane, -1]].forEach(([off, dir]) => {
+      const p = ringLane(R, ringPos(R, s), off), q = ringLane(R, ringPos(R, s + dir*4), off), a = Math.atan2(q.y-p.y, q.x-p.x);
+      if (Math.hypot(q.x-p.x, q.y-p.y) < 1) return;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(5,0); ctx.lineTo(-2,-3.5); ctx.lineTo(0,0); ctx.lineTo(-2,3.5); ctx.closePath(); ctx.fill(); ctx.restore();
+    });
+  }
+  // pallet bays at the stations
+  for (const st of G.stations){ if (!st.bay) continue;
+    const n = Math.max(1, st.outMax), a = bayPos(st, 0), b = bayPos(st, n-1);
+    const x0 = Math.min(a.x, b.x) - 17, y0 = Math.min(a.y, b.y) - 13, x1 = Math.max(a.x, b.x) + 17, y1 = Math.max(a.y, b.y) + 13;
+    bayRect(x0, y0, x1-x0, y1-y0, st.def.color);
+  }
+  ctx.restore();
+}
+function bayRect(x, y, w, h, color){
+  rr(x, y, w, h, 4); ctx.fillStyle = hexA(color, 0.08); ctx.fill();
+  ctx.strokeStyle = hexA(color, 0.55); ctx.lineWidth = 1.3; ctx.setLineDash([4,3]); rr(x, y, w, h, 4); ctx.stroke(); ctx.setLineDash([]);
+}
+function drawPalletBase(){
+  rr(-15, -11, 30, 22, 2); ctx.fillStyle = '#9c6a38'; ctx.fill();
+  ctx.fillStyle = '#d6a062'; ctx.fillRect(-15, -11, 30, 5); ctx.fillRect(-15, -2.5, 30, 5); ctx.fillRect(-15, 6, 30, 5);
+  ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-15, -6, 30, 1); ctx.fillRect(-15, 2.5, 30, 1);
+}
+function drawPalletHU(hu, x, y, ang=0, alpha=1, scale=1){
+  const sel = G.selected === hu, hov = hoverHU === hu;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(scale, scale); ctx.globalAlpha = alpha;
+  if (sel){ ctx.shadowColor = '#ff8a1f'; ctx.shadowBlur = 16; } else { ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2; }
+  drawPalletBase(); ctx.shadowColor = 'transparent';
+  if (hu.kind === 'pstock'){
+    rr(-11.5, -8.5, 23, 17, 2); ctx.fillStyle = '#c98a4b'; ctx.fill(); ctx.fillStyle = '#a8703a'; ctx.fillRect(-1.5, -8.5, 3, 17);
+    ctx.fillStyle = 'rgba(244,246,250,0.92)'; rr(-10, -5.5, 8.5, 11, 1.5); ctx.fill(); drawIcon(hu.item.icon, -5.7, 0, 8.5, '#1c2230', 2);
+    ctx.fillStyle = '#3ddc84'; ctx.beginPath(); ctx.moveTo(6, -5); ctx.lineTo(10, 0); ctx.lineTo(7.6, 0); ctx.lineTo(7.6, 5); ctx.lineTo(4.4, 5); ctx.lineTo(4.4, 0); ctx.lineTo(2, 0); ctx.closePath(); ctx.fill();
+  } else {
+    const o = hu.order;
+    rr(-11.5, -8.5, 23, 17, 3); ctx.fillStyle = o.color; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.beginPath(); ctx.moveTo(-11.5, 2); ctx.lineTo(-2, -8.5); ctx.lineTo(3, -8.5); ctx.lineTo(-11.5, 7); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(244,246,250,0.95)'; rr(-6.5, -6.5, 13, 13, 3); ctx.fill();
+    drawIcon(o.items[0].icon, 0, 0, 11.5, '#1c2230', 2);
+    if (o.focus){ ctx.fillStyle = '#ffd23f'; star(12, -10, 5); }
+    const pend = pendingSteps(o).filter(s => s !== 'pick'), dw = 7; let dx = -((pend.length-1)*dw)/2;
+    for (const sid of pend){ ctx.fillStyle = STEP_COLOR(sid); ctx.beginPath(); ctx.arc(dx, 15.5, 2.6, 0, 7); ctx.fill(); dx += dw; }
+    if (hu.flag){ const pulse = 0.75 + 0.25*Math.sin(perfT*8);
+      ctx.fillStyle = `rgba(255,84,104,${pulse})`; ctx.beginPath(); ctx.arc(-13, -11, 7, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `900 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('!', -13, -7.5); }
+    if (o.late){ ctx.strokeStyle = '#ff5468'; ctx.lineWidth = 1.5; ctx.setLineDash([3,2]); rr(-18, -14, 36, 28, 6); ctx.stroke(); ctx.setLineDash([]); }
+  }
+  if (sel || hov){ ctx.strokeStyle = sel ? '#fff' : 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; rr(-16.5, -12.5, 33, 25, 4); ctx.stroke(); }
+  ctx.restore();
+}
+function moverLift(m){
+  if (m.state === 'load') return m.t/MOVER.load;
+  if (m.state === 'unload' || m.state === 'unloadHold') return 1 - m.t/MOVER.load;
+  return m.job && m.job.loc === 'carried' ? 1 : 0;
+}
+function drawMover(m, t){
+  const moving = !!m.path, busy = moving || !!m.job;
+  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.ang); ctx.scale(1.15, 1.15);
+  if (moving && m.path.d >= m.rev){ // headlights
+    const g = ctx.createLinearGradient(10, 0, 44, 0); g.addColorStop(0, 'rgba(255,236,170,0.22)'); g.addColorStop(1, 'rgba(255,236,170,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(9, -5); ctx.lineTo(44, -15); ctx.lineTo(44, 15); ctx.lineTo(9, 5); ctx.closePath(); ctx.fill(); }
+  if (moving && m.path.d < m.rev){ ctx.fillStyle = 'rgba(255,84,104,0.35)'; ctx.fillRect(-16, -6, 3, 3); ctx.fillRect(-16, 3, 3, 3); } // reversing lights
+  ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2;
+  ctx.fillStyle = '#0e131d'; [[-11,-9],[-11,6.5],[2,-9],[2,6.5]].forEach(([wx,wy]) => { rr(wx, wy, 7, 2.6, 1); ctx.fill(); });
+  // forks + mast (forks slide forward a little while lifting)
+  const lift = moverLift(m), fx = 8 + lift*1.5;
+  ctx.fillStyle = '#9aa6bb'; ctx.fillRect(fx, -5.2, 13, 2.2); ctx.fillRect(fx, 3, 13, 2.2);
+  ctx.fillStyle = '#353d50'; ctx.fillRect(6, -7.5, 3.2, 15);
+  // body with counterweight
+  rr(-13, -7.5, 19.5, 15, 3.5); ctx.fillStyle = '#ffc53d'; ctx.fill(); ctx.shadowColor = 'transparent';
+  rr(-13, -7.5, 5.5, 15, 3); ctx.fillStyle = '#d6921a'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(-7, -7.5, 12, 1.6);
+  // overhead guard and driver (helmet seen from above)
+  ctx.strokeStyle = '#1c2230'; ctx.lineWidth = 1.3; ctx.strokeRect(-6.5, -6, 11, 12);
+  ctx.fillStyle = '#2a3346'; rr(-6, -4, 5.5, 8, 1.5); ctx.fill();
+  ctx.fillStyle = '#f1c27d'; ctx.beginPath(); ctx.arc(-1.2, 0, 1.2, 0, 7); ctx.fill();
+  ctx.fillStyle = '#ff8a1f'; ctx.beginPath(); ctx.arc(-2.6, 0, 2.9, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillRect(-5, -0.5, 4.6, 1);
+  // beacon
+  if (busy){ const on = Math.floor(t*7 + m.i*1.7) % 2; ctx.fillStyle = on ? '#ffb000' : '#fff1c2';
+    ctx.shadowColor = '#ffb000'; ctx.shadowBlur = on ? 8 : 2; ctx.beginPath(); ctx.arc(-10.5, 0, 1.9, 0, 7); ctx.fill(); ctx.shadowColor = 'transparent'; }
+  ctx.restore();
+  // pallet on the forks
+  const hu = m.job; if (!hu) return;
+  const fp = forkPos(m, 16);
+  if (m.state === 'load'){ const k = clamp(m.t/MOVER.load, 0, 1), e = k*k*(3-2*k), f = m.from || fp;
+    drawPalletHU(hu, f.x + (fp.x-f.x)*e, f.y + (fp.y-f.y)*e, m.ang*e, 1, 1 - 0.12*e); }
+  else if (hu.loc === 'carried' && m.state !== 'unload' && m.state !== 'unloadHold') drawPalletHU(hu, fp.x, fp.y, m.ang, 1, 0.88);
+  else if (m.state === 'unload' || m.state === 'unloadHold'){ const k = clamp(m.t/MOVER.load, 0, 1), e = k*k*(3-2*k), to = m.to || fp;
+    drawPalletHU(hu, fp.x + (to.x-fp.x)*e, fp.y + (to.y-fp.y)*e, m.ang*(1-e), m.state === 'unload' ? 1 - 0.75*e : 1, 0.88 + 0.12*e); }
+}
+function drawHBW(t){
+  const st = G.st.hbw; if (!st) return;
+  const {x, y, w, h} = HB, c = G.crane;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+  rr(x, y, w, h, 12); ctx.fillStyle = '#18202e'; ctx.fill(); ctx.restore();
+  ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.5; rr(x, y, w, h, 12); ctx.stroke();
+  ctx.fillStyle = '#ff8a1f'; ctx.font = `800 11px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('HIGH-BAY WAREHOUSE', x+14, y+16);
+  ctx.fillStyle = '#8a96ad'; ctx.font = `600 9.5px ${FONT}`; ctx.fillText('Euro pallets · oversize tools', x+150, y+16);
+  const nReq = G.orders.reduce((n, o) => n + (o.pallet ? o.lines.filter(l => l.state === 'stored').length : 0), 0);
+  ctx.textAlign = 'right';
+  if (nReq){ ctx.fillStyle = '#ffb15c'; ctx.font = `800 10px ${FONT}`; ctx.fillText(`▸ ${nReq} glowing pallet${nReq>1?'s':''} to click`, x+w-14, y+16); }
+  else { ctx.fillStyle = '#8a96ad'; ctx.font = `600 9.5px ${FONT}`; ctx.fillText(`Crane: ${c.state === 'idle' ? 'ready' : 'busy'}${G.craneJobs.length ? ' · ' + G.craneJobs.length + ' waiting' : ''}`, x+w-14, y+16); }
+  ctx.textAlign = 'left';
+  // racks (two rows, two pallets deep, either side of the crane aisle)
+  for (let col=0; col<HB.cols; col++) for (let r=0; r<2; r++) for (let d=0; d<2; d++){
+    const q = hbSlotPos({ c:col, r, d }); ctx.fillStyle = '#222c3e'; ctx.fillRect(q.x-12, q.y-10, 24, 20);
+    const hs = hash(col*31 + r*7 + d*3 + 11);
+    if (hs > 0.22){ ctx.fillStyle = '#6b4c2e'; ctx.fillRect(q.x-11, q.y-9, 22, 18);
+      ctx.fillStyle = hs > 0.75 ? '#5a4a3c' : hs > 0.5 ? '#34486a' : '#3d4659'; ctx.fillRect(q.x-8.5, q.y-6.5, 17, 13); }
+  }
+  ctx.fillStyle = '#10161f';
+  for (let col=0; col<=HB.cols; col++){ const ux = HB.x + 15 + col*26; ctx.fillRect(ux-1, 846, 2, 48); ctx.fillRect(ux-1, 936, 2, 48); }
+  // aisle rails
+  ctx.fillStyle = '#121925'; ctx.fillRect(x+10, HB.aisleY-17, w-12, 34);
+  ctx.fillStyle = '#3a4560'; ctx.fillRect(x+12, HB.aisleY-9, w-14, 2); ctx.fillRect(x+12, HB.aisleY+7, w-14, 2);
+  // I/O conveyor and pallet bays
+  conveyorSeg(HB.ioX, HB.aisleY, HB_BAYS[1].x + 11, HB.aisleY, 24, t, 1);
+  HB_BAYS.forEach(b => conveyorSeg(b.x, HB.aisleY + 11, b.x, b.y + 4, 24, t, 1));
+  HB_BAYS.forEach(b => bayRect(b.x-17, b.y-13, 34, 26, '#ff8a1f'));
+  ctx.fillStyle = '#8a96ad'; ctx.font = `700 8.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('PALLET I/O', (HB_BAYS[0].x+HB_BAYS[1].x)/2, 996); ctx.textAlign = 'left';
+  // requested pallets glow
+  for (const o of G.orders){ if (!o.pallet) continue; o.lines.forEach((l, li) => {
+    const q = hbSlotPos(l.slot);
+    if (l.state === 'stored'){
+      const hot = G.hoverOrder === o.id || (o.flashT && o.flashT > G.time) || (hoverRack && hoverRack.o === o), pulse = 0.5 + 0.5*Math.sin(t*5 + o.id);
+      ctx.save(); ctx.shadowColor = o.color; ctx.shadowBlur = hot ? 26 : 12 + pulse*10; rr(q.x-15, q.y-12, 30, 24, 5); ctx.fillStyle = hexA(o.color, 0.35); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = o.color; ctx.lineWidth = hot ? 3 : 2 + pulse; rr(q.x-15, q.y-12, 30, 24, 5); ctx.stroke();
+      ctx.save(); ctx.translate(q.x, q.y); ctx.scale(0.8, 0.8); drawPalletBase(); rr(-11.5, -8.5, 23, 17, 3); ctx.fillStyle = o.color; ctx.fill();
+      ctx.fillStyle = 'rgba(244,246,250,0.95)'; rr(-6.5, -6.5, 13, 13, 3); ctx.fill(); drawIcon(l.item.icon, 0, 0, 11.5, '#1c2230', 2); ctx.restore();
+      rr(q.x+4, q.y - (l.slot.r === 0 ? 22 : -10), 22, 11, 3); ctx.fillStyle = o.color; ctx.fill();
+      ctx.fillStyle = '#10141c'; ctx.font = `800 8px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(o.num).slice(-3), q.x+15, q.y - (l.slot.r === 0 ? 22 : -10) + 8.5); ctx.textAlign = 'left';
+    } else if (l.state === 'queued' || (l.state === 'retrieving' && !c.carry)){
+      ctx.strokeStyle = o.color; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]); rr(q.x-13, q.y-11, 26, 22, 4); ctx.stroke(); ctx.setLineDash([]);
+      if (l.state === 'queued') drawIcon('clock', q.x+11, q.y-9, 10, '#ffc53d', 2.6);
+    }
+  }); }
+  // stacker crane: carriage on the rails, telescopic forks reach into the rack
+  const job = c.job, cx = c.x, ay = HB.aisleY;
+  if (job && (c.state === 'grab' || c.state === 'toSlot')){
+    const q = hbSlotPos(job.line.slot), dir = q.y < ay ? -1 : 1, k = c.state === 'grab' ? Math.sin(clamp(c.t/CRANE.grab, 0, 1)*Math.PI) : 0, reach = Math.abs(q.y - ay) * k;
+    ctx.fillStyle = '#9aa6bb'; ctx.fillRect(cx-7, dir < 0 ? ay - reach : ay, 3, reach); ctx.fillRect(cx+4, dir < 0 ? ay - reach : ay, 3, reach);
+    if (c.state === 'grab' && c.t > CRANE.grab/2){ ctx.save(); ctx.translate(cx, ay + dir*reach); ctx.scale(0.8, 0.8); drawPalletBase(); rr(-11.5, -8.5, 23, 17, 3); ctx.fillStyle = job.o.color; ctx.fill(); ctx.restore(); }
+  }
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  rr(cx-14, ay-16, 28, 32, 4); ctx.fillStyle = '#ff8a1f'; ctx.fill(); ctx.restore();
+  ctx.fillStyle = '#c4620b'; ctx.fillRect(cx-14, ay+10, 28, 6);
+  ctx.fillStyle = '#1d2a3d'; rr(cx-9, ay-12, 18, 8, 2); ctx.fill();
+  const lamp = c.state === 'idle' ? '#3ddc84' : (Math.floor(t*6) % 2 ? '#ffc53d' : '#fff3c4'); ctx.fillStyle = lamp; ctx.beginPath(); ctx.arc(cx+10, ay-13, 1.8, 0, 7); ctx.fill();
+  if (c.carry && job){ ctx.save(); ctx.translate(cx, ay+2); ctx.scale(0.78, 0.78); drawPalletBase(); rr(-11.5, -8.5, 23, 17, 3); ctx.fillStyle = job.o.color; ctx.fill();
+    ctx.fillStyle = 'rgba(244,246,250,0.95)'; rr(-6.5, -6.5, 13, 13, 3); ctx.fill(); drawIcon(job.line.item.icon, 0, 0, 11.5, '#1c2230', 2); ctx.restore(); }
+  for (const f of G.hbwFeed){ const q = along(f.path, f.path.d); f.hu.px = q.x; f.hu.py = q.y; drawPalletHU(f.hu, q.x, q.y); }
+  // transporter depot and pallet buffer
+  ctx.strokeStyle = 'rgba(214,222,236,0.3)'; ctx.lineWidth = 1.2;
+  for (let i=0; i<=DEPOT.max; i++){ const px = DEPOT.x - DEPOT.sp/2 + i*DEPOT.sp; ctx.beginPath(); ctx.moveTo(px, DEPOT.y - 18); ctx.lineTo(px, DEPOT.y + 18); ctx.stroke(); }
+  ctx.fillStyle = '#8a96ad'; ctx.font = `700 8.5px ${FONT}`; ctx.textAlign = 'center';
+  const busyN = (G.movers||[]).filter(m => m.state !== 'idle').length;
+  ctx.fillText(`TRANSPORTERS ${busyN}/${(G.movers||[]).length} BUSY`, DEPOT.x + 1.5*DEPOT.sp, DEPOT.y + 32);
+  rr(HOLD.x - 18, HOLD.y - 14, HOLD.per*HOLD.sp + 4, 58, 6); ctx.strokeStyle = 'rgba(255,138,31,0.45)'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillText('PALLET BUFFER', HOLD.x + (HOLD.per-1)*HOLD.sp/2, HOLD.y + 58); ctx.textAlign = 'left';
+  // selection target glow
+  const sel = G.selected;
+  if (sel && hoverSt === st){ ctx.strokeStyle = !G.hints ? '#ffffff' : validTargets(sel).includes(st) ? '#3ddc84' : '#ff5468'; ctx.lineWidth = 3; rr(x, y, w, h, 12); ctx.stroke(); }
+}
+// pallets standing in the high-bay I/O and in the pallet buffer (drawn above the floor layer)
+function drawLoosePallets(){
+  if (!G.roads) return;
+  G.hbwOut.forEach((hu, i) => { if (!hu) return; const p = HB_BAYS[i]; hu.px = p.x; hu.py = p.y; drawPalletHU(hu, p.x, p.y); });
+  G.holding.forEach((hu, i) => { const p = holdPos(i); hu.px = p.x; hu.py = p.y; drawPalletHU(hu, p.x, p.y);
+    if (hu.loc === 'out'){ ctx.fillStyle = 'rgba(255,138,31,0.9)'; ctx.font = `800 8.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('re-route me', p.x, p.y - 15); ctx.textAlign = 'left'; } });
 }
 
 // ===================================================================
@@ -1172,8 +1594,8 @@ function drawFloor(t){
   for (let x=0; x<=W; x+=40){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
   for (let y=0; y<=H; y+=40){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
   // walkway paint
-  ctx.strokeStyle = 'rgba(255,197,61,0.12)'; ctx.setLineDash([16,10]); ctx.lineWidth = 3;
-  ctx.strokeRect(LOOP.x0-250, 54, LOOP.w+500, 728); ctx.setLineDash([]);
+  if (!G.roads){ ctx.strokeStyle = 'rgba(255,197,61,0.12)'; ctx.setLineDash([16,10]); ctx.lineWidth = 3;
+    ctx.strokeRect(LOOP.x0-250, 54, LOOP.w+500, 728); ctx.setLineDash([]); }
   ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.font = `800 54px ${FONT}`; ctx.textAlign = 'center';
   ctx.fillText('HALL 3', (LOOP.x0+LOOP.x1)/2, (LOOP.y0+LOOP.y1)/2 + 18);
 }
@@ -1184,7 +1606,7 @@ function drawWarehouse(t){
   rr(x, y, w, h, 14); ctx.fillStyle = '#18202e'; ctx.fill(); ctx.restore();
   ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.5; rr(x, y, w, h, 14); ctx.stroke();
   ctx.fillStyle = '#ff8a1f'; ctx.font = `800 11px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('SHUTTLE WAREHOUSE', x+14, y+22);
-  const nReq = G.orders.reduce((n, o) => n + (o.lines ? o.lines.filter(l => l.state === 'stored').length : 0), 0);
+  const nReq = G.orders.reduce((n, o) => n + (o.lines && !o.pallet ? o.lines.filter(l => l.state === 'stored').length : 0), 0);
   if (!nReq){ ctx.fillStyle = '#8a96ad'; ctx.font = `500 10px ${FONT}`; ctx.fillText(`${(18420 + Math.floor(t*3)%97).toLocaleString('en')} totes stored`, x+14, y+37); }
   else { ctx.fillStyle = '#ffb15c'; ctx.font = `800 10.5px ${FONT}`; ctx.fillText(`▸ ${nReq} glowing tote${nReq>1?'s':''} to click`, x+14, y+37); }
   const aisles = RACK.aisles, aw = RACK.aw, levels = RACK.levels, top = RACK.top, lh = RACK.lh;
@@ -1224,7 +1646,7 @@ function drawWarehouse(t){
   // requested totes (clickable)
   const ws = G.st.warehouse;
   let req = 0;
-  for (const o of G.orders) o.lines.forEach((l, li) => {
+  for (const o of G.orders) if (!o.pallet) o.lines.forEach((l, li) => {
     if (l.state !== 'stored') return; req++;
     const q = rackPos(l.slot), hot = G.hoverOrder === o.id || (o.flashT && o.flashT > G.time) || (hoverRack && hoverRack.o === o);
     const pulse = 0.5 + 0.5*Math.sin(t*5 + o.id);
@@ -1236,7 +1658,7 @@ function drawWarehouse(t){
     rr(q.x+8*sc, q.y-17*sc, 22, 11, 3); ctx.fillStyle = o.color; ctx.fill();
     ctx.fillStyle = '#10141c'; ctx.font = `800 8px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(o.num).slice(-3), q.x+8*sc+11, q.y-17*sc+8.5); ctx.textAlign = 'left';
   });
-  for (const o of G.orders) o.lines.forEach(l => {
+  for (const o of G.orders) if (!o.pallet) o.lines.forEach(l => {
     if (l.state !== 'queued' && !(l.state === 'retrieving' && !G.robots.some(r => r.job && r.job.line === l && r.carry))) return;
     const q = rackPos(l.slot);
     ctx.save(); ctx.globalAlpha = 0.85; drawTote(q.x, q.y, o.color, l.item.icon, false, false, false); ctx.restore();
@@ -1285,6 +1707,7 @@ function drawLoop(t){
   }
 }
 function drawSpur(st, t){
+  if (st.def.place === 'hbw') return;
   conveyorSeg(st.dock.x, st.dock.y, st.port.x, st.port.y, st.def.role === 'storage' ? 20 : 26, t, 0);
   if (st.def.role === 'storage'){ ctx.fillStyle = '#8a96ad'; ctx.font = `700 9px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('↩ RETURNS TO STORAGE', st.dock.x+12, st.dock.y+22); return; }
   // scanner arch
@@ -1319,6 +1742,7 @@ function drawStockBox(x, y, icon, sel, hov){
   ctx.restore();
 }
 function drawHU(hu, x, y, opts={}){
+  if (hu.pallet){ drawPalletHU(hu, x, y); return; }
   if (hu.kind === 'stock'){ drawStockBox(x, y, hu.item.icon, G.selected === hu, hoverHU === hu); return; }
   if (hu.kind){ drawTote(x, y, hu.order.color, hu.item.icon, G.selected === hu, hoverHU === hu, true, hu.kind === 'scrap'); return; }
   const o = hu.order, sel = G.selected === hu, hov = hoverHU === hu;
@@ -1388,7 +1812,7 @@ function drawStation(st, t){
       rr(bx, by, Math.max(6, bw*f), 13, 4); ctx.fillStyle = s.blocked ? 'rgba(255,84,104,0.55)' : hexA(def.color, 0.5); ctx.fill();
       ctx.fillStyle = s.hu.order.color; ctx.fillRect(bx+4, by+3, 9, 7);
       ctx.fillStyle = '#eef2f8'; ctx.font = `700 9.5px ${FONT}`; ctx.textAlign = 'left';
-      ctx.fillText(s.blocked ? 'BLOCKED: OUT full' : s.hu.kind === 'stock' ? 'New stock' : `#${s.hu.order.num}`, bx+17, by+10);
+      ctx.fillText(s.blocked ? 'BLOCKED: OUT full' : s.hu.kind === 'stock' ? 'New stock' : s.hu.kind === 'pstock' ? 'New pallet' : `#${s.hu.order.num}`, bx+17, by+10);
     } else { ctx.fillStyle = '#4a5468'; ctx.font = `600 9px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('idle', bx+6, by+10); }
   }
   // queue pips
@@ -1422,7 +1846,7 @@ function drawStation(st, t){
   if (sel && full){ rr(x+w/2-24, y-10, 48, 18, 6); ctx.fillStyle = '#ff5468'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('FULL', x+w/2, y+3); }
   if (def.role === 'source') drawInboundDock(st, t);
   // out HUs
-  st.out.forEach((hu, i) => { const p = outPos(st, i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); });
+  st.out.forEach((hu, i) => { const p = hu.pallet && st.bay ? bayPos(st, i) : outPos(st, i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); });
 }
 // trucks waiting to unload at Goods-in (cardboard = new stock, coloured = customer return)
 function drawInboundDock(st, t){
@@ -1447,7 +1871,7 @@ function hexA(hex, a){ const n = parseInt(hex.slice(1),16); return `rgba(${n>>16
 
 function drawBoard(){
   // routing plan board (generated from STEPS + active stations)
-  const x = 222, y = 538, w = 168, h = 230;
+  const x = G.roads ? 236 : 222, y = 538, w = 168, h = 230;
   rr(x, y, w, h, 12); ctx.fillStyle = 'rgba(26,34,49,0.85)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.2; ctx.stroke();
   ctx.fillStyle = '#ff8a1f'; ctx.font = `800 11px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('ROUTING PLAN', x+12, y+20);
   let yy = y + 42, n = 1;
@@ -1516,6 +1940,8 @@ function render(t){
   ctx.setTransform(d*view.s, 0, 0, d*view.s, d*view.ox, d*view.oy);
   drawFloor(t);
   if (!G.stations.length){ return; }
+  drawRoads(t); drawHBW(t);
+  if (G.roads) (G.movers||[]).forEach(m => drawMover(m, t));
   drawWarehouse(t);
   drawLoop(t);
   G.stations.forEach(st => drawSpur(st, t));
@@ -1528,6 +1954,7 @@ function render(t){
     drawHU(hu, p.x, p.y);
     if (hu.tr.to === null){ ctx.fillStyle = 'rgba(255,138,31,0.9)'; ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('re-route me', p.x, p.y-17); }
   }
+  drawLoosePallets();
   // flyers to truck
   for (const f of G.flyers){ const k = Math.min(1, f.t), x = f.x0 + (f.x1-f.x0)*k, y = f.y0 + (f.y1-f.y0)*k - Math.sin(k*Math.PI)*50;
     rr(x-9, y-7, 18, 14, 3); ctx.fillStyle = '#c99a5b'; ctx.fill(); ctx.fillStyle = f.color; ctx.fillRect(x-9, y-2, 18, 3); }
@@ -1559,7 +1986,7 @@ function orderParts(o, inbox){
   const col = rem < 0 ? '#ff5468' : frac < 0.3 ? '#ffc53d' : '#3ddc84';
   const blocked = inbox && G.st.commission && !hasRoom(G.st.commission);
   const steps = Object.keys(o.steps).map(s => s === 'pick' && o.steps.pick === 'todo' && o.lines.length
-    ? `<span class="chip" style="border-color:${STEP_COLOR('pick')};color:${STEP_COLOR('pick')}">PICK ${linesDone(o)}/${o.lines.length} ${ico('tote')}</span>` : chipHTML(o, s)).join('');
+    ? `<span class="chip" style="border-color:${STEP_COLOR('pick')};color:${STEP_COLOR('pick')}">PICK ${linesDone(o)}/${o.lines.length} ${ico(o.pallet ? 'pallet' : 'tote')}</span>` : chipHTML(o, s)).join('');
   const flag = o.hu && o.hu.flag ? `<span class="chip flag">${ico('warn')} ${o.hu.flag.reason}</span>`
     : o.notOk ? `<span class="chip" style="background:var(--warn);border-color:var(--warn);color:#0e131d">NOT OK: back to customer</span>` : '';
   const cls = `oc ${inbox?'inbox':''} ${blocked?'blocked':''} ${o.focus?'focus':''} ${rem<0?'late':''}`;
@@ -1568,7 +1995,7 @@ function orderParts(o, inbox){
     <div class="oc-items">${o.items.map(i => `<span class="it" title="${i.name}">${ico(i.icon)}<span class="dots">${itemSteps(o, i).map(sid => `<i style="background:${STEP_COLOR(sid)}"></i>`).join('')}</span></span>`).join('')}</div>
     <div class="chips">${steps}${flag}</div>
     <div class="tbar"><div></div></div>
-    ${inbox ? (o.type !== 'new' ? '<span class="release-hint">waiting at Goods-in</span>' : '<span class="release-hint">totes in warehouse ◂</span>') : ''}`;
+    ${inbox ? (o.type !== 'new' ? '<span class="release-hint">waiting at Goods-in</span>' : (o.pallet ? '<span class="release-hint">pallet in high-bay ◂</span>' : '<span class="release-hint">totes in warehouse ◂</span>')) : ''}`;
   return { cls, html, col, frac, due: rem < 0 ? 'LATE' : Math.ceil(rem)+'s' };
 }
 // Cards are kept as persistent DOM nodes and patched in place (no flicker, hover stays stable)
@@ -1634,7 +2061,8 @@ function showTooltip(hu, cx, cy, rack){
   if (rack || hu.kind){
     const o = rack ? rack.o : hu.order, item = rack ? o.lines[rack.li].item : hu.item;
     tt.innerHTML = rack
-      ? `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>Tote for #${o.num}</div><div class="items">${ico(item.icon)} ${item.name}</div><div class="row next">▸ Click to send it to Commissioning</div><div class="row">${o.customer} · ${linesDone(o)}/${o.lines.length} totes at the pick station</div>`
+      ? `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>${o.pallet ? 'Pallet' : 'Tote'} for #${o.num}</div><div class="items">${ico(item.icon)} ${item.name}</div><div class="row next">▸ ${o.pallet ? 'Click: the stacker crane brings it to the pallet I/O' : 'Click to send it to Commissioning'}</div><div class="row">${o.customer} · ${linesDone(o)}/${o.lines.length} totes at the pick station</div>`
+      : hu.kind === 'pstock' ? `<div class="tt-h" style="color:${STOCK_COLOR}">${ico('pallet')} New pallet</div><div class="items">${ico(item.icon)} ${item.name} (supplier delivery)</div><div class="row next">▸ Route it to the High-Bay Warehouse</div>`
       : hu.kind === 'stock' ? `<div class="tt-h" style="color:${STOCK_COLOR}">${ico('box')} New stock</div><div class="items">${ico(item.icon)} ${item.name} (supplier delivery)</div><div class="row next">▸ Route it to the Shuttle Warehouse</div>`
       : hu.kind === 'scrap' ? `<div class="tt-h" style="color:var(--bad)">${ico('x')} Defective item</div><div class="items">${ico(item.icon)} ${item.name} (from #${o.num})</div><div class="row next">▸ Route it to Retoure</div>`
       : `<div class="tt-h">↩ Return tote</div><div class="items">${ico(item.icon)} ${item.name} (wrong pick for #${o.num})</div><div class="row next">▸ Route it back to the Shuttle Warehouse</div>`;
@@ -1702,7 +2130,8 @@ $('side').addEventListener('pointerdown', e => {
   const card = e.target.closest('.oc'); if (!card) return;
   const o = G.orders.find(o => o.id === +card.dataset.oid); if (!o) return;
   if (o.lines.some(l => l.state === 'stored')){ o.flashT = G.time + 2; sfx('select');
-    if (!G.seenTips.findTotes){ G.seenTips.findTotes = true; toast('Click the order\'s glowing totes in the Shuttle Warehouse.', ''); } }
+    if (o.pallet){ if (!G.seenTips.findPallet){ G.seenTips.findPallet = true; toast('Click the order\'s glowing pallet in the High-Bay Warehouse.', ''); } }
+    else if (!G.seenTips.findTotes){ G.seenTips.findTotes = true; toast('Click the order\'s glowing totes in the Shuttle Warehouse.', ''); } }
 });
 $('side').addEventListener('pointerover', e => { const card = e.target.closest('.oc'); G.hoverOrder = card ? +card.dataset.oid : null; });
 $('side').addEventListener('pointerleave', () => { G.hoverOrder = null; });
@@ -1787,7 +2216,7 @@ function showIntro(idx){
   const cfg = shiftConfig(idx), prev = idx > 0 ? shiftConfig(idx-1).stations : [];
   // preview stations for flow
   G.cfg = cfg; G.stations = cfg.stations.map(id => makeStation(DEF[id])); G.st = Object.fromEntries(G.stations.map(s => [s.id, s])); layoutStations();
-  G.orders = []; G.hus = []; G.fetch = []; G.jobs = []; G.robots = []; G.shippedLog = []; G.time = 0; G.truck = { x:1210, load:0, state:'parked', t:0 }; G.shipped = 0; G.sat = 100;
+  G.orders = []; G.hus = []; G.fetch = []; G.jobs = []; G.robots = []; G.inbound = []; resetPallets(); G.shippedLog = []; G.time = 0; G.truck = { x:1210, load:0, state:'parked', t:0 }; G.shipped = 0; G.sat = 100;
   const newOnes = cfg.stations.filter(id => !prev.includes(id));
   saveProfile();
   modal(`<p class="sub" style="margin:0;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:12px">Shift ${idx+1}</p>
@@ -1869,6 +2298,7 @@ function showHelp(fromTitle){
       <li>Sending an HU to the wrong station gets it rejected (−$10, −satisfaction). It then circles the belt until you re-route it.</li>
       <li>Full OUT trays <b>block</b> a station. Keep units moving!</li>
       <li>Late orders pay 40% and cost satisfaction. Focus customers (★) pay 50% more.</li>
+      <li>Oversize tools (compressors, welders, table saws) are stored on <b>Euro pallets</b> in the <b>High-Bay Warehouse</b>. Click a glowing pallet, then route it like any order: <b>transporters with a driver</b> drive pallets over the hall roads to each station's pallet bay. Rejected pallets are parked in the <b>pallet buffer</b>.</li>
       <li>Later on, <b>Goods-in</b> opens: customers send back blunt drills and milling cutters. They are unloaded automatically; route them to <b>Regrinding</b>, then any services on their card, then Packing. Now and then new stock arrives too: send the cardboard box to the Shuttle Warehouse.</li>
     </ul>
     <div class="grid2">${all.map(d => `<div class="scard"><div class="t">${ico(d.icon)}${d.name}</div>${d.desc}</div>`).join('')}</div>
@@ -1896,7 +2326,7 @@ if (window.ResizeObserver) new ResizeObserver(resize).observe(floorEl);
 resize(); syncButtons(); showTitle(); requestAnimationFrame(frame);
 
 // ---------- test / automation hooks ----------
-window.LT = { G, STATIONS, STEPS, SHIFTS, startShift, update, validTargets, dispatch, retrieve, selectable, hasRoom, endShift,
+window.LT = { get G(){ return G; }, STATIONS, STEPS, SHIFTS, startShift, update, validTargets, dispatch, retrieve, selectable, hasRoom, endShift,
   simulate(seconds, policy, dt=1/30){ const s = G.silent; G.silent = true; let t = 0; while (t < seconds && G.mode === 'play'){ policy && policy(G, dt); update(dt); t += dt; } G.silent = s; return G; } };
 </script>
 </body>

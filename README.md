@@ -22,7 +22,11 @@ and sound and music are generated with the Web Audio API.
   then Packing. Customers also send measuring tools back for re-calibration: Goods-in, Calibration Lab, Focus if needed, Packing.
   If such a tool fails calibration it is not sent to QA (no guarantee on worn tools): it goes straight back to the customer via Packing.
   Now and then a cardboard box of new stock arrives: route it to the Shuttle Warehouse (small bonus). Tuning lives in `INBOUND`.
-- Ship before the timer runs out. Six short shifts (Mon–Sat) introduce stations step by step, then endless overtime.
+- From shift 7 (Next Monday) the hall grows: oversize tools (compressors, welders, table saws) are stored on Euro pallets in the
+  **High-Bay Warehouse** (bottom). Click a glowing pallet and the stacker crane brings it to the pallet I/O. Pallets never ride the
+  conveyor: **transporters with a driver** carry them over a ring road (right-hand traffic) to each station's pallet bay. Same stations,
+  same routing rules; rejected pallets are parked in the pallet buffer. Tuning lives in `ROAD`, `HB`, `MOVER`, `CRANE`, `PALLET`.
+- Ship before the timer runs out. Seven short shifts (Mon–Sat, then Next Monday) introduce stations step by step, then endless overtime.
   Stations start slow; the upgrade shop shows how busy each station was, so you can fix bottlenecks.
 
 Keys: `1`–`9` route · `0` warehouse · `Tab` next unit · `H` hints · `F` speed · `Space` pause.
