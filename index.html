@@ -241,7 +241,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-21';
+const GAME_VERSION = '2026.11.21-22';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -3076,7 +3076,7 @@ const Updater = {
     this.checking = true; this.last = Date.now();
     try {
       const res = await fetch(location.href.split('#')[0].split('?')[0] + '?v=' + Date.now(), { cache:'no-store' });
-      const m = res.ok && (await res.text()).match(/const GAME_VERSION = '2026.11.21-21']+)'/);
+      const m = res.ok && (await res.text()).match(/const GAME_VERSION = '([^']+)'/);
       if (m && m[1] !== GAME_VERSION) this.offer(m[1]);
     } catch(e){} finally { this.checking = false; }
   },
