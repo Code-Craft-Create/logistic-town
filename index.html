@@ -237,6 +237,10 @@ const ITEMS = [
   { name:'Work gloves',            icon:'gloves',      tags:['apparel'] },
   { name:'Safety helmet',          icon:'helmet',      tags:['apparel'] },
   { name:'Safety boots',           icon:'boots',       tags:['apparel'] },
+  // cutting tools: only ever arrive as customer returns at Goods-in for regrinding (never sold new in an order)
+  { name:'Twist drill bit',        icon:'drillbit',    tags:['cutting','tool'] },
+  { name:'End mill cutter',        icon:'endmill',     tags:['cutting','tool'] },
+  { name:'Face mill cutter',       icon:'facemill',    tags:['cutting','tool'] },
 ];
 const CUSTOMERS = ['Bergmann Bau','Nordhang Montage','Alpenkamm Stahl','Kessling Elektro','Hofstetter Dach','Lindvik Rail',
   'Brückenwerk Anlagen','Sommerau Sanitär','Vogtland Gerüste','Rheinfeld Service','Falkenstein Metall','Weidner Zimmerei',
@@ -334,6 +338,15 @@ const CICONS = {
     [C.metal,'M15 2.5c0 3.2-1 6.2-3 8.6l-1.4-1C12.4 7.6 13 5 13 2.5z'],[C.dark,'M11 10.6a1 1 0 1 0 2 0a1 1 0 1 0-2 0z']],
   screwdriver: [[C.metal,'M11.3 10.1l1.6 1.6-8 8-1.6-1.6z'],[C.steel,'M3.3 18.1l1.6 1.6-1.9 1.3-1-1z'],[C.orange,'M14.5 2.5l7 7-3.6 3.6-7-7z'],[C.amber,'M16.2 4.2l5 5-1.1 1.1-5-5z']],
   jigsaw: [[C.metal,'M9.5 14.5h1.6V21H9.5z'],[C.blue,'M3 7.5h12l4 3V13H3z'],[C.dark,'M6 7.5V4h8.5v3.5h-2.2V6H8.2v1.5z'],[C.metal,'M2 13h18.5v1.6H2z'],[C.dark,'M15.5 9.5h2v1.5h-2z']],
+  // ---------- cutting tools (regrinding)
+  drillbit: [[C.steel,'M1.5 10.2h8v3.6h-8z'],[C.metal,'M1.5 10.2h8v1.2h-8z'],[C.amber,'M9.5 9.4h10l3 2.6-3 2.6h-10z'],
+    [C.deep,'M11 9.4h1.7l2.2 5.2h-1.7z M15.2 9.4h1.7l2.2 5.2h-1.7z'],[C.yellow,'M19.5 9.4l3 2.6h-2z']],
+  endmill: [[C.steel,'M9 1.5h6v9.5H9z'],[C.metal,'M9 1.5h1.5v9.5H9z'],[C.blue,'M8.7 9.4h6.6V11H8.7z'],[C.metal,'M8.5 11h7v9.4L14 22h-4l-1.5-1.6z'],
+    [C.dark,'M8.5 13l7-1.6V13l-7 1.6z M8.5 16.4l7-1.6v1.6l-7 1.6z M8.5 19.8l7-1.6v1.6l-6.4 1.5z']],
+  facemill: [[C.steel,'M2.5 12a9.5 9.5 0 1 0 19 0a9.5 9.5 0 1 0-19 0z'],[C.metal,'M5.5 12a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0-13 0z'],
+    [C.amber,'M10.6 1.8h2.8v3h-2.8z M10.6 19.2h2.8v3h-2.8z M1.8 10.6h3v2.8h-3z M19.2 10.6h3v2.8h-3z'],
+    [C.amber,'M4.2 6.2l2-2 2.1 2.1-2 2z M15.7 17.7l2-2 2.1 2.1-2 2z M15.7 6.3l2.1-2.1 2 2-2.1 2.1z M4.2 17.8l2.1-2.1 2 2-2.1 2.1z'],
+    [C.dark,'M9.6 12a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0z']],
   // ---------- clothing
   jacket: [[C.navy,'M8 3l4 2.6L16 3l5 4-2.5 4.6-1.5-.6v10H7V11l-1.5.6L3 7z'],[C.navyD,'M8 3l4 3.6L16 3l-1.6-.6L12 4.6 9.6 2.4z'],[C.metal,'M11.5 6.5h1V21h-1z'],
     [C.amber,'M7 15h10v1.6H7z'],[C.navyD,'M8 12h2.6v1H8z M13.4 12H16v1h-2.6z']],
@@ -353,6 +366,12 @@ const CICONS = {
   needle: [[C.pink,'M3 8.5h13v12H3z'],[C.pinkL,'M5 10.5h9v8H5z'],[C.white,'M7.5 12.5l2 1.2 2-1.2v3.5l-2 1.2-2-1.2z'],[C.metal,'M13.4 13.2l7.7-10 1.1.9-7.7 10z'],[C.dark,'M20.6 3.6l.6.5-.3.4-.6-.5z']],
   star: [[C.yellow,'M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.3l-5.8 3 1.1-6.4-4.7-4.6 6.5-.9z'],[C.white,'M12 6l1 2.2-1 .5z']],
   magnifier: [[C.dark,'M14.4 16l1.6-1.6 6.2 6.2-1.6 1.6z'],[C.metal,'M3 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0z'],[C.glass,'M4.8 10a5.2 5.2 0 1 0 10.4 0a5.2 5.2 0 1 0-10.4 0z'],[C.green,'M6.8 10.2l1.1-1.1 1.6 1.6 3.4-3.7 1.1 1-4.5 4.9z']],
+  goodsin: [[C.metal,'M2 21.5V8l10-5.5L22 8v13.5z'],[C.steel,'M2 8l10-5.5L22 8l-1 1.5-9-5-9 5z'],[C.dark,'M5.5 11h13v10.5h-13z'],
+    [C.steel,'M5.5 11h13v1.2h-13z M5.5 13.4h13v1.2h-13z'],[C.cardboard,'M7 16.5h5v5H7z'],[C.cardboardL,'M12.5 18h4.5v3.5h-4.5z'],
+    [C.green,'M11 3.8h2v2.6h2.2L12 9.6 8.8 6.4H11z']],
+  regrind: [[C.dark,'M2 20h14v2.4H2z'],[C.dark,'M7.6 13h3v7.2h-3z'],[C.steel,'M2 9.5a7 7 0 1 0 14 0a7 7 0 1 0-14 0z'],[C.metal,'M4.2 9.5a4.8 4.8 0 1 0 9.6 0a4.8 4.8 0 1 0-9.6 0z'],
+    [C.dark,'M7.8 9.5a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z'],[C.amber,'M15.2 14.4l6.9-3.6 1 1.9-6.9 3.6z'],
+    [C.yellow,'M17 4.5l1.2 2.4-2.2-1z M20.5 6.6l-.4 2.6-1-1.8z M21.6 3.6l-2.2 2.6.3-1.5z'],[C.orange,'M18.6 9.6l2.8-.4-2 1.3z']],
   retoure: [[C.cardboard,'M5 11h14v10H5z'],[C.cardboardL,'M5 11h14v2H5z'],[C.purple,'M9.5 2.5L3.5 7l6 4.5V8.8H16a2.6 2.6 0 0 1 0 5.2h-1.5v2.8H16a5.4 5.4 0 0 0 0-10.8H9.5z']],
   truck: [[C.white,'M1.5 5h13v11h-13z'],[C.orange,'M1.5 12h13v1.6h-13z'],[C.orange,'M14.5 8h4.6l3.4 4v4h-8z'],[C.glass,'M15.6 9.2h3l2 2.6h-5z'],
     [C.dark,'M3.6 17.6a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0z M15.4 17.6a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0z'],[C.metal,'M5.1 17.6a.7.7 0 1 0 1.4 0a.7.7 0 1 0-1.4 0z M16.9 17.6a.7.7 0 1 0 1.4 0a.7.7 0 1 0-1.4 0z']],
@@ -367,10 +386,13 @@ const ORDER_COLORS = ['#ff8a1f','#4f8cff','#3ddc84','#ff5fa2','#22c3e6','#b07cff
 // stage: lower stages must be completed before higher ones. Same stage = any order.
 const has = (o, tag) => o.items.some(i => i.tags.includes(tag));
 const STEPS = {
-  pick:        { label:'Commissioning',        short:'PICK',  stage:0, want: () => true },
+  pick:        { label:'Commissioning',        short:'PICK',  stage:0, want: o => o.type !== 'regrind' },
+  // customer returns (alt: a separate entry path, shown on its own line in the routing plan)
+  receive:     { label:'Goods-in check',       short:'RECV',   stage:0, alt:true, want: o => o.type === 'regrind' },
+  regrind:     { label:'Regrinding',           short:'GRIND', stage:0.5, alt:true, want: o => o.type === 'regrind' },
   // tag: the step only ever applies to items carrying this tag (calibration -> measuring tools, patching -> sewable clothing)
   calibration: { label:'Calibration',          short:'CAL',   stage:1, tag:'measure', want: o => has(o,'measure') && Math.random() < 0.75 },
-  signing:     { label:'Laser signing',        short:'SIGN',  stage:1, tag:'tool',    want: o => has(o,'tool') && Math.random() < 0.45 },
+  signing:     { label:'Laser signing',        short:'SIGN',  stage:1, tag:'tool',    want: o => has(o,'tool') && Math.random() < (o.type === 'regrind' ? 0.55 : 0.45) },
   patching:    { label:'Logo patching',        short:'PATCH', stage:1, tag:'sewable', want: o => has(o,'sewable') && Math.random() < 0.75 },
   focus:       { label:'Focus customer check', short:'FOCUS', stage:2, want: o => o.focus },
   pack:        { label:'Packing & shipping',   short:'SHIP',  stage:9, want: () => true },
@@ -380,12 +402,18 @@ const STEPS = {
 // handles: step it performs. role: 'repair' (clears flags) or 'sink' (ships the order).
 // place: 'left' | 'right' | undefined (auto: distributed above/below the conveyor loop).
 const STATIONS = [
-  { id:'warehouse', name:'Shuttle Warehouse', icon:'warehouse', color:'#ff8a1f', role:'storage', accepts:'tote', place:'warehouse',
+  { id:'warehouse', name:'Shuttle Warehouse', icon:'warehouse', color:'#ff8a1f', role:'storage', accepts:['tote','stock'], place:'warehouse',
     slots:2, time:1.2, queue:6, out:0,
-    desc:'Stores every tool in totes. Click an order\'s glowing totes to send them to Commissioning. Returned totes (↩) go back here.' },
+    desc:'Stores every tool in totes. Click an order\'s glowing totes to send them to Commissioning. Returned totes (↩) and new stock from Goods-in go back here.' },
   { id:'commission', name:'Commissioning', icon:'box', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
     slots:1, time:5, queue:4, out:3, defect:{ chance:0.07, reason:'Wrong item picked', redo:true, returnTote:true },
     desc:'Picks the tools from the delivered totes into an order-specific handling unit (HU). Starts once all of the order\'s totes have arrived.' },
+  { id:'goodsin', name:'Goods-in', icon:'goodsin', color:'#c98a4b', handles:'receive', role:'source', noKey:true,
+    slots:1, time:3.5, queue:3, out:3,
+    desc:'Wareneingang. Trucks unload here on their own: new stock (cardboard boxes) goes to the Shuttle Warehouse, cutting tools sent back by customers go to Regrinding. Keep its OUT tray clear.' },
+  { id:'regrind', name:'Regrinding', icon:'regrind', color:'#9aa8ff', handles:'regrind',
+    slots:1, time:8, queue:3, out:3, defect:{ chance:0.10, reason:'Cutting edge chipped', redo:true },
+    desc:'Sharpens customer drills and milling cutters (Bohrer, Fräser). Afterwards they may still need Laser Signing and the focus customer check, then Packing.' },
   { id:'calib', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
     slots:1, time:9, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
     desc:'Checks that measuring tools (calipers, meters, levels…) measure correctly and issues a certificate. Failed tools go to QA, then back here.' },
@@ -413,6 +441,10 @@ const RETRIEVE_SPEED = 300; // px/s for totes on the lift + feeder belt to Commi
 const ROBOT = { base:2, speed:400, grab:0.45, drop:0.25 }; // fetch robots in the shuttle warehouse (count is upgradable)
 const FAIL_PAYOUT = 0.5; // share of a failed shift's earnings you keep
 const TRANSPORT_CHECK = { chance:0.035, reason:'Weight check failed' };
+// Goods-in: share of orders that are customer returns for regrinding, and how often new stock arrives (kept rare)
+const INBOUND = { returnShare:0.28, stockEvery:[30,42], stockPay:12, firstStock:14 };
+const STOCK_COLOR = '#c98a4b';
+const acceptsKind = (def, kind) => [].concat(def.accepts || []).includes(kind);
 
 // ---------- 4. DATA: shifts (levels) ----------
 const SHIFTS = [
@@ -421,6 +453,7 @@ const SHIFTS = [
   { name:'Wednesday', title:'Make it personal',   duration:120, goal:11, spawn:[6,8],items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','qa','retoure','pack'] },
   { name:'Thursday',  title:'VIP treatment',      duration:130, goal:13, spawn:[5.5,7],  items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
   { name:'Friday',    title:'The Friday rush',    duration:140, goal:16, spawn:[4.5,6],  items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
+  { name:'Saturday',  title:'Returns and restock', duration:150, goal:20, spawn:[4,5.3], items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','goodsin','regrind','qa','retoure','pack'] },
 ];
 function shiftConfig(i){
   if (i < SHIFTS.length) return SHIFTS[i];
@@ -577,7 +610,7 @@ function layoutStations(){
   const CHr = right.length > 1 ? 140 : CH, r0 = cy - (right.length*CHr + (right.length-1)*16)/2;
   right.forEach((st, i) => { st.w=160; st.h=CHr; st.x = x1+SP; st.y = r0 + i*(CHr+16); st.dock={ x:st.x, y:st.y+CHr/2 }; st.port={ x:x1, y:st.y+CHr/2, s:w+(st.y+CHr/2-y0) }; st.side='right'; });
   // keyboard keys in reading order
-  const ordered = [...left, ...rows[0], ...rows[1], ...right];
+  const ordered = [...left, ...rows[0], ...rows[1], ...right].filter(st => !st.def.noKey);
   ordered.forEach((st,i) => st.key = i+1);
   G.keyOrder = ordered;
 }
@@ -588,7 +621,7 @@ function startShift(idx){
   G.st = Object.fromEntries(G.stations.map(s => [s.id, s]));
   layoutStations();
   Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[],
-    seq: 0, huSeq:0, nextSpawn:2, fetch:[], jobs:[], robots:[], hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
+    seq: 0, huSeq:0, nextSpawn:2, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
     truck:{ x:1210, load:0, state:'parked', t:0 } });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
   G.mode = 'play';
@@ -597,7 +630,7 @@ function startShift(idx){
 const activeHas = id => !!G.st[id];
 function pendingSteps(o){ return Object.keys(o.steps).filter(k => o.steps[k]==='todo'); }
 function validTargets(hu){
-  if (hu.kind) return G.stations.filter(s => s.def.accepts === hu.kind);
+  if (hu.kind) return G.stations.filter(s => acceptsKind(s.def, hu.kind));
   if (hu.flag) return G.stations.filter(s => s.def.role==='repair');
   const pend = pendingSteps(hu.order); if (!pend.length) return [];
   const minStage = Math.min(...pend.map(id => STEPS[id].stage));
@@ -611,29 +644,35 @@ function selectable(hu){
   return false;
 }
 function nextHint(hu){
-  if (hu.kind) return G.stations.filter(s => s.def.accepts === hu.kind).map(s => s.def.name).join(' or ') || '—';
+  if (hu.kind) return G.stations.filter(s => acceptsKind(s.def, hu.kind)).map(s => s.def.name).join(' or ') || '—';
   if (hu.flag) return 'Quality Assurance';
   const t = validTargets(hu); return t.length ? t.map(s => s.def.name).join(' or ') : '—';
 }
 
 function makeOrder(){
-  const cfg = G.cfg, n = randInt(cfg.items[0], cfg.items[1]);
-  const pool = [...ITEMS], items = [];
+  const cfg = G.cfg;
+  // customer return: cutting tools arrive at Goods-in and need regrinding
+  const returns = activeHas('goodsin') && activeHas('regrind') && Math.random() < INBOUND.returnShare;
+  const n = returns ? randInt(1, 2) : randInt(cfg.items[0], cfg.items[1]);
+  const pool = ITEMS.filter(i => i.tags.includes('cutting') === returns), items = [];
   for (let i=0; i<n && pool.length; i++) items.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
   const id = ++G.seq;
   const o = { id, num:4100 + id + G.shiftIdx*100, customer:pick(CUSTOMERS), items, focus:false, steps:{},
-    created:G.time, color:ORDER_COLORS[id % ORDER_COLORS.length], released:false, shipped:false, late:false, hu:null };
+    created:G.time, color:ORDER_COLORS[id % ORDER_COLORS.length], released:false, shipped:false, late:false, hu:null, type:returns ? 'regrind' : 'new' };
   o.focus = activeHas('care') && Math.random() < 0.28;
-  o.lines = items.map(item => ({ item, state:'stored', slot:freeRackSlot() }));
+  // returned tools travel in the customer's parcel (already 'picked' into the HU); new orders wait in the rack
+  o.lines = items.map(item => returns ? { item, state:'picked', slot:null } : { item, state:'stored', slot:freeRackSlot() });
   let allow = cfg.slack;
   for (const [sid, s] of Object.entries(STEPS)){
     const stId = STEP_STATION[sid]; if (!stId || !activeHas(stId)) continue;
     if (s.want(o)){ o.steps[sid] = 'todo'; allow += DEF[stId].time + 6; }
   }
-  allow += 4*o.lines.length;
+  allow += returns ? 0 : 4*o.lines.length;
   o.allow = Math.round(allow); o.due = G.time + o.allow;
   G.orders.push(o);
   sfx('order');
+  if (returns){ G.inbound.push({ o });
+    tip('regrind', `Customer return! <b>#${o.num}</b> sent back blunt cutting tools. The parcel is unloaded at <b>Goods-in</b> on its own. Then route it to <b>Regrinding</b>, then the services on its card, then Packing.`); return; }
   if (G.cfg === SHIFTS[0] || G.shiftIdx === 0) tip('release', 'A new order arrived! Its totes are <b style="color:var(--accent)">glowing in the Shuttle Warehouse</b> (same colour as the order card). <b>Click each glowing tote</b> to send it to Commissioning.');
 }
 
@@ -643,7 +682,7 @@ RACK.aw = (WH.w-28)/RACK.aisles; RACK.lh = (WH.h-130)/RACK.levels;
 function rackPos(sl){ const ax = WH.x+14 + sl.a*RACK.aw, rw = RACK.aw*0.34;
   return { x: ax + sl.side*(RACK.aw*0.62) + 2 + rw/2, y: RACK.top + sl.l*RACK.lh + (RACK.lh-3)/2 }; }
 function freeRackSlot(){
-  const used = new Set(); (G.orders||[]).forEach(o => (o.lines||[]).forEach(l => l.state==='stored' && used.add(l.slot.a+'-'+l.slot.l+'-'+l.slot.side)));
+  const used = new Set(); (G.orders||[]).forEach(o => (o.lines||[]).forEach(l => l.state==='stored' && l.slot && used.add(l.slot.a+'-'+l.slot.l+'-'+l.slot.side)));
   for (let i=0; i<60; i++){ const sl = { a:randInt(0,RACK.aisles-1), l:randInt(0,RACK.levels-1), side:randInt(0,1) }; if (!used.has(sl.a+'-'+sl.l+'-'+sl.side)) return sl; }
   return { a:0, l:0, side:0 };
 }
@@ -764,7 +803,7 @@ function portCheck(hu, st){
     G.wrong++; G.money -= 10; G.earned -= 10; changeSat(-3);
     const why = hu.kind ? `it belongs to ${nextHint(hu)}` : hu.flag ? 'it is flagged and must go to Quality Assurance first'
       : `next step is ${nextHint(hu)}`;
-    toast(`${ico('x')} ${st.def.name} rejected ${hu.kind === 'tote' ? 'the return tote' : hu.kind === 'scrap' ? 'the defective item' : '#'+hu.order.num}: ${why}.`, 'bad');
+    toast(`${ico('x')} ${st.def.name} rejected ${hu.kind === 'tote' ? 'the return tote' : hu.kind === 'scrap' ? 'the defective item' : hu.kind === 'stock' ? 'the new stock' : '#'+hu.order.num}: ${why}.`, 'bad');
     floatText(st.port.x, st.port.y-14, '−$10', '#ff5468'); sfx('error'); st.flash = -1;
     tip('wrong', 'Rejected! A station only accepts units that need it <b>next</b>. The unit now circles on the conveyor. <b>Click it on the belt</b> and send it somewhere else.');
   }
@@ -775,7 +814,7 @@ function portCheck(hu, st){
 function complete(st, hu){
   const d = st.def, o = hu.order;
   st.processed++;
-  if (d.accepts) return;
+  if (d.accepts || hu.kind) return;
   if (d.role === 'repair'){
     const f = hu.flag; hu.flag = null;
     if (f && f.line != null){
@@ -792,11 +831,12 @@ function complete(st, hu){
       // not fixable: the item is defective -> goes to Retoure, a replacement must be commissioned
       const li = Math.floor(Math.random()*o.lines.length), line = o.lines[li];
       line.state = 'stored'; line.slot = freeRackSlot(); o.steps.pick = 'todo';
+      if (o.type === 'regrind' && o.steps.regrind) o.steps.regrind = 'done'; // a worn-out return is replaced by a new tool: no regrinding needed
       const scrap = { id:++G.huSeq, kind:'scrap', order:o, item:line.item, flag:null, loc:'out' };
       G.hus.push(scrap);
       if (st.out.length < st.outMax) st.out.push(scrap); else circle(scrap, st.port.s);
       floatText(st.dock.x, st.y+10, d.issue.reason + '!', '#ff5468'); sfx('flag');
-      toast(`${ico('x')} #${o.num}: ${line.item.name} is defective. Send it to Retoure and commission a new one.`, 'bad');
+      toast(`${ico('x')} #${o.num}: ${line.item.name} is ${o.type === 'regrind' ? 'worn beyond regrinding' : 'defective'}. Send it to Retoure and commission a new one.`, 'bad');
       tip('retoure', `QA couldn't fix it: the <b>${line.item.name}</b> is defective. 1) route the <b>red box</b> to <b>Retoure</b> (next to Packing), 2) click the order's new <b style="color:var(--accent)">glowing tote</b> in the warehouse, 3) send HU <b>#${o.num}</b> back to <b>Commissioning</b>.`);
       return;
     }
@@ -818,7 +858,7 @@ function ship(hu){
   const o = hu.order; o.shipped = true; hu.gone = true;
   G.hus.splice(G.hus.indexOf(hu), 1); G.orders.splice(G.orders.indexOf(o), 1);
   if (G.selected === hu) G.selected = null;
-  const services = Object.keys(o.steps).filter(k => k !== 'pick' && k !== 'pack').length;
+  const services = Object.keys(o.steps).filter(k => k !== 'pick' && k !== 'pack' && k !== 'receive').length;
   let pay = 40 + 25*services; if (o.focus) pay *= 1.5;
   const late = G.time > o.due;
   if (late){ pay *= 0.4; G.lateShip++; } else { G.onTime++; changeSat(+2); }
@@ -850,6 +890,22 @@ function update(dt){
   // spawn orders
   if (G.time >= G.nextSpawn && G.time < cfg.duration - 18){
     makeOrder(); G.nextSpawn = G.time + rand(cfg.spawn[0], cfg.spawn[1]);
+  }
+  // Goods-in: trucks unload returns and (rarely) new stock on their own
+  const gi = G.st.goodsin;
+  if (gi){
+    G.stockT -= dt;
+    if (G.stockT <= 0 && G.time < cfg.duration - 15){
+      G.stockT = rand(INBOUND.stockEvery[0], INBOUND.stockEvery[1]);
+      G.inbound.push({ stock:true, item:pick(ITEMS.filter(i => !i.tags.includes('cutting'))) });
+    }
+    while (G.inbound.length && hasRoom(gi)){
+      const d = G.inbound.shift(); let hu;
+      if (d.stock){ hu = { id:++G.huSeq, kind:'stock', item:d.item, order:{ num:'NEW', color:STOCK_COLOR, due:1e9, customer:'Supplier', steps:{} }, flag:null, loc:'queue' };
+        tip('stock', `A delivery of <b>new stock</b> (cardboard box) is being unloaded at <b>Goods-in</b>. When it's ready, route it to the <b>Shuttle Warehouse</b> (key <span class="kbd">0</span>) so it can be stored.`); }
+      else { hu = { id:++G.huSeq, order:d.o, flag:null, loc:'queue' }; d.o.hu = hu; d.o.released = true; }
+      G.hus.push(hu); gi.queue.push(hu);
+    }
   }
   // overdue
   for (const o of G.orders){
@@ -901,7 +957,11 @@ function update(dt){
       if (!s.done){ s.t += dt; if (s.t >= s.dur){ s.done = true; complete(st, s.hu); } }
       if (s.done){
         const hu = s.hu;
-        if (st.def.accepts){ removeObj(hu); st.slots[i] = null; floatText(st.dock.x + (st.side === 'right' ? 60 : 20), st.dock.y-16, st.def.role === 'storage' ? 'Stored ✓' : 'Returned ✓', '#3ddc84'); sfx('clunk'); }
+        if (st.def.accepts){ removeObj(hu); st.slots[i] = null;
+          const fx = st.dock.x + (st.side === 'right' ? 60 : 20);
+          if (hu.kind === 'stock'){ G.stocked++; G.money += INBOUND.stockPay; G.earned += INBOUND.stockPay; floatText(fx, st.dock.y-16, `Restocked +$${INBOUND.stockPay}`, '#3ddc84'); }
+          else floatText(fx, st.dock.y-16, st.def.role === 'storage' ? 'Stored ✓' : 'Returned ✓', '#3ddc84');
+          sfx('clunk'); }
         else if (st.def.role === 'sink' && !hu.kind && !hu.flag && !pendingSteps(hu.order).length){ ship(hu); st.slots[i] = null; }
         else if (st.outMax === 0){ st.slots[i] = null; circle(hu, st.port.s); }
         else if (st.out.length < st.outMax){
@@ -1063,7 +1123,8 @@ function event(name, hu){
     const t = validTargets(hu);
     if (hu.flag) return;
     tip('route', `Handling unit <b>#${hu.order.num}</b> is ready! <b>Click it</b>, then click the station it needs next (or press its number key, or drag it). While you point at a station, the line turns <b style="color:var(--good)">green</b> if it's right and <b style="color:var(--bad)">red</b> if it's wrong.`);
-    for (const st of t){ const sid = st.def.handles; if (sid !== 'pick' && sid !== 'pack') tip('step_'+sid,
+    for (const st of t){ const sid = st.def.handles; if (sid === 'regrind'){ tip('step_regrind', `Returned cutting tools always go to <b>Regrinding</b> first. Laser Signing and the focus customer check (if on the card) come after it, Packing last.`); continue; }
+      if (sid !== 'pick' && sid !== 'pack') tip('step_'+sid,
       `This order needs <b>${STEPS[sid].label}</b>: route it to <b>${st.def.name}</b>. Services can be done in any order. Focus Customer Care comes after all services, Packing always last.`); }
   }
   if (name === 'flag') tip('flag', 'A <b style="color:var(--bad)">red warning flag</b> means something went wrong. Flagged units must go to <b>Quality Assurance</b> first. If a service failed, it has to be redone afterwards.');
@@ -1229,7 +1290,19 @@ function drawTote(x, y, color, icon, sel, hov, ret, scrap){
   if (sel || hov){ ctx.strokeStyle = sel ? '#fff' : 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; rr(-15.5, -11.5, 31, 23, 4); ctx.stroke(); }
   ctx.restore();
 }
+function drawStockBox(x, y, icon, sel, hov){
+  ctx.save(); ctx.translate(x, y);
+  if (sel){ ctx.shadowColor = '#ff8a1f'; ctx.shadowBlur = 16; } else { ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2; }
+  rr(-14, -10, 28, 20, 2); ctx.fillStyle = '#c98a4b'; ctx.fill(); ctx.shadowColor = 'transparent';
+  ctx.fillStyle = '#e0b07a'; ctx.fillRect(-14, -10, 28, 4); ctx.fillStyle = '#a8703a'; ctx.fillRect(-2.5, -10, 5, 20);
+  ctx.fillStyle = 'rgba(244,246,250,0.92)'; rr(-12, -4, 12, 11, 2); ctx.fill();
+  drawIcon(icon, -6, 1.5, 11, '#1c2230', 2);
+  ctx.fillStyle = '#3ddc84'; ctx.beginPath(); ctx.moveTo(8, -4); ctx.lineTo(12, 1); ctx.lineTo(9.5, 1); ctx.lineTo(9.5, 6); ctx.lineTo(6.5, 6); ctx.lineTo(6.5, 1); ctx.lineTo(4, 1); ctx.closePath(); ctx.fill();
+  if (sel || hov){ ctx.strokeStyle = sel ? '#fff' : 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; rr(-15.5, -11.5, 31, 23, 4); ctx.stroke(); }
+  ctx.restore();
+}
 function drawHU(hu, x, y, opts={}){
+  if (hu.kind === 'stock'){ drawStockBox(x, y, hu.item.icon, G.selected === hu, hoverHU === hu); return; }
   if (hu.kind){ drawTote(x, y, hu.order.color, hu.item.icon, G.selected === hu, hoverHU === hu, true, hu.kind === 'scrap'); return; }
   const o = hu.order, sel = G.selected === hu, hov = hoverHU === hu;
   ctx.save(); ctx.translate(x, y);
@@ -1243,6 +1316,7 @@ function drawHU(hu, x, y, opts={}){
   ctx.fillStyle = '#10141c'; ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(o.num).slice(-3), 0, 3);
   if (sel || hov){ ctx.strokeStyle = sel ? '#ffffff' : 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; rr(-16.5, -12.5, 33, 25, 5); ctx.stroke(); }
   if (o.focus){ ctx.fillStyle = '#ffd23f'; star(11, -11, 5); }
+  if (o.type === 'regrind'){ ctx.fillStyle = '#10141c'; ctx.beginPath(); ctx.arc(-11, -8, 5.5, 0, 7); ctx.fill(); drawIcon('regrind', -11, -8, 9, '#fff', 2); }
   // pending step dots
   const pend = pendingSteps(o).filter(s => s !== 'pick');
   const dw = 7; let dx = -((pend.length-1)*dw)/2;
@@ -1285,8 +1359,8 @@ function drawStation(st, t){
   while (fs > 10 && ctx.measureText(def.name).width > w-60){ fs -= 0.5; ctx.font = `800 ${fs}px ${FONT}`; }
   ctx.fillText(fitText(def.name, w-64), x+34, y+19.5);
   // key badge
-  rr(x+w-24, y+7, 17, 17, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(st.key, x+w-15.5, y+19);
+  if (st.key){ rr(x+w-24, y+7, 17, 17, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(st.key, x+w-15.5, y+19); }
   // slots
   for (let i=0; i<st.slotCount; i++){
     const s = st.slots[i], by = y + 38 + i*17, bx = x+10, bw = w-20;
@@ -1296,7 +1370,7 @@ function drawStation(st, t){
       rr(bx, by, Math.max(6, bw*f), 13, 4); ctx.fillStyle = s.blocked ? 'rgba(255,84,104,0.55)' : hexA(def.color, 0.5); ctx.fill();
       ctx.fillStyle = s.hu.order.color; ctx.fillRect(bx+4, by+3, 9, 7);
       ctx.fillStyle = '#eef2f8'; ctx.font = `700 9.5px ${FONT}`; ctx.textAlign = 'left';
-      ctx.fillText(s.blocked ? 'BLOCKED: OUT full' : `#${s.hu.order.num}`, bx+17, by+10);
+      ctx.fillText(s.blocked ? 'BLOCKED: OUT full' : s.hu.kind === 'stock' ? 'New stock' : `#${s.hu.order.num}`, bx+17, by+10);
     } else { ctx.fillStyle = '#4a5468'; ctx.font = `600 9px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('idle', bx+6, by+10); }
   }
   // queue pips
@@ -1328,8 +1402,19 @@ function drawStation(st, t){
   if (hoverSt === st && sel){ border = !G.hints ? '#ffffff' : isTarget ? '#3ddc84' : '#ff5468'; lw = 3; }
   ctx.strokeStyle = border; ctx.lineWidth = lw; rr(x, y, w, h, 12); ctx.stroke();
   if (sel && full){ rr(x+w/2-24, y-10, 48, 18, 6); ctx.fillStyle = '#ff5468'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('FULL', x+w/2, y+3); }
+  if (def.role === 'source') drawInboundDock(st, t);
   // out HUs
   st.out.forEach((hu, i) => { const p = outPos(st, i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); });
+}
+// trucks waiting to unload at Goods-in (cardboard = new stock, coloured = customer return)
+function drawInboundDock(st, t){
+  const bx = st.x, by = st.side === 'bottom' ? st.y + st.h + 8 : st.y - 30, n = G.inbound ? G.inbound.length : 0;
+  rr(bx, by, st.w, 22, 6); ctx.fillStyle = 'rgba(26,34,49,0.85)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#8a96ad'; ctx.font = `700 9px ${FONT}`; ctx.textAlign = 'left';
+  ctx.fillText(n ? 'UNLOADING' : 'DOCK FREE', bx+8, by+14.5);
+  for (let i=0; i<Math.min(n, 6); i++){ const d = G.inbound[i], px = bx + 72 + i*15;
+    ctx.fillStyle = d.stock ? '#c98a4b' : d.o.color; ctx.fillRect(px, by+6, 11, 10); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(px+4.5, by+6, 2, 10); }
+  if (n > 6){ ctx.fillStyle = '#ffb15c'; ctx.fillText('+' + (n-6), bx + 72 + 6*15, by+14.5); }
 }
 const fitCache = {};
 function fitText(s, maxW){
@@ -1358,12 +1443,16 @@ function drawBoard(){
         rr(xx, yy-10, tw, 14, 4); ctx.fillStyle = hexA(STEP_COLOR(sid), 0.25); ctx.fill(); ctx.fillStyle = STEP_COLOR(sid); ctx.fillText(lbl, xx+5, yy+1); xx += tw + 4; } }
     yy += 22;
   }
+  if (activeHas('goodsin') && activeHas('regrind')){
+    ctx.fillStyle = STEP_COLOR('regrind'); ctx.font = `700 10px ${FONT}`; ctx.fillText('Returns: Goods-in → Regrind', x+12, yy+1);
+    ctx.fillStyle = '#8a96ad'; ctx.font = `500 9.5px ${FONT}`; ctx.fillText('then from step 2 on', x+12, yy+14); yy += 34;
+  }
   drawIcon('warn', x+18, yy-2, 12, '#ff5468', 2.4); ctx.fillStyle = '#ff5468'; ctx.font = `700 10.5px ${FONT}`; ctx.fillText('Flagged → QA first', x+28, yy+2);
   ctx.fillStyle = '#8a96ad'; ctx.font = `500 9.5px ${FONT}`; ctx.fillText('only if the order needs it', x+12, y+h-12);
 }
 function stageList(){
   const map = {};
-  for (const [sid, s] of Object.entries(STEPS)){ const stId = STEP_STATION[sid]; if (stId && activeHas(stId)) (map[s.stage] = map[s.stage] || []).push(sid); }
+  for (const [sid, s] of Object.entries(STEPS)){ const stId = STEP_STATION[sid]; if (!s.alt && stId && activeHas(stId)) (map[s.stage] = map[s.stage] || []).push(sid); }
   return Object.keys(map).sort((a,b) => a-b).map(k => map[k]);
 }
 function drawDispatchBoard(){
@@ -1453,12 +1542,12 @@ function orderParts(o, inbox){
     ? `<span class="chip" style="border-color:${STEP_COLOR('pick')};color:${STEP_COLOR('pick')}">PICK ${linesDone(o)}/${o.lines.length} ${ico('tote')}</span>` : chipHTML(o, s)).join('');
   const flag = o.hu && o.hu.flag ? `<span class="chip flag">${ico('warn')} ${o.hu.flag.reason}</span>` : '';
   const cls = `oc ${inbox?'inbox':''} ${blocked?'blocked':''} ${o.focus?'focus':''} ${rem<0?'late':''}`;
-  const html = `<div class="oc-h"><span class="sw" style="background:${o.color}"></span><b>#${o.num}</b><span class="cust">${o.customer}</span>${o.focus?'<span style="color:var(--warn)">★</span>':''}
+  const html = `<div class="oc-h"><span class="sw" style="background:${o.color}"></span><b>#${o.num}</b><span class="cust">${o.customer}</span>${o.type === 'regrind' ? `<span title="Customer return for regrinding" style="display:inline-flex">${ico('regrind')}</span>` : ''}${o.focus?'<span style="color:var(--warn)">★</span>':''}
     <span class="due"></span></div>
     <div class="oc-items">${o.items.map(i => `<span class="it" title="${i.name}">${ico(i.icon)}<span class="dots">${itemSteps(o, i).map(sid => `<i style="background:${STEP_COLOR(sid)}"></i>`).join('')}</span></span>`).join('')}</div>
     <div class="chips">${steps}${flag}</div>
     <div class="tbar"><div></div></div>
-    ${inbox ? '<span class="release-hint">totes in warehouse ◂</span>' : ''}`;
+    ${inbox ? (o.type === 'regrind' ? '<span class="release-hint">waiting at Goods-in</span>' : '<span class="release-hint">totes in warehouse ◂</span>') : ''}`;
   return { cls, html, col, frac, due: rem < 0 ? 'LATE' : Math.ceil(rem)+'s' };
 }
 // Cards are kept as persistent DOM nodes and patched in place (no flicker, hover stays stable)
@@ -1525,6 +1614,7 @@ function showTooltip(hu, cx, cy, rack){
     const o = rack ? rack.o : hu.order, item = rack ? o.lines[rack.li].item : hu.item;
     tt.innerHTML = rack
       ? `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>Tote for #${o.num}</div><div class="items">${ico(item.icon)} ${item.name}</div><div class="row next">▸ Click to send it to Commissioning</div><div class="row">${o.customer} · ${linesDone(o)}/${o.lines.length} totes at the pick station</div>`
+      : hu.kind === 'stock' ? `<div class="tt-h" style="color:${STOCK_COLOR}">${ico('box')} New stock</div><div class="items">${ico(item.icon)} ${item.name} (supplier delivery)</div><div class="row next">▸ Route it to the Shuttle Warehouse</div>`
       : hu.kind === 'scrap' ? `<div class="tt-h" style="color:var(--bad)">${ico('x')} Defective item</div><div class="items">${ico(item.icon)} ${item.name} (from #${o.num})</div><div class="row next">▸ Route it to Retoure</div>`
       : `<div class="tt-h">↩ Return tote</div><div class="items">${ico(item.icon)} ${item.name} (wrong pick for #${o.num})</div><div class="row next">▸ Route it back to the Shuttle Warehouse</div>`;
     tt.style.display = 'block'; placeTooltip(tt, cx, cy); return;
@@ -1564,7 +1654,7 @@ cv.addEventListener('pointerdown', e => {
   const hu = hitHU(p);
   if (hu){ selectHU(hu); drag = { hu, x:p.x, y:p.y, moved:false }; cv.setPointerCapture(e.pointerId); return; }
   const st = hitStation(p);
-  if (st && G.selected && (st.def.role !== 'storage' || G.selected.kind === 'tote')){ dispatch(G.selected, st); return; }
+  if (st && G.selected && (st.def.role !== 'storage' || (G.selected.kind && acceptsKind(st.def, G.selected.kind)))){ dispatch(G.selected, st); return; }
   const rk = rackHit(p);
   if (rk){ if (!retrieve(rk.o, rk.li)) G.selected = null; return; }
   if (st && G.selected){ dispatch(G.selected, st); return; }
@@ -1640,7 +1730,13 @@ const heroSVG = `<svg width="150" height="120" viewBox="0 0 150 120"><rect x="6"
   <circle cx="16" cy="28" r="9" fill="#ff8a1f" opacity=".25"/></svg>`;
 function flowHTML(){
   const stg = stageList();
-  return `<div class="flow">${stg.map(g => `<span class="fs">${g.map(sid => ico(DEF[STEP_STATION[sid]].icon) + DEF[STEP_STATION[sid]].name).join(' <span style="color:var(--muted)">/</span> ')}</span>`).join('<span class="ar">➜</span>')}</div>`;
+  return `<div class="flow">${stg.map(g => `<span class="fs">${g.map(sid => ico(DEF[STEP_STATION[sid]].icon) + DEF[STEP_STATION[sid]].name).join(' <span style="color:var(--muted)">/</span> ')}</span>`).join('<span class="ar">➜</span>')}</div>`
+    + (activeHas('goodsin') && activeHas('regrind') ? returnsFlowHTML() : '');
+}
+function returnsFlowHTML(){
+  const st = id => `<span class="fs">${ico(DEF[id].icon)}${DEF[id].name}</span>`;
+  return `<div class="flow"><span style="color:var(--muted);font-size:12px">Customer returns:</span>${st('goodsin')}<span class="ar">➜</span>${st('regrind')}<span class="ar">➜</span><span class="fs">${ico('laser')}Laser / ${ico('star')}Focus <span style="color:var(--muted)">(if needed)</span></span><span class="ar">➜</span>${st('pack')}</div>
+    <p style="margin:-4px 0 10px;color:var(--muted);font-size:13px">New stock from Goods-in (cardboard box) goes to the Shuttle Warehouse.</p>`;
 }
 function showTitle(){
   G.mode = 'title';
@@ -1733,11 +1829,11 @@ function showPause(){
 }
 function showHelp(fromTitle){
   const all = STATIONS;
-  const stg = {}; Object.entries(STEPS).forEach(([sid,s]) => (stg[s.stage] = stg[s.stage] || []).push(sid));
+  const stg = {}; Object.entries(STEPS).forEach(([sid,s]) => { if (!s.alt) (stg[s.stage] = stg[s.stage] || []).push(sid); });
   const flow = Object.keys(stg).sort((a,b)=>a-b).map(k => `<span class="fs">${stg[k].map(sid => ico(DEF[STEP_STATION[sid]].icon)+DEF[STEP_STATION[sid]].name).join(' / ')}</span>`).join('<span class="ar">➜</span>');
   modal(`<h2>How to play</h2>
     <p>Orders from tool customers arrive on the left. Each order travels in its own <b>handling unit (HU)</b>, a transport box on the conveyor loop. Your job is to route every HU through exactly the stations its order needs.</p>
-    <div class="flow">${flow}</div>
+    <div class="flow">${flow}</div>${returnsFlowHTML()}
     <ul class="clean">
       <li>Click an order's <b>glowing totes</b> in the Shuttle Warehouse. Commissioning starts once all of them have arrived. Hover an order card to see where its totes are.</li>
       <li>Orange <b>shuttles</b> bring the totes. You start with 2, so extra clicks wait in line (clock icon). Buy more shuttles in the shop.</li>
@@ -1748,6 +1844,7 @@ function showHelp(fromTitle){
       <li>Sending an HU to the wrong station gets it rejected (−$10, −satisfaction). It then circles the belt until you re-route it.</li>
       <li>Full OUT trays <b>block</b> a station. Keep units moving!</li>
       <li>Late orders pay 40% and cost satisfaction. Focus customers (★) pay 50% more.</li>
+      <li>Later on, <b>Goods-in</b> opens: customers send back blunt drills and milling cutters. They are unloaded automatically; route them to <b>Regrinding</b>, then any services on their card, then Packing. Now and then new stock arrives too: send the cardboard box to the Shuttle Warehouse.</li>
     </ul>
     <div class="grid2">${all.map(d => `<div class="scard"><div class="t">${ico(d.icon)}${d.name}</div>${d.desc}</div>`).join('')}</div>
     <p style="font-size:13px;color:var(--muted)">Controls: click an order's glowing totes in the Shuttle Warehouse to start it, click an HU then a station to route it (or drag, or press <span class="kbd">1</span>–<span class="kbd">9</span>). <span class="kbd">0</span> sends a selected return tote to the warehouse, <span class="kbd">Tab</span> selects the most urgent HU, <span class="kbd">H</span> hints, <span class="kbd">F</span> speed, <span class="kbd">Space</span> pause, right-click deselects.</p>

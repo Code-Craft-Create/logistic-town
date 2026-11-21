@@ -17,7 +17,10 @@ and sound and music are generated with the Web Audio API.
   the ✖ box goes to **Retoure** (next to Packing) and a replacement must be commissioned.
 - Wrong pick: QA takes the wrong item out as a ↩ return tote. Route it back to the Shuttle Warehouse (key `0`),
   click the order's new glowing tote, and send the HU back to Commissioning for a re-pick.
-- Ship before the timer runs out. Five short shifts (Mon–Fri) introduce stations step by step, then endless overtime.
+- From Saturday on, **Goods-in** (Wareneingang) unloads trucks on its own: customer returns of blunt cutting tools
+  (drill bits, end mills, face mills) go to **Regrinding**, then Laser Signing / Focus Customer Care if their card says so,
+  then Packing. Now and then a cardboard box of new stock arrives: route it to the Shuttle Warehouse (small bonus). Tuning lives in `INBOUND`.
+- Ship before the timer runs out. Six short shifts (Mon–Sat) introduce stations step by step, then endless overtime.
   Stations start slow; the upgrade shop shows how busy each station was, so you can fix bottlenecks.
 
 Keys: `1`–`9` route · `0` warehouse · `Tab` next unit · `H` hints · `F` speed · `Space` pause.
