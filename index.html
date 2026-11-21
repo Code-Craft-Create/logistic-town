@@ -343,7 +343,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-39';
+const GAME_VERSION = '2026.11.21-40';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -822,8 +822,18 @@ let G = null;
 const SAVE_KEY = 'logistic-town-save-v1';
 function newProfile(){ return { shiftIdx:0, money:0, upgrades:{}, global:{ conveyor:0, buffers:0 }, hints:true, seenTips:{}, musicOn:true, sfxOn:true, speed:1, best:0 }; }
 function loadProfile(){ try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && typeof s.shiftIdx === 'number') return { ...newProfile(), ...s }; } catch(e){} return null; }
-function saveProfile(){ try { const { shiftIdx, money, upgrades, global, hints, seenTips, musicOn, sfxOn, best } = G;
-  localStorage.setItem(SAVE_KEY, JSON.stringify({ shiftIdx, money, upgrades, global, hints, seenTips, musicOn, sfxOn, best })); } catch(e){} }
+function profileData(){ const { shiftIdx, money, upgrades, global, hints, seenTips, musicOn, sfxOn, best, shopUpto } = G;
+  return { shiftIdx, money, upgrades, global, hints, seenTips, musicOn, sfxOn, best, shopUpto }; }
+function saveProfile(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(profileData())); } catch(e){} }
+// save codes: the profile as base64 JSON with a prefix, so it can be copied and pasted on a phone
+function exportCode(){ return 'LT1:' + btoa(unescape(encodeURIComponent(JSON.stringify(profileData())))); }
+function importCode(txt){
+  txt = String(txt || '').trim(); let raw = txt;
+  if (txt.startsWith('LT1:')) raw = decodeURIComponent(escape(atob(txt.slice(4).replace(/\s+/g, ''))));
+  const d = JSON.parse(raw);
+  if (!d || typeof d.shiftIdx !== 'number' || typeof d.money !== 'number' || typeof d.upgrades !== 'object') throw new Error('not a Logistic Town save');
+  return { ...newProfile(), ...d };
+}
 
 G = { ...newProfile(), mode:'title', stations:[], st:{}, orders:[], hus:[], floats:[], flyers:[], time:0, silent:false };
 const saved = loadProfile(); if (saved){ G.musicOn = saved.musicOn; G.sfxOn = saved.sfxOn; G.hints = saved.hints; G.seenTips = saved.seenTips || {}; }
@@ -3390,11 +3400,14 @@ function showTitle(){
       <li>Each order needs only the services shown on its card. <b style="color:var(--bad)">Flagged</b> units go to Quality Assurance first.</li>
       <li>Ship before the timer runs out to keep customers happy.</li>
     </ul>
-    <div class="btnrow">${sv && sv.shiftIdx > 0 ? `<button class="btn primary" id="mContinue">Continue: Shift ${sv.shiftIdx+1}</button><button class="btn" id="mNew">New game</button>` : `<button class="btn primary" id="mNew">Start the first shift</button>`}
+    <div class="btnrow">${sv && sv.shiftIdx > 0 ? `<button class="btn primary" id="mContinue">Continue: Shift ${sv.shiftIdx+1}</button><button class="btn" id="mShopT">Upgrades</button><button class="btn" id="mNew">New game</button>` : `<button class="btn primary" id="mNew">Start the first shift</button>`}
+    <button class="btn" id="mSave">Save / load</button>
     <button class="btn" id="mHelp">How to play</button></div>
     <p style="color:var(--muted);font-size:12px;margin-top:16px"><span class="verTap">Version ${GAME_VERSION}</span> · Sound on recommended · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">0</span> warehouse · <span class="kbd">Space</span> pause</p>`);
   bind('mNew', () => { const keepTips = G.seenTips, mo = G.musicOn, so = G.sfxOn; Object.assign(G, newProfile(), { seenTips:keepTips, musicOn:mo, sfxOn:so }); showIntro(0); });
   bind('mContinue', () => { Object.assign(G, sv); showIntro(sv.shiftIdx); });
+  bind('mShopT', () => { Object.assign(G, sv); G.shopBack = showTitle; showShop(); });
+  bind('mSave', () => { if (sv) Object.assign(G, sv); showSaveIO(showTitle); });
   bind('mHelp', () => showHelp(true));
 }
 function showIntro(idx){
@@ -3486,18 +3499,44 @@ function showShop(){
     <div class="cashbox"><small>Cash</small><span class="cashbig">$${G.money.toLocaleString('en')}</span></div></div>
     <div class="shop">${section('factory', 'Whole hall', '', grow)}${rows}</div>
     <p class="shop-note">${note}</p>
-    <div class="btnrow stickyrow"><button class="btn primary" id="mNext">Continue to Shift ${G.shiftIdx+1} ▸</button></div>`);
+    <div class="btnrow stickyrow"><button class="btn primary" id="mNext">${G.shopBack === showPause ? 'Restart' : 'Continue to'} Shift ${G.shiftIdx+1} ▸</button>${G.shopBack === showTitle ? '<button class="btn" id="mShopBack">Back</button>' : ''}</div>`);
   $('mcard').classList.add('wide');
   $('mcard').querySelectorAll('.ut').forEach(b => b.onclick = () => {
     if (b.dataset.g){ const u = GLOBAL_UPGRADES.find(x => x.id === b.dataset.g), lv = G.global[u.id] || 0; if (lv >= u.max || G.money < u.cost(lv)) return; G.money -= u.cost(lv); G.global[u.id] = lv+1; }
     else { const u = UPGRADES.find(x => x.id === b.dataset.up), up = G.upgrades[b.dataset.st], lv = up[u.id] || 0; if (lv >= u.max || G.money < u.cost(lv) || (u.req && !u.req(up))) return; G.money -= u.cost(lv); up[u.id] = lv+1; }
     sfx('fix'); saveProfile(); const sc = $('modal').scrollTop; showShop(); $('modal').scrollTop = sc; renderHUD();
   });
-  bind('mNext', () => showIntro(G.shiftIdx));
+  bind('mNext', () => { G.shopBack = null; showIntro(G.shiftIdx); });
+  bind('mShopBack', () => { G.shopBack = null; saveProfile(); showTitle(); });
+}
+function showSaveIO(back){
+  const code = exportCode();
+  modal(`<h2>Save / load</h2><p class="sub">Your progress (day, cash, upgrades) as a save code. Copy it somewhere safe, or paste a code to load it.</p>
+    <textarea id="ioCode" readonly style="width:100%;height:74px;background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px;font:12px ui-monospace,monospace;word-break:break-all">${code}</textarea>
+    <div class="btnrow" style="justify-content:flex-start"><button class="btn primary" id="ioCopy">Copy code</button><button class="btn" id="ioDl">Download file</button></div>
+    <p class="sub" style="margin-top:14px">Load a save: paste a code below, or open a saved file. This replaces your current progress.</p>
+    <textarea id="ioIn" placeholder="Paste a save code (LT1:...)" style="width:100%;height:60px;background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px;font:12px ui-monospace,monospace"></textarea>
+    <div class="btnrow" style="justify-content:flex-start"><button class="btn primary" id="ioLoad">Load code</button><button class="btn" id="ioFile">Open file</button><input type="file" id="ioPick" accept=".txt,.json,text/plain,application/json" style="display:none"></div>
+    <p id="ioMsg" class="sub" style="min-height:18px"></p>
+    <div class="btnrow"><button class="btn" id="ioBack">Back</button></div>`);
+  const msg = (t, ok) => { const el = $('ioMsg'); el.textContent = t; el.style.color = ok ? 'var(--good)' : 'var(--bad)'; };
+  const load = txt => { try { const d = importCode(txt); Object.assign(G, d); G.shopBack = null; saveProfile(); sfx('fix'); msg(`Loaded: Shift ${d.shiftIdx+1}, $${d.money.toLocaleString('en')}.`, true); setTimeout(showTitle, 900); }
+    catch(e){ sfx('error'); msg('That is not a valid save code.', false); } };
+  bind('ioCopy', async () => { const ta = $('ioCode');
+    try { await navigator.clipboard.writeText(code); msg('Copied to the clipboard.', true); }
+    catch(e){ ta.focus(); ta.select(); ta.setSelectionRange(0, code.length); try { document.execCommand('copy'); msg('Copied to the clipboard.', true); } catch(e2){ msg('Select the code above and copy it.', false); } } });
+  bind('ioDl', () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([code], { type:'text/plain' }));
+    a.download = `logistic-town-shift${G.shiftIdx+1}.txt`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); });
+  bind('ioLoad', () => load($('ioIn').value));
+  bind('ioFile', () => $('ioPick').click());
+  $('ioPick').onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(load); };
+  bind('ioBack', () => back());
 }
 function showPause(){
   modal(`<h2>Paused</h2><p class="sub">Shift ${G.shiftIdx+1} · ${G.cfg.name} · ${clockStr()} · <span class="verTap">v${GAME_VERSION}</span></p>
-    <div class="btnrow"><button class="btn primary" id="mResume">Resume ▸</button><button class="btn" id="mHelp2">How to play</button><button class="btn" id="mRestart">Restart shift</button><button class="btn" id="mMenu2">Main menu</button></div>`);
+    <div class="btnrow"><button class="btn primary" id="mResume">Resume ▸</button><button class="btn" id="mHelp2">How to play</button><button class="btn" id="mRestart">Restart shift</button><button class="btn" id="mShopP">Upgrades (restarts shift)</button><button class="btn" id="mSave2">Save / load</button><button class="btn" id="mMenu2">Main menu</button></div>`);
+  bind('mShopP', () => { G.money = G.startMoney; G.shopBack = showPause; showShop(); });
+  bind('mSave2', () => { const m = G.money; G.money = G.startMoney; saveProfile(); G.money = m; showSaveIO(showPause); });
   bind('mResume', () => togglePause());
   bind('mHelp2', () => showHelp());
   bind('mRestart', () => { G.money = G.startMoney; showIntro(G.shiftIdx); });
