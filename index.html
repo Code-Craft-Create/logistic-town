@@ -136,6 +136,8 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .ubtn:hover:not(:disabled){border-color:var(--accent)}
 .ubtn:disabled{opacity:.4;cursor:default}
 .ubtn b{color:var(--accent2)}
+.ubtn.auto{border-color:rgba(61,220,132,.35)}
+.ubtn.auto b{color:var(--good)}
 .ubtn .lv{color:var(--muted);float:right;margin-left:8px}
 .load{position:relative;height:6px;width:120px;background:#0b1018;border-radius:3px;margin-top:5px}
 .load span{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
@@ -237,7 +239,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-7';
+const GAME_VERSION = '2026.11.21-8';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -530,8 +532,15 @@ const UPGRADES = [
   { id:'auto',    label:'Auto-retrieval',    desc:'shuttles fetch totes of the most urgent order on their own', max:1, cost:() => 650, needs: d => d.id === 'warehouse' },
   { id:'movers',  label:'Extra transporter', desc:'+1 pallet transporter with driver', max:2, cost:l => 280 + l*240, needs: d => d.id === 'hbw' },
   { id:'drive',   label:'Driver training',   desc:'transporters 20% faster', max:2, cost:l => 200 + l*170, needs: d => d.id === 'hbw' },
+  // automation: the station routes finished units by itself. Happy path only, until the (very pricey) exception tier.
+  { id:'router',  label:'Auto-router', desc:'routes finished units on its own, normal cases only', levelDesc:l => `one unit every ${AUTO.interval[l+1]} s`, max:3, cost:l => [550, 950, 1500][l], needs: d => autoCapable(d) },
+  { id:'routerX', label:'Exception handling', desc:'auto-router also sends flagged units to QA and return totes / defective items where they belong', max:1, cost:() => 2200, needs: d => autoCapable(d),
+    req: up => (up.router || 0) >= 3, reqText:'needs Auto-router 3/3' },
   { id:'crane',   label:'Faster stacker crane', desc:'crane 40% faster', max:2, cost:l => 180 + l*160, needs: d => d.id === 'hbw' },
 ];
+// Auto-router: seconds between two automatic dispatches per level (index = level)
+const AUTO = { interval:[0, 8, 4, 2] };
+const autoCapable = d => (d.out > 0 && d.role !== 'storage') || d.id === 'hbw';
 const GLOBAL_UPGRADES = [
   { id:'conveyor', label:'Faster conveyor', desc:'+15% belt speed', max:3, cost:l => 220 + l*180 },
   { id:'buffers',  label:'Bigger buffers',  desc:'+1 IN / OUT space everywhere', max:2, cost:l => 300 + l*250 },
@@ -646,6 +655,8 @@ function makeStation(def){
   const up = G.upgrades[def.id] || {};
   return { def, id:def.id, slotCount:def.slots + (up.slots||0), queueMax:def.queue + G.global.buffers,
     outMax: def.out ? def.out + G.global.buffers : 0, speedMul:Math.pow(0.82, up.speed||0), qualMul:Math.pow(0.6, up.quality||0), busyT:0,
+    // automation state. 'state' is the hook for later breakdowns (e.g. 'broken' until a service worker repairs it)
+    auto:{ level:up.router || 0, exceptions:!!up.routerX, cd:1, pulse:0, state:'ok', routed:0 },
     slots:[], queue:[], out:[], incoming:0, processed:0, flash:0, scanFlash:0, x:0, y:0, w:160, h:150 };
 }
 function layoutStations(){
@@ -700,7 +711,7 @@ function startShift(idx){
   G.st = Object.fromEntries(G.stations.map(s => [s.id, s]));
   layoutStations();
   Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[],
-    seq: 0, huSeq:0, nextSpawn:2, crane:null, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
+    seq: 0, huSeq:0, nextSpawn:2, crane:null, autoRouted:0, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
     truck:{ x:1210, load:0, state:'parked', t:0 } });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
   resetPallets();
@@ -1077,6 +1088,7 @@ function update(dt){
       }
     }
   }
+  for (const st of G.stations) autoRoute(st, dt);
   // truck
   const tk = G.truck; tk.t += dt;
   if (tk.state === 'leaving'){ tk.x += 260*dt; if (tk.x > W + 200){ tk.state = 'arriving'; tk.x = W + 200; tk.load = 0; } }
@@ -1087,6 +1099,41 @@ function update(dt){
   G.floats = G.floats.filter(f => f.t < 1.4);
   if (G.selected && !selectable(G.selected)) G.selected = null;
   if (G.time >= cfg.duration) endShift(false);
+}
+
+// ---------- automation: per-station auto-router ----------
+const isException = hu => !!(hu.flag || hu.kind === 'tote' || hu.kind === 'scrap');
+function autoRoute(st, dt){
+  const a = st.auto; if (!a || !a.level) return;
+  a.pulse = Math.max(0, a.pulse - dt);
+  if (a.state !== 'ok') return;          // later: broken automation needs a service worker
+  a.cd = Math.max(0, a.cd - dt); if (a.cd > 0) return;
+  const units = st.def.id === 'hbw' ? G.hbwOut.filter(Boolean) : st.out;
+  for (const hu of units){
+    if (hu.loc !== 'out' || hu === G.selected) continue;
+    if (isException(hu) && !a.exceptions) continue;   // happy path only: the player handles QA cases
+    const t = validTargets(hu).filter(hasRoom); if (!t.length) continue;
+    // several services possible: take the least busy station
+    t.sort((p, q) => (p.queue.length + p.incoming - p.slotCount) - (q.queue.length + q.incoming - q.slotCount));
+    const sel = G.selected, s0 = G.silent; G.silent = true;
+    const ok = dispatch(hu, t[0]); G.silent = s0; if (sel && sel !== hu) G.selected = sel;
+    if (ok){ a.cd = AUTO.interval[a.level]; a.pulse = 0.7; a.routed++; G.autoRouted = (G.autoRouted || 0) + 1; return; }
+  }
+}
+function drawAutoBadge(st, x, y){
+  const a = st.auto; if (!a || !a.level) return;
+  const w = 54, pulse = a.pulse > 0 ? a.pulse/0.7 : 0;
+  ctx.save();
+  if (pulse){ ctx.shadowColor = '#3ddc84'; ctx.shadowBlur = 12*pulse; }
+  rr(x, y, w, 15, 5); ctx.fillStyle = a.state === 'ok' ? '#10251b' : '#2a1414'; ctx.fill(); ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = a.exceptions ? '#ffc53d' : '#3ddc84'; ctx.lineWidth = 1.2; rr(x, y, w, 15, 5); ctx.stroke();
+  // cooldown fill
+  const k = a.cd > 0 ? 1 - a.cd / AUTO.interval[a.level] : 1;
+  ctx.save(); rr(x, y, w, 15, 5); ctx.clip(); ctx.fillStyle = 'rgba(61,220,132,0.18)'; ctx.fillRect(x, y, w*k, 15); ctx.restore();
+  ctx.fillStyle = a.exceptions ? '#ffc53d' : '#3ddc84'; ctx.font = `800 8.5px ${FONT}`; ctx.textAlign = 'left';
+  ctx.fillText(a.exceptions ? 'AUTO+' : 'AUTO', x+6, y+10.5);
+  for (let i=0; i<3; i++){ ctx.beginPath(); ctx.arc(x + w - 20 + i*6, y+7.5, 2, 0, 7); ctx.fillStyle = i < a.level ? (a.exceptions ? '#ffc53d' : '#3ddc84') : '#2c3850'; ctx.fill(); }
+  ctx.restore();
 }
 
 function endShift(failedSat){
@@ -1464,6 +1511,7 @@ function drawHBW(t){
   ctx.fillText(`TRANSPORTERS ${busyN}/${(G.movers||[]).length} BUSY`, DEPOT.x + 1.5*DEPOT.sp, DEPOT.y + 32);
   rr(HOLD.x - 18, HOLD.y - 14, HOLD.per*HOLD.sp + 4, 58, 6); ctx.strokeStyle = 'rgba(255,138,31,0.45)'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
   ctx.fillText('PALLET BUFFER', HOLD.x + (HOLD.per-1)*HOLD.sp/2, HOLD.y + 58); ctx.textAlign = 'left';
+  drawAutoBadge(st, HB_BAYS[0].x - 17, HB_BAYS[0].y - 34);
   // selection target glow
   const sel = G.selected;
   if (sel && hoverSt === st){ ctx.strokeStyle = !G.hints ? '#ffffff' : validTargets(sel).includes(st) ? '#3ddc84' : '#ff5468'; ctx.lineWidth = 3; rr(x, y, w, h, 12); ctx.stroke(); }
@@ -1882,6 +1930,7 @@ function drawStation(st, t){
   let border = '#2c3850', lw = 1.5;
   if (hoverSt === st && sel){ border = !G.hints ? '#ffffff' : isTarget ? '#3ddc84' : '#ff5468'; lw = 3; }
   ctx.strokeStyle = border; ctx.lineWidth = lw; rr(x, y, w, h, 12); ctx.stroke();
+  drawAutoBadge(st, x + 8, y - 8);
   if (sel && full){ rr(x+w/2-24, y-10, 48, 18, 6); ctx.fillStyle = '#ff5468'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('FULL', x+w/2, y+3); }
   if (def.role === 'source') drawInboundDock(st, t);
   // out HUs
@@ -2295,8 +2344,9 @@ function showShop(){
   G.mode = 'shop';
   const next = shiftConfig(G.shiftIdx);
   const rows = next.stations.map(id => { const d = DEF[id], up = G.upgrades[id] = G.upgrades[id] || {};
-    const btns = UPGRADES.filter(u => !u.needs || u.needs(d)).map(u => { const lv = up[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max;
-      return `<button class="ubtn" data-st="${id}" data-up="${u.id}" ${maxed || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${u.desc}</button>`; }).join('');
+    const btns = UPGRADES.filter(u => !u.needs || u.needs(d)).map(u => { const lv = up[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max, locked = u.req && !u.req(up);
+      const txt = locked ? u.reqText : u.desc + (u.levelDesc && !maxed ? ` (next: ${u.levelDesc(lv)})` : '');
+      return `<button class="ubtn ${u.id.startsWith('router') ? 'auto' : ''}" data-st="${id}" data-up="${u.id}" ${maxed || locked || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${txt}</button>`; }).join('');
     const ld = G.lastLoad && G.lastLoad[id] != null && d.role !== 'storage' ? G.lastLoad[id] : null;
     const load = ld == null ? '' : `<div class="load" title="Share of last shift this station was busy"><span style="width:${Math.round(ld*100)}%;background:${ld > 0.8 ? 'var(--bad)' : ld > 0.55 ? 'var(--warn)' : 'var(--good)'}"></span><em>${Math.round(ld*100)}% busy</em></div>`;
     return `<div class="srow"><div class="nm">${ico(d.icon)}<div>${d.name}${load}</div></div>${btns}</div>`; }).join('');
@@ -2307,7 +2357,7 @@ function showShop(){
     <div class="btnrow"><button class="btn primary" id="mNext">Continue to Shift ${G.shiftIdx+1} ▸</button></div>`);
   $('mcard').querySelectorAll('.ubtn').forEach(b => b.onclick = () => {
     if (b.dataset.g){ const u = GLOBAL_UPGRADES.find(x => x.id === b.dataset.g), lv = G.global[u.id] || 0; if (G.money < u.cost(lv)) return; G.money -= u.cost(lv); G.global[u.id] = lv+1; }
-    else { const u = UPGRADES.find(x => x.id === b.dataset.up), up = G.upgrades[b.dataset.st], lv = up[u.id] || 0; if (G.money < u.cost(lv)) return; G.money -= u.cost(lv); up[u.id] = lv+1; }
+    else { const u = UPGRADES.find(x => x.id === b.dataset.up), up = G.upgrades[b.dataset.st], lv = up[u.id] || 0; if (G.money < u.cost(lv) || (u.req && !u.req(up))) return; G.money -= u.cost(lv); up[u.id] = lv+1; }
     sfx('fix'); saveProfile(); const sc = $('mcard').scrollTop; showShop(); $('mcard').scrollTop = sc; renderHUD();
   });
   bind('mNext', () => showIntro(G.shiftIdx));
@@ -2336,6 +2386,7 @@ function showHelp(fromTitle){
       <li><b style="color:var(--bad)">Flags</b>: a failed check, a wrong pick or a failed <b>weight check</b> on the conveyor. Flagged HUs go to <b>Quality Assurance</b>. QA either <b>corrects</b> it (it continues its route, a failed service is redone) or finds the item <b>defective</b>: the red box goes to <b>Retoure</b> and a new item must be commissioned.</li>
       <li>Sending an HU to the wrong station gets it rejected (−$10, −satisfaction). It then circles the belt until you re-route it.</li>
       <li>Full OUT trays <b>block</b> a station. Keep units moving!</li>
+      <li><b style="color:var(--good)">Automation</b> (shop, expensive): an <b>Auto-router</b> makes a station send its finished units on by itself, one every 8 / 4 / 2 s depending on the level. It only handles the normal case. Flagged units, return totes and defective items still need you, until you buy <b>Exception handling</b>.</li>
       <li>Late orders pay 40% and cost satisfaction. Focus customers (★) pay 50% more.</li>
       <li>Oversize tools (compressors, welders, table saws) are stored on <b>Euro pallets</b> in the <b>High-Bay Warehouse</b>. Click a glowing pallet, then route it like any order: <b>transporters with a driver</b> drive pallets over the hall roads to each station's pallet bay. Rejected pallets are parked in the <b>pallet buffer</b>.</li>
       <li>Later on, <b>Goods-in</b> opens: customers send back blunt drills and milling cutters. They are unloaded automatically; route them to <b>Regrinding</b>, then any services on their card, then Packing. Now and then new stock arrives too: send the cardboard box to the Shuttle Warehouse.</li>

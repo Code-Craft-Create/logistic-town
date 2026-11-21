@@ -28,6 +28,9 @@ and sound and music are generated with the Web Audio API.
   same routing rules; rejected pallets are parked in the pallet buffer. Tuning lives in `ROAD`, `HB`, `MOVER`, `CRANE`, `PALLET`.
 - Ship before the timer runs out. Seven short shifts (Mon–Sat, then Next Monday) introduce stations step by step, then endless overtime.
   Stations start slow; the upgrade shop shows how busy each station was, so you can fix bottlenecks.
+- Automation (shop, expensive): each station can buy an **Auto-router** (Lv1/2/3 = one unit every 8/4/2 s, `AUTO.interval`).
+  It only routes the normal case. Flagged units, return totes and defective items still need you, until the station gets the pricey
+  **Exception handling** tier (needs Auto-router 3/3). Each station's `auto.state` is the hook for later breakdowns (e.g. a service worker).
 
 Keys: `1`–`9` route · `0` warehouse · `Tab` next unit · `H` hints · `F` speed · `Space` pause.
 
