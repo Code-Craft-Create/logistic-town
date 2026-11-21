@@ -243,7 +243,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-25';
+const GAME_VERSION = '2026.11.21-26';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -3019,6 +3019,25 @@ $('bHelp').onclick = () => { AU.init(); if (G.mode === 'play'){ G.mode = 'paused
 // ===================================================================
 function modal(html){ $('mcard').innerHTML = html; $('modal').classList.remove('hidden'); $('mcard').scrollTop = 0; }
 function hideModal(){ $('modal').classList.add('hidden'); }
+// ---------- cheats (testing): tap the version number 5 times quickly on the title or pause screen ----------
+let cheatTaps = [], cheatBack = null;
+document.addEventListener('click', e => {
+  if (!e.target.closest || !e.target.closest('.verTap')) return;
+  const now = performance.now(); cheatTaps = cheatTaps.filter(t => now - t < 2500); cheatTaps.push(now);
+  if (cheatTaps.length >= 5){ cheatTaps = []; cheatBack = G.mode === 'title' ? showTitle : showPause; showCheats(); }
+});
+function showCheats(){
+  const days = [...SHIFTS.map((c, i) => [i, c.name]), [SHIFTS.length, 'Overtime 1'], [SHIFTS.length + 1, 'Overtime 2']];
+  modal(`<h2>Test mode</h2><p class="sub">Cash: <span class="cashbig">$${G.money.toLocaleString('en')}</span></p>
+    <div class="btnrow" style="justify-content:flex-start"><button class="btn" data-cm="1000">+ $1,000</button><button class="btn" data-cm="10000">+ $10,000</button><button class="btn" data-cm="100000">+ $100,000</button></div>
+    <p class="sub" style="margin-top:14px">Jump to a day. You land in the upgrade shop with every station up to that day unlocked.</p>
+    <div class="btnrow" style="justify-content:flex-start;flex-wrap:wrap">${days.map(([i, n]) => `<button class="btn${i === G.shiftIdx ? ' primary' : ''}" data-cd="${i}">${i+1} · ${n}</button>`).join('')}</div>
+    <div class="btnrow"><button class="btn" id="mCheatBack">Back</button></div>`);
+  $('mcard').querySelectorAll('[data-cm]').forEach(b => b.onclick = () => { G.money += +b.dataset.cm; saveProfile(); sfx('fix'); try { renderHUD(); } catch(e){} showCheats(); });
+  $('mcard').querySelectorAll('[data-cd]').forEach(b => b.onclick = () => { const i = +b.dataset.cd;
+    G.shiftIdx = i; G.shopUpto = i; G.best = Math.max(G.best || 0, i); saveProfile(); sfx('click'); showShop(); });
+  bind('mCheatBack', () => (cheatBack || showTitle)());
+}
 function bind(id, fn){ const el = $(id); if (el) el.onclick = () => { AU.init(); Music.start(); sfx('click'); fn(); }; }
 const heroSVG = `<svg width="150" height="120" viewBox="0 0 150 120"><rect x="6" y="40" width="44" height="74" rx="6" fill="#18202e" stroke="#2c3850"/>
   ${[0,1,2,3,4,5].map(i=>`<rect x="12" y="${48+i*11}" width="14" height="7" fill="${i%3?'#4a5770':'#ff8a1f'}"/><rect x="30" y="${48+i*11}" width="14" height="7" fill="${i%2?'#3b5b8f':'#4a5770'}"/>`).join('')}
@@ -3052,7 +3071,7 @@ function showTitle(){
     </ul>
     <div class="btnrow">${sv && sv.shiftIdx > 0 ? `<button class="btn primary" id="mContinue">Continue: Shift ${sv.shiftIdx+1}</button><button class="btn" id="mNew">New game</button>` : `<button class="btn primary" id="mNew">Start the first shift</button>`}
     <button class="btn" id="mHelp">How to play</button></div>
-    <p style="color:var(--muted);font-size:12px;margin-top:16px">Version ${GAME_VERSION} · Sound on recommended · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">0</span> warehouse · <span class="kbd">Space</span> pause</p>`);
+    <p style="color:var(--muted);font-size:12px;margin-top:16px"><span class="verTap">Version ${GAME_VERSION}</span> · Sound on recommended · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">0</span> warehouse · <span class="kbd">Space</span> pause</p>`);
   bind('mNew', () => { const keepTips = G.seenTips, mo = G.musicOn, so = G.sfxOn; Object.assign(G, newProfile(), { seenTips:keepTips, musicOn:mo, sfxOn:so }); showIntro(0); });
   bind('mContinue', () => { Object.assign(G, sv); showIntro(sv.shiftIdx); });
   bind('mHelp', () => showHelp(true));
@@ -3127,7 +3146,7 @@ function showShop(){
   bind('mNext', () => showIntro(G.shiftIdx));
 }
 function showPause(){
-  modal(`<h2>Paused</h2><p class="sub">Shift ${G.shiftIdx+1} · ${G.cfg.name} · ${clockStr()} · v${GAME_VERSION}</p>
+  modal(`<h2>Paused</h2><p class="sub">Shift ${G.shiftIdx+1} · ${G.cfg.name} · ${clockStr()} · <span class="verTap">v${GAME_VERSION}</span></p>
     <div class="btnrow"><button class="btn primary" id="mResume">Resume ▸</button><button class="btn" id="mHelp2">How to play</button><button class="btn" id="mRestart">Restart shift</button><button class="btn" id="mMenu2">Main menu</button></div>`);
   bind('mResume', () => togglePause());
   bind('mHelp2', () => showHelp());
