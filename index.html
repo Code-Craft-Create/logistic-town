@@ -239,7 +239,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-17';
+const GAME_VERSION = '2026.11.21-18';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -665,6 +665,7 @@ function makeStation(def){
     auto:{ level:up.router || 0, exceptions:!!up.routerX, cd:1, pulse:0, state:'ok', routed:0, life:rand(MAINT.life[0], MAINT.life[1]), rep:0, brokeT:0 },
     slots:[], queue:[], out:[], incoming:0, processed:0, flash:0, scanFlash:0, x:0, y:0, w:160, h:150 };
 }
+const STATION_KEYS = { commission:1, calib:2, sign:3, patch:4, care:5, regrind:6, qa:7, retoure:8, pack:9 };
 function layoutStations(){
   const list = G.stations, left = list.filter(s => s.def.place==='left'), right = list.filter(s => s.def.place==='right');
   const auto = list.filter(s => !s.def.place), nTop = Math.ceil(auto.length/2);
@@ -688,9 +689,9 @@ function layoutStations(){
   const CHr = right.length > 1 ? 140 : CH, r0 = cy - (right.length*CHr + (right.length-1)*16)/2;
   right.forEach((st, i) => { st.w=160; st.h=CHr; st.x = x1+SP; st.y = r0 + i*(CHr+16); st.dock={ x:st.x, y:st.y+CHr/2 }; st.port={ x:x1, y:st.y+CHr/2, s:w+(st.y+CHr/2-y0) }; st.side='right'; });
   // keyboard keys in reading order
-  const ordered = [...left, ...rows[0], ...rows[1], ...right].filter(st => !st.def.noKey);
-  ordered.forEach((st,i) => st.key = i+1);
-  G.keyOrder = ordered;
+  // fixed hotkeys: every station keeps its number in every shift (0 = Shuttle Warehouse)
+  list.forEach(st => { if (STATION_KEYS[st.id]) st.key = STATION_KEYS[st.id]; });
+  G.keyOrder = list.filter(st => st.key > 0).sort((a, b) => a.key - b.key);
   // high-bay warehouse, ring road and pallet bays
   list.filter(s => s.def.place === 'hbw').forEach(st => { st.x = HB.x; st.y = HB.y; st.w = HB.w; st.h = HB.h; st.dock = { x:HB.x, y:HB.y }; st.port = { x:0, y:0, s:0 }; st.side = 'bottom'; });
   G.roads = list.some(s => s.def.place === 'hbw');
@@ -2286,7 +2287,7 @@ const BODIES = {
     const over = () => {
     if (s.on){ const sy = dy + 4 + tri(T*1.2)*(h - dy - 14); ctx.fillStyle = 'rgba(255,84,104,0.6)'; ctx.fillRect(5, sy, w - 10, 1.2); }
     // arms resting on the desk; one hand holds a magnifier over the item
-    const mx = px + 6 + (s.on ? Math.sin(T*1.7)*10 : 6), my = h - 17 + (s.on ? Math.sin(T*3.4)*3 : 0);
+    const mx = px + 7 + (s.on ? Math.sin(T*1.7)*6 : 4), my = dy + 13 + (s.on ? Math.sin(T*3.4)*2.5 : 2);
     ctx.lineCap = 'round'; line(px - 10, py + 20, px - 8, dy + 6, '#e8edf5', 5.5); line(px + 10, py + 20, mx - 4, my + 2, '#e8edf5', 5.5); ctx.lineCap = 'butt';
     circ(px - 8, dy + 7, 2.6, '#f1c27d'); circ(mx - 4, my + 2, 2.6, '#f1c27d');
     ctx.beginPath(); ctx.arc(mx + 1, my - 2, 7, 0, 7); ctx.fillStyle = 'rgba(160,210,255,0.28)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.8; ctx.stroke();
@@ -2296,8 +2297,9 @@ const BODIES = {
     const sx = w - 22; box(sx, 16, 18, 24, 2, '#0b0f17'); ctx.strokeStyle = '#3a4560'; ctx.lineWidth = 1; rr(sx, 16, 18, 24, 2); ctx.stroke(); line(sx + 9, 40, sx + 9, dy, '#3a4560', 2);
     if (s.on){ for (let i=0; i<4; i++){ const on = s.k*4 > i; circ(sx + 4, 21 + i*5, 1.2, on ? '#3ddc84' : '#3a4560'); ctx.fillStyle = on ? '#8a96ad' : '#2c3850'; ctx.fillRect(sx + 7, 20.3 + i*5, 8, 1.4); } }
     else circ(sx + 9, 28, 1.6, Math.floor(T*1.5) % 2 ? '#ffc53d' : '#3a4560');
-    const xs = spread(s.n, 16, w*0.62);
-    return { pos: xs.map(x => ({ x, y:h - 15, bare:true })), over };
+    // the tools lie on the light table right in front of the inspector; spare jobs wait further down
+    const xs = spread(s.n, px - (s.n - 1)*9, px + (s.n - 1)*9);
+    return { pos: xs.map(x => ({ x, y:dy + 15, bare:true })), over };
   },
   // CNC tool grinder: enclosure with window, spinning wheels, coolant spray, tool magazine below
   regrind(w, h, s){
@@ -2528,21 +2530,27 @@ function drawStation(st, t){
   }
   const flowArrow = (ax, ay) => { ctx.fillStyle = 'rgba(255,197,61,0.55)'; ctx.beginPath(); ctx.moveTo(ax, ay - 4); ctx.lineTo(ax + 4, ay); ctx.lineTo(ax, ay + 4); ctx.fill(); };
   flowArrow(L.inX + L.inW + 1, (L.top + L.bot)/2);
-  // ---- the machine
-  const act = st.slots.find(s => s && !s.done), blocked = st.slots.some(s => s && s.blocked), on = !!act && !blocked;
-  const state = blocked ? 'blocked' : on ? 'on' : 'idle';
-  const scene = { n:st.slotCount, slots:st.slots, on, k:act ? clamp(act.t/act.dur, 0, 1) : 0, hu:act ? act.hu : null, T, st, state };
-  let pos = [];
-  ctx.save(); ctx.translate(L.mx, L.my);
+  // ---- the machine: one lane per workstation (an "Extra workstation" upgrade adds a parallel lane with its own machine)
+  const blocked = st.slots.some(s => s && s.blocked);
+  const nL = Math.max(1, st.slotCount), sc = Math.min(1, 1.48/nL), laneH = L.mh/nL;
+  const Tm = T / (st.speedMul || 1);   // continuous motion runs faster with the speed upgrade
   CUR_ST = st;
-  let over = null;
-  try { const r = (BODIES[def.id] || (() => []))(L.mw, L.mh, scene) || []; pos = Array.isArray(r) ? r : r.pos; over = r.over || null; } catch(e){ console.error(e); }
-  ctx.restore();
-  for (let i=0; i<st.slotCount; i++){ const s = st.slots[i], p = pos[i]; if (!s || !p) continue;
-    toolChip(st, s.hu, L.mx + p.x, L.my + p.y, s.done ? 1 : s.t/s.dur, s.blocked, p.bar, p.bare); }
-  // moving machine parts (gantry, probe, laser, scanner...) are drawn over the tools
-  if (over){ ctx.save(); ctx.translate(L.mx, L.my); try { over(); } catch(e){ console.error(e); } ctx.restore(); }
-  for (let i=0; i<st.slotCount; i++){ const s = st.slots[i], p = pos[i]; if (s && p && p.post) p.post(L.mx + p.x, L.my + p.y); }
+  for (let li=0; li<nL; li++){
+    const sl = st.slots[li] || null, on = !!sl && !sl.done && !sl.blocked;
+    const scene = { n:1, slots:[sl], on, k:sl ? clamp(sl.t/sl.dur, 0, 1) : 0, hu:sl ? sl.hu : null, T:Tm + li*0.37, st, state: sl && sl.blocked ? 'blocked' : on ? 'on' : 'idle' };
+    const bw = L.mw/sc, bh = laneH/sc;
+    ctx.save(); if (nL > 1){ ctx.beginPath(); ctx.rect(L.mx - 6, L.my + li*laneH, L.mw + 12, laneH); ctx.clip(); }
+    ctx.translate(L.mx, L.my + li*laneH); ctx.scale(sc, sc);
+    let pos = [], over = null;
+    try { const r = (BODIES[def.id] || (() => []))(bw, bh, scene) || []; pos = Array.isArray(r) ? r : r.pos; over = r.over || null; } catch(e){ console.error(e); }
+    const p = pos[0];
+    if (sl && p) toolChip(st, sl.hu, p.x, p.y, sl.done ? 1 : sl.t/sl.dur, sl.blocked, p.bar, p.bare);
+    // moving machine parts (gantry, probe, laser, scanner...) are drawn over the tools
+    if (over){ try { over(); } catch(e){ console.error(e); } }
+    if (sl && p && p.post) p.post(p.x, p.y);
+    ctx.restore();
+    if (li > 0){ ctx.strokeStyle = 'rgba(255,197,61,0.35)'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1; line(L.mx, L.my + li*laneH, L.mx + L.mw, L.my + li*laneH, 'rgba(255,197,61,0.35)', 1); ctx.setLineDash([]); }
+  }
   if (blocked){ rr(L.mx + L.mw/2 - 24, L.my + L.mh/2 - 6, 48, 12, 3); ctx.fillStyle = 'rgba(255,84,104,0.92)'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 7.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('OUT FULL', L.mx + L.mw/2, L.my + L.mh/2 + 2.5); }
   // ---- OUT (right): painted floor spaces, or the day's count for end stations
   if (st.outMax > 0){
@@ -2867,7 +2875,7 @@ window.addEventListener('keydown', e => {
   if (k === 'tab'){ e.preventDefault(); cycleSelect(e.shiftKey ? -1 : 1); return; }
   const n = parseInt(k, 10);
   if (n === 0 && G.selected && G.st.warehouse){ dispatch(G.selected, G.st.warehouse); return; }
-  if (n >= 1 && n <= 9 && G.selected){ const st = G.keyOrder[n-1]; if (st) dispatch(G.selected, st); }
+  if (n >= 1 && n <= 9 && G.selected){ const st = G.stations.find(x => x.key === n); if (st) dispatch(G.selected, st); }
 });
 function cycleSelect(dir){
   const list = G.hus.filter(selectable).sort((a,b) => a.order.due - b.order.due);
