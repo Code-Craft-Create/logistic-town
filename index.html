@@ -588,8 +588,13 @@ const STATIONS = [
     desc:'Wareneingang. Trucks unload here on their own: new stock (cardboard boxes) goes to the Shuttle Warehouse, cutting tools sent back by customers go to Regrinding, measuring tools sent back go to the Calibration Lab. Keep its OUT tray clear.' },
   { id:'regrind', brief:'Resharpens returned drills and cutters.', name:'Regrinding', icon:'regrind', color:'#9aa8ff', handles:'regrind',
     slots:1, time:8, queue:3, out:3, defect:{ chance:0.10, reason:'Cutting edge chipped', redo:true },
+<<<<<<< Updated upstream
     desc:'Sharpens customer drills and milling cutters (Bohrer, Fräser). Afterwards they may still need Laser Signing and the focus customer check, then Packing.' },
   { id:'calib', brief:'Checks and certifies measuring tools.', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
+=======
+    desc:'Sharpens customer drills and milling cutters (Bohrer, Fräser). Afterwards they may still need Laser Signing and the focus customer check, then Packing. A tool worn beyond regrinding is NOT OK: it is the customer\'s own, so it goes straight back via Packing, not to QA or Retoure.' },
+  { id:'calib', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
+>>>>>>> Stashed changes
     slots:1, time:9, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
     desc:'Checks that measuring tools (calipers, meters, levels…) measure correctly and issues a certificate. Failed tools go to QA, then back here. Measuring tools returned by customers that fail are not repaired: no guarantee, straight back to the customer.' },
   { id:'sign', brief:'Lasers the customer ID onto tools.', name:'Laser Signing', icon:'laser', color:'#b07cff', handles:'signing',
@@ -618,7 +623,7 @@ const FAIL_PAYOUT = 0.5; // share of a failed shift's earnings you keep
 const TRANSPORT_CHECK = { chance:0.035, reason:'Weight check failed' };
 // Goods-in: share of orders that are customer returns (cutting tools for regrinding, measuring tools for re-calibration),
 // how often a returned measuring tool fails (it then goes straight back to the customer, no QA), and how often new stock arrives (kept rare)
-const INBOUND = { regrindShare:0.2, recalShare:0.13, recalFail:0.25, returnShare:0.33, stockEvery:[30,42], stockPay:12, firstStock:14 };
+const INBOUND = { regrindShare:0.2, recalShare:0.13, recalFail:0.25, regrindFail:0.15, returnShare:0.33, stockEvery:[30,42], stockPay:12, firstStock:14 };
 const STOCK_COLOR = '#c98a4b';
 const acceptsKind = (def, kind) => [].concat(def.accepts || []).includes(kind);
 
@@ -1065,6 +1070,12 @@ function portCheck(hu, st){
   return false;
 }
 
+// a customer's own tool that can't be serviced (out of tolerance / worn beyond regrinding) is not a Retoure:
+// skip the remaining services and send it straight back to the customer via Packing
+function notOkBack(st, o, why){
+  o.notOk = true; o.notOkWhy = why; for (const k of Object.keys(o.steps)) if (k !== 'pack' && o.steps[k] === 'todo') o.steps[k] = 'skip';
+  floatText(st.dock.x, st.y+10, 'Not OK: back to customer', '#ffc53d'); sfx('flag');
+}
 function complete(st, hu){
   const d = st.def, o = hu.order;
   st.processed++;
@@ -1081,16 +1092,20 @@ function complete(st, hu){
       tip('return', `QA found the wrong item. Two jobs now: 1) route the grey <b>↩ return tote</b> back to the <b>Shuttle Warehouse</b> (key <span class="kbd">0</span>), 2) click the order's new <b style="color:var(--accent)">glowing tote</b> in the warehouse and send HU <b>#${o.num}</b> back to <b>Commissioning</b> for a re-pick.`);
       return;
     }
-    if (f && d.issue && o.type !== 'recal' && !o.pallet && Math.random() < d.issue.chance){
+    if (f && d.issue && o.type === 'regrind' && !o.notOk && Math.random() < d.issue.chance){
+      notOkBack(st, o, 'Worn beyond regrinding');
+      toast(`${ico('warn')} #${o.num}: the customer's tool is worn out. Not a Retoure: send it straight back via Packing & Shipping.`, 'warn');
+      return;
+    }
+    if (f && d.issue && o.type === 'new' && !o.pallet && Math.random() < d.issue.chance){
       // not fixable: the item is defective -> goes to Retoure, a replacement must be commissioned
       const li = Math.floor(Math.random()*o.lines.length), line = o.lines[li];
       line.state = 'stored'; line.slot = freeRackSlot(); o.steps.pick = 'todo';
-      if (o.type === 'regrind' && o.steps.regrind) o.steps.regrind = 'done'; // a worn-out return is replaced by a new tool: no regrinding needed
       const scrap = { id:++G.huSeq, kind:'scrap', order:o, item:line.item, flag:null, loc:'out' };
       G.hus.push(scrap);
       if (st.out.length < st.outMax) st.out.push(scrap); else circle(scrap, st.port.s);
       floatText(st.dock.x, st.y+10, d.issue.reason + '!', '#ff5468'); sfx('flag');
-      toast(`${ico('x')} #${o.num}: ${line.item.name} is ${o.type === 'regrind' ? 'worn beyond regrinding' : 'defective'}. Send it to Retoure and commission a new one.`, 'bad');
+      toast(`${ico('x')} #${o.num}: ${line.item.name} is defective. Send it to Retoure and commission a new one.`, 'bad');
       tip('retoure', `QA couldn't fix it: the <b>${line.item.name}</b> is defective. 1) route the <b>red box</b> to <b>Retoure</b> (next to Packing), 2) click the order's new <b style="color:var(--accent)">glowing tote</b> in the warehouse, 3) send HU <b>#${o.num}</b> back to <b>Commissioning</b>.`);
       return;
     }
@@ -1103,10 +1118,18 @@ function complete(st, hu){
     o.steps[step] = 'done';
     if (Math.random() < INBOUND.recalFail * st.qualMul){
       // out of tolerance: no guarantee possible -> skip the remaining services, ship it straight back to the customer
-      o.notOk = true; for (const k of Object.keys(o.steps)) if (k !== 'pack' && o.steps[k] === 'todo') o.steps[k] = 'skip';
-      floatText(st.dock.x, st.y+10, 'Not OK: back to customer', '#ffc53d'); sfx('flag');
+      notOkBack(st, o, 'Out of tolerance');
       toast(`${ico('warn')} #${o.num}: out of tolerance, no guarantee possible. Send it straight back to the customer via Packing & Shipping (not QA).`, 'warn');
       tip('notok', `A returned measuring tool failed calibration. There is no guarantee on worn tools, so it is <b>not</b> repaired by QA: send HU <b>#${o.num}</b> straight to <b>Packing & Shipping</b>, back to the customer. You only get paid for the check.`);
+    }
+    return;
+  }
+  if (o.type === 'regrind' && step === 'regrind'){
+    o.steps[step] = 'done';
+    if (Math.random() < INBOUND.regrindFail * st.qualMul){
+      notOkBack(st, o, 'Worn beyond regrinding');
+      toast(`${ico('warn')} #${o.num}: worn beyond regrinding. It is the customer's own tool: send it straight back via Packing & Shipping (not QA, not Retoure).`, 'warn');
+      tip('notok_regrind', `A returned cutting tool can't be reground any more. It belongs to the customer, so it is <b>not</b> a Retoure: send HU <b>#${o.num}</b> straight to <b>Packing & Shipping</b>, back to the customer. You only get paid for the check.`);
     }
     return;
   }
@@ -3044,7 +3067,7 @@ function showTooltip(hu, cx, cy, rack){
     const done = o.steps[sid] === 'done', nx = nextIds.includes(sid);
     if (o.steps[sid] === 'skip') return `<div class="row" style="text-decoration:line-through;opacity:.6">○ ${STEPS[sid].label}</div>`;
     return `<div class="row ${done?'done':nx?'next':''}">${done?'✓':nx?'▸':'○'} ${STEPS[sid].label}</div>`; }).join('')
-    + (o.notOk ? `<div class="row" style="color:var(--warn)">Out of tolerance: back to the customer, no guarantee</div>` : '');
+    + (o.notOk ? `<div class="row" style="color:var(--warn)">${o.notOkWhy || 'Out of tolerance'}: back to the customer, no guarantee</div>` : '');
   const rem = o.due - G.time;
   tt.innerHTML = `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>#${o.num} · ${o.customer} ${o.focus?'<span style="color:var(--warn)">★ focus</span>':''}</div>
     <div class="items">${o.items.map(i => ico(i.icon) + ' ' + i.name + (itemSteps(o, i).length ? ' <span style="color:var(--muted)">(' + itemSteps(o, i).map(sid => STEPS[sid].short).join(', ') + ')</span>' : '')).join('<br>')}</div>${rows}
@@ -3344,7 +3367,7 @@ function showHelp(fromTitle){
       <li><b style="color:var(--good)">Automation</b> (shop, expensive): an <b>Auto-router</b> makes a station send its finished units on by itself, one every 8 / 4 / 2 s depending on the level. It only handles the normal case. Flagged units, return totes and defective items still need you, until you buy <b>Exception handling</b>. Once you own ${MAINT.after} automation upgrades, auto-routers <b>break down</b> now and then: click the station to send a <b>service worker</b>, and route by hand until it is repaired.</li>
       <li>Late orders pay 40% and cost satisfaction. Focus customers (★) pay 50% more.</li>
       <li>Oversize tools (compressors, welders, table saws) are stored on <b>Euro pallets</b> in the <b>High-Bay Warehouse</b>. Click a glowing pallet, then route it like any order, except that pallets <b>skip Commissioning</b>: <b>transporters with a driver</b> drive pallets over the hall roads to each station's pallet bay. Rejected pallets are parked in the <b>pallet buffer</b>.</li>
-      <li>Later on, <b>Goods-in</b> opens: customers send back blunt drills and milling cutters. They are unloaded automatically; route them to <b>Regrinding</b>, then any services on their card, then Packing. Now and then new stock arrives too: send the cardboard box to the Shuttle Warehouse.</li>
+      <li>Later on, <b>Goods-in</b> opens: customers send back blunt drills and milling cutters. They are unloaded automatically; route them to <b>Regrinding</b>, then any services on their card, then Packing. A tool that is worn beyond regrinding (or a measuring tool out of tolerance) is <b>NOT OK</b>: it is the customer's own, so it goes straight back via Packing, never to Retoure. Now and then new stock arrives too: send the cardboard box to the Shuttle Warehouse.</li>
     </ul>
     <div class="grid2">${all.map(d => `<div class="scard"><div class="t">${ico(d.icon)}${d.name}</div>${d.desc}</div>`).join('')}</div>
     <p style="font-size:13px;color:var(--muted)">Controls: click an order's glowing totes in the Shuttle Warehouse to start it, click an HU then a station to route it (or drag, or press <span class="kbd">1</span>–<span class="kbd">9</span>). <span class="kbd">0</span> sends a selected return tote to the warehouse, <span class="kbd">Tab</span> selects the most urgent HU, <span class="kbd">H</span> hints, <span class="kbd">F</span> speed, <span class="kbd">Space</span> pause, right-click deselects.</p>
