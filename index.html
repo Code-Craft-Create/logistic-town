@@ -239,7 +239,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-11';
+const GAME_VERSION = '2026.11.21-12';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2075,7 +2075,6 @@ function sparks(x, y, n, T, spread, col, len){
 const SCENES = {
   // picker arm moves tools from the delivered totes into the order box
   commission(k, on, T, hu){
-    ctx.fillStyle = '#273145'; ctx.fillRect(-27, 14, 54, 13);                        // bench
     rr(-24, 2, 18, 13, 2); ctx.fillStyle = '#5d6b85'; ctx.fill(); ctx.fillStyle = hu ? hu.order.color : '#3a4560'; ctx.fillRect(-24, 2, 18, 3);  // tote
     rr(7, 3, 18, 12, 2); ctx.fillStyle = '#c98a4b'; ctx.fill(); ctx.fillStyle = '#e0b07a'; ctx.fillRect(7, 3, 18, 3);                           // order box
     // gantry
@@ -2111,7 +2110,6 @@ const SCENES = {
   },
   // grinding wheel with a drill bit fed against it, spark shower
   regrind(k, on, T, hu){
-    ctx.fillStyle = '#273145'; ctx.fillRect(-27, 16, 54, 11);
     rr(-24, 2, 22, 14, 3); ctx.fillStyle = '#4a5878'; ctx.fill();          // motor housing
     const a = on ? T*22 : 0;
     ctx.save(); ctx.translate(-8, -4);
@@ -2131,7 +2129,7 @@ const SCENES = {
   },
   // measuring dial with a sweeping needle and a probe touching the tool on a granite plate
   calib(k, on, T, hu){
-    ctx.fillStyle = '#3b4252'; ctx.fillRect(-27, 12, 54, 15); ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fillRect(-27, 12, 54, 2);   // granite plate
+    rr(-2, 10, 26, 9, 1.5); ctx.fillStyle = '#3b4252'; ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(-2, 10, 26, 1.5);   // granite plate
     const it = huItem(hu); if (it && on) drawIcon(it.icon, 12, 6, 14);
     // probe column
     ctx.fillStyle = '#5a6680'; ctx.fillRect(22, -24, 3, 38);
@@ -2168,7 +2166,6 @@ const SCENES = {
   },
   // sewing machine: needle bobs, fabric slides, stitches appear, spool turns
   patch(k, on, T, hu){
-    ctx.fillStyle = '#273145'; ctx.fillRect(-27, 14, 54, 13);
     // fabric in the order's colour
     const col = hu ? hu.order.color : '#5a6680', slide = on ? (T*6) % 8 : 0;
     rr(-27, 6, 54, 10, 2); ctx.fillStyle = col; ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-27, 13, 54, 3);
@@ -2235,7 +2232,6 @@ const SCENES = {
   },
   // a box gets filled, flaps fold shut, tape runs across, then a shipping label
   pack(k, on, T, hu){
-    ctx.fillStyle = '#273145'; ctx.fillRect(-27, 14, 54, 13);
     for (let i=0; i<7; i++) circ(-24 + i*8, 18, 1.6, '#3a4560');
     if (!on){ rr(-10, 2, 20, 12, 1.5); ctx.fillStyle = '#7a5f40'; ctx.fill(); ctx.fillStyle = '#5a4630'; ctx.fillRect(-10, 2, 20, 2); return; }
     const it = huItem(hu);
@@ -2272,76 +2268,140 @@ function drawMachine(st, vx, vy, vw, vh){
   ctx.strokeStyle = on ? hexA(def.color, 0.55) : '#263048'; ctx.lineWidth = 1; rr(vx + 0.5, vy + 0.5, vw - 1, vh - 1, 6); ctx.stroke();
 }
 
+// operator seen from above, facing +y (towards the bench) when ang = PI/2
+function drawOperator(x, y, col, working, T, seed, blocked){
+  ctx.save(); ctx.translate(x, y); ctx.scale(1.15, 1.15);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(0.5, 1.5, 9, 6.5, 0, 0, 7); ctx.fill();
+  const ph = working ? Math.sin(T*9 + seed*2.1) : 0, ph2 = working ? Math.sin(T*9 + seed*2.1 + 2.2) : 0;
+  // arms reach forward to the bench while working
+  ctx.fillStyle = shade(col, -0.25);
+  rr(-8.5, -1 + (working ? 2 + ph*2.5 : 0), 3.6, 7 + (working ? 2 + ph*2 : 0), 1.6); ctx.fill();
+  rr(4.9, -1 + (working ? 2 + ph2*2.5 : 0), 3.6, 7 + (working ? 2 + ph2*2 : 0), 1.6); ctx.fill();
+  ctx.fillStyle = '#f1c27d';
+  circ(-6.7, 6.5 + (working ? 4 + ph*4.5 : 0), 1.8, '#f1c27d'); circ(6.7, 6.5 + (working ? 4 + ph2*4.5 : 0), 1.8, '#f1c27d');
+  // shoulders: vest in the station colour with reflective stripe
+  ctx.beginPath(); ctx.ellipse(0, 0, 7.4, 4.4, 0, 0, 7); ctx.fillStyle = col; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(-7, -0.6, 14, 1.2);
+  // head with a dark cap, peak towards the bench
+  circ(0, 0.6, 3.5, '#2a3346'); ctx.fillStyle = '#1b2232'; ctx.beginPath(); ctx.ellipse(0, 3.4, 2.8, 1.4, 0, 0, Math.PI); ctx.fill();
+  ctx.restore();
+  if (blocked){ ctx.fillStyle = Math.floor(T*3) % 2 ? '#ff5468' : '#ff8a9a'; ctx.font = `900 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('!', x + 9, y - 6); }
+}
+// floor zone corner brackets
+function zoneCorners(x, y, w, h, col){
+  const L = 10; ctx.strokeStyle = col; ctx.lineWidth = 2.4; ctx.lineCap = 'square';
+  [[x, y, 1, 1], [x+w, y, -1, 1], [x, y+h, 1, -1], [x+w, y+h, -1, -1]].forEach(([cx, cy, sx, sy]) => {
+    ctx.beginPath(); ctx.moveTo(cx + sx*L, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy*L); ctx.stroke(); });
+  ctx.lineCap = 'butt';
+}
+function miniHU(hu, x, y){
+  const c = hu.kind === 'stock' || hu.kind === 'pstock' ? '#c98a4b' : hu.kind === 'scrap' ? '#8a3a46' : hu.kind === 'tote' ? '#7d8799' : hu.order.color;
+  rr(x - 8, y - 5.5, 16, 11, 2); ctx.fillStyle = c; ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x - 8, y + 1.5, 16, 4);
+  ctx.fillStyle = '#10141c'; ctx.font = `800 7px ${FONT}`; ctx.textAlign = 'center';
+  ctx.fillText(hu.kind === 'stock' || hu.kind === 'pstock' ? 'NEW' : String(hu.order.num).slice(-3), x, y + 2);
+}
+
 function drawStation(st, t){
   if (st.def.role === 'storage') return;
-  const {x,y,w,h,def} = st;
+  const {x,y,w,h,def} = st, T = G.time || 0;
   const sel = G.selected, targets = sel ? validTargets(sel) : [];
   const isTarget = sel && targets.includes(st), full = !hasRoom(st);
+  // ---- floor zone: tinted floor, painted safety line, yellow corner brackets
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 5;
-  rr(x, y, w, h, 12); ctx.fillStyle = '#1a2231'; ctx.fill(); ctx.shadowColor = 'transparent';
-  // header
-  ctx.save(); rr(x, y, w, h, 12); ctx.clip();
-  const grd = ctx.createLinearGradient(x, y, x+w, y); grd.addColorStop(0, def.color); grd.addColorStop(1, shade(def.color, -0.35));
-  ctx.fillStyle = grd; ctx.fillRect(x, y, w, 30);
-  if (st.flash > 0){ ctx.fillStyle = `rgba(255,255,255,${st.flash*0.25})`; ctx.fillRect(x, y, w, h); }
-  if (st.flash < 0){ ctx.fillStyle = `rgba(255,84,104,${-st.flash*0.3})`; ctx.fillRect(x, y, w, h); }
+  rr(x, y, w, h, 5); ctx.fillStyle = 'rgba(20,26,38,0.92)'; ctx.fill();
+  ctx.fillStyle = hexA(def.color, 0.045); ctx.fill();
+  ctx.save(); rr(x, y, w, h, 5); ctx.clip();
+  ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth = 1;
+  for (let i=12; i<w; i+=12){ ctx.beginPath(); ctx.moveTo(x+i, y); ctx.lineTo(x+i, y+h); ctx.stroke(); }
+  for (let i=12; i<h; i+=12){ ctx.beginPath(); ctx.moveTo(x, y+i); ctx.lineTo(x+w, y+i); ctx.stroke(); }
+  if (st.flash > 0){ ctx.fillStyle = `rgba(255,255,255,${st.flash*0.18})`; ctx.fillRect(x, y, w, h); }
+  if (st.flash < 0){ ctx.fillStyle = `rgba(255,84,104,${-st.flash*0.25})`; ctx.fillRect(x, y, w, h); }
   ctx.restore();
-  rr(x+5, y+3, 24, 24, 6); ctx.fillStyle = 'rgba(14,19,29,0.55)'; ctx.fill();
-  drawIcon(def.icon, x+17, y+15, 19, '#0e131d', 2.4); ctx.textAlign = 'left';
-  ctx.fillStyle = '#0e131d';
-  let fs = 12.5; ctx.font = `800 ${fs}px ${FONT}`;
-  while (fs > 10 && ctx.measureText(def.name).width > w-60){ fs -= 0.5; ctx.font = `800 ${fs}px ${FONT}`; }
-  ctx.fillText(fitText(def.name, w-64), x+34, y+19.5);
-  // key badge
-  if (st.key){ rr(x+w-24, y+7, 17, 17, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(st.key, x+w-15.5, y+19); }
-  // machine scene on the right, slot bars on the left
-  const hasM = !!SCENES[def.id], vh = h - 95, vw = Math.min(58, Math.round(w*0.38)), vx = x + w - vw - 8, vy = y + 35;
-  if (hasM) drawMachine(st, vx, vy, vw, vh);
-  for (let i=0; i<st.slotCount; i++){
-    const s = st.slots[i], by = y + 38 + i*17, bx = x+10, bw = w - 20 - (hasM ? vw + 6 : 0);
-    rr(bx, by, bw, 13, 4); ctx.fillStyle = '#0f141d'; ctx.fill();
+  ctx.setLineDash([7, 5]); ctx.strokeStyle = hexA(def.color, 0.55); ctx.lineWidth = 1.6; rr(x+2, y+2, w-4, h-4, 4); ctx.stroke(); ctx.setLineDash([]);
+  zoneCorners(x+1, y+1, w-2, h-2, '#ffc53d');
+  // ---- name sign
+  const sx = x + 8, sw = w - 16;
+  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  rr(sx, y + 6, sw, 20, 5); const grd = ctx.createLinearGradient(sx, 0, sx + sw, 0); grd.addColorStop(0, def.color); grd.addColorStop(1, shade(def.color, -0.35)); ctx.fillStyle = grd; ctx.fill();
+  ctx.shadowColor = 'transparent';
+  drawIcon(def.icon, sx + 11, y + 16, 15);
+  ctx.fillStyle = '#0e131d'; let fs = 11.5; ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'left';
+  while (fs > 9.5 && ctx.measureText(def.name).width > sw - 44){ fs -= 0.5; ctx.font = `800 ${fs}px ${FONT}`; }
+  ctx.fillText(fitText(def.name, sw - 44), sx + 22, y + 20);
+  if (st.key){ rr(sx + sw - 18, y + 8.5, 15, 15, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = `800 9.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(st.key, sx + sw - 10.5, y + 19.5); }
+  // ---- workbench with machine; operators stand behind it (one per workstation slot)
+  const bx = x + 8, by = y + 44, bw = w - 16, bh = 30;
+  // anti-fatigue mat where the operators stand
+  rr(bx + 2, by - 17, bw*0.6, 15, 3); ctx.fillStyle = '#10141c'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.04)'; for (let i=0; i<bw*0.6/4 - 1; i++) ctx.fillRect(bx + 5 + i*4, by - 15, 1.4, 11);
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
+  rr(bx, by, bw, bh, 4); ctx.fillStyle = '#3a4458'; ctx.fill(); ctx.shadowColor = 'transparent';
+  rr(bx, by, bw, bh, 4); ctx.fillStyle = '#4a556c'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(bx + 2, by + 2, bw - 4, 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(bx, by + bh - 4, bw, 4);
+  ctx.fillStyle = hexA(def.color, 0.75); ctx.fillRect(bx, by + bh - 4, bw, 1.6);
+  // bench clutter: a clipboard with the job sheet and a small parts tray
+  rr(bx + 4, by + 5, 9, 12, 1.5); ctx.fillStyle = '#c9a36a'; ctx.fill(); ctx.fillStyle = '#f4f6fa'; ctx.fillRect(bx + 5.5, by + 7.5, 6, 8.5);
+  ctx.fillStyle = '#8a96ad'; for (let i=0; i<3; i++) ctx.fillRect(bx + 6.5, by + 9 + i*2.2, 4, 0.8); ctx.fillStyle = '#5a6680'; ctx.fillRect(bx + 7, by + 4, 3, 2);
+  const mS = Math.min(52, bw*0.42), mx = bx + bw - mS/2 - 2, my = by + bh/2 - 4;
+  const opW = bw - mS - 6, n = st.slotCount, gap = opW / n;
+  for (let i=0; i<n; i++){
+    const s = st.slots[i], ox = bx + gap*(i + 0.5), oy = by - 9;
+    const working = !!s && !s.done && !s.blocked;
+    drawOperator(ox, oy, def.color, working, T, i + def.id.length, s && s.blocked);
     if (s){
-      const f = s.done ? 1 : s.t/s.dur;
-      rr(bx, by, Math.max(6, bw*f), 13, 4); ctx.fillStyle = s.blocked ? 'rgba(255,84,104,0.55)' : hexA(def.color, 0.5); ctx.fill();
-      ctx.fillStyle = s.hu.order.color; ctx.fillRect(bx+4, by+3, 9, 7);
-      ctx.fillStyle = '#eef2f8'; ctx.font = `700 9.5px ${FONT}`; ctx.textAlign = 'left';
-      ctx.fillText(s.blocked ? (bw > 100 ? 'BLOCKED: OUT full' : 'BLOCKED') : s.hu.kind === 'stock' ? 'New stock' : s.hu.kind === 'pstock' ? 'New pallet' : `#${s.hu.order.num}`, bx+17, by+10);
-    } else { ctx.fillStyle = '#4a5468'; ctx.font = `600 9px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('idle', bx+6, by+10); }
+      miniHU(s.hu, ox, by + 13);
+      // progress ring next to the operator's head
+      const f = s.done ? 1 : s.t/s.dur, rx = ox + Math.min(12, gap/2 - 2), ry = oy - 2;
+      circ(rx, ry, 5.5, 'rgba(14,19,29,0.85)');
+      ctx.beginPath(); ctx.arc(rx, ry, 4.3, -Math.PI/2, -Math.PI/2 + f*Math.PI*2); ctx.strokeStyle = s.blocked ? '#ff5468' : def.color; ctx.lineWidth = 2; ctx.stroke();
+    }
   }
-  // queue pips
-  const qy = y + h - 52;
-  ctx.fillStyle = '#8a96ad'; ctx.font = `700 9px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('IN', x+10, qy+3);
+  // machine on the bench
+  const act = st.slots.find(s => s && !s.done), blocked = st.slots.some(s => s && s.blocked), on = !!act && !blocked;
+  ctx.save(); ctx.translate(mx, my); ctx.scale(mS/54, mS/54);
+  if (on){ const g = ctx.createRadialGradient(0, 4, 2, 0, 4, 34); g.addColorStop(0, hexA(def.color, 0.30)); g.addColorStop(1, hexA(def.color, 0)); ctx.fillStyle = g; ctx.fillRect(-34, -30, 68, 64); }
+  if (!on) ctx.globalAlpha = 0.8;
+  try { SCENES[def.id] && SCENES[def.id](act ? clamp(act.t/act.dur, 0, 1) : 0, on, T, act ? act.hu : null); } catch(e){}
+  ctx.globalAlpha = 1; ctx.restore();
+  const led = blocked ? (Math.floor(T*4) % 2 ? '#ff5468' : '#5a1f28') : on ? '#3ddc84' : (Math.floor(T*1.2) % 2 ? '#ffc53d' : '#4a3d1c');
+  circ(bx + bw - 5, by + bh - 7, 2, led);
+  if (blocked){ rr(bx + 2, by + bh + 2, 50, 11, 3); ctx.fillStyle = 'rgba(255,84,104,0.9)'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 7.5px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('OUT FULL', bx + 7, by + bh + 10); }
+  // ---- IN: a short roller lane with the waiting units
+  const qy = y + h - 52, lx = x + 26, lw = Math.min(st.queueMax*14 + 6, w - 40);
+  rr(lx - 4, qy - 7, lw, 14, 3); ctx.fillStyle = '#1b2232'; ctx.fill();
+  for (let i=0; i<lw/5; i++){ ctx.fillStyle = '#2c3850'; ctx.fillRect(lx - 2 + i*5, qy - 6, 1.6, 12); }
+  ctx.fillStyle = '#8a96ad'; ctx.font = `800 8.5px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('IN', x + 9, qy + 3);
   for (let i=0; i<st.queueMax; i++){
-    const px = x + 30 + i*14; ctx.beginPath(); ctx.arc(px, qy, 4.5, 0, 7);
-    if (i < st.queue.length){ const q = st.queue[i];
-      if (isReady(st, q)){ ctx.fillStyle = q.order.color; ctx.fill(); } else { ctx.strokeStyle = q.order.color; ctx.lineWidth = 2; ctx.stroke(); } }
-    else if (i < st.queue.length + st.incoming){ ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 1.5; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]); }
-    else { ctx.strokeStyle = '#3a4560'; ctx.lineWidth = 1.5; ctx.stroke(); }
+    const px = lx + 4 + i*14;
+    if (i < st.queue.length){ const q = st.queue[i], c = q.kind === 'stock' || q.kind === 'pstock' ? '#c98a4b' : q.kind === 'scrap' ? '#8a3a46' : q.order.color;
+      rr(px - 5, qy - 4.5, 10, 9, 2);
+      if (isReady(st, q)){ ctx.fillStyle = c; ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(px - 5, qy + 1, 10, 3.5); } else { ctx.strokeStyle = c; ctx.lineWidth = 1.6; ctx.stroke(); } }
+    else if (i < st.queue.length + st.incoming){ rr(px - 5, qy - 4.5, 10, 9, 2); ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 1.3; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]); }
   }
   if (def.needsTotes){ // totes waiting at the pick station
     const waiting = []; G.orders.forEach(o => o.lines && o.lines.forEach(l => l.state === 'atPick' && waiting.push(o.color)));
-    const n = Math.min(waiting.length, 6);
-    for (let i=0; i<n; i++){ const tx = x + w - 14 - i*9; ctx.fillStyle = '#5d6b85'; ctx.fillRect(tx-3.5, qy-4, 7, 8); ctx.fillStyle = waiting[i]; ctx.fillRect(tx-3.5, qy-4, 7, 2.5); }
-    if (waiting.length){ ctx.fillStyle = '#8a96ad'; ctx.font = `700 8px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText('TOTES', x + w - 10 - n*9, qy+3); ctx.textAlign = 'left'; }
+    const nT = Math.min(waiting.length, 5);
+    for (let i=0; i<nT; i++){ const tx = x + w - 14 - i*9; ctx.fillStyle = '#5d6b85'; ctx.fillRect(tx-3.5, qy-4, 7, 8); ctx.fillStyle = waiting[i]; ctx.fillRect(tx-3.5, qy-4, 7, 2.5); }
+    if (waiting.length){ ctx.fillStyle = '#8a96ad'; ctx.font = `700 7.5px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText('TOTES', x + w - 10 - nT*9, qy+3); ctx.textAlign = 'left'; }
   }
-  // out tray
+  // ---- OUT: painted floor spaces
   if (st.outMax > 0){
-    ctx.fillStyle = '#8a96ad'; ctx.font = `700 9px ${FONT}`; ctx.fillText('OUT', x+10, y+h-23);
-    for (let i=0; i<st.outMax; i++){ const p = outPos(st, i); rr(p.x-16, p.y-12, 32, 24, 5); ctx.strokeStyle = '#2f3a50'; ctx.lineWidth = 1.2; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.save(); ctx.translate(x + 15, y + h - 26); ctx.rotate(-Math.PI/2); ctx.fillStyle = 'rgba(138,150,173,0.8)'; ctx.font = `900 8px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('OUT', 0, 3); ctx.restore();
+    for (let i=0; i<st.outMax; i++){ const p = outPos(st, i);
+      ctx.fillStyle = 'rgba(255,255,255,0.025)'; ctx.fillRect(p.x-16, p.y-12, 32, 24);
+      ctx.strokeStyle = 'rgba(255,197,61,0.28)'; ctx.lineWidth = 1; ctx.strokeRect(p.x-15.5, p.y-11.5, 31, 23);
+      ctx.fillStyle = 'rgba(255,197,61,0.35)'; ctx.fillRect(p.x-16, p.y-12, 5, 1.5); ctx.fillRect(p.x+11, p.y+10.5, 5, 1.5); }
   } else {
-    ctx.fillStyle = '#8a96ad'; ctx.font = `700 10px ${FONT}`; ctx.fillText(def.role === 'sink' ? `Shipped today: ${G.shipped}` : `Returned today: ${st.processed}`, x+10, y+h-22);
+    ctx.fillStyle = '#8a96ad'; ctx.font = `700 10px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(def.role === 'sink' ? `Shipped today: ${G.shipped}` : `Returned today: ${st.processed}`, x+10, y+h-18);
   }
   ctx.restore();
-  // highlight border
-  let border = '#2c3850', lw = 1.5;
-  if (hoverSt === st && sel){ border = !G.hints ? '#ffffff' : isTarget ? '#3ddc84' : '#ff5468'; lw = 3; }
-  ctx.strokeStyle = border; ctx.lineWidth = lw; rr(x, y, w, h, 12); ctx.stroke();
+  // hover highlight: the floor line lights up
+  if (hoverSt === st && sel){ ctx.strokeStyle = !G.hints ? '#ffffff' : isTarget ? '#3ddc84' : '#ff5468'; ctx.lineWidth = 3; rr(x, y, w, h, 5); ctx.stroke(); }
   drawAutoBadge(st, x + 8, y - 8);
   if (sel && full){ rr(x+w/2-24, y-10, 48, 18, 6); ctx.fillStyle = '#ff5468'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('FULL', x+w/2, y+3); }
   if (def.role === 'source') drawInboundDock(st, t);
-  // out HUs
   st.out.forEach((hu, i) => { const p = hu.pallet && st.bay ? bayPos(st, i) : outPos(st, i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); });
 }
 // trucks waiting to unload at Goods-in (cardboard = new stock, coloured = customer return)
