@@ -239,7 +239,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-19';
+const GAME_VERSION = '2026.11.21-20';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -508,8 +508,8 @@ const acceptsKind = (def, kind) => [].concat(def.accepts || []).includes(kind);
 
 // ---------- 4. DATA: shifts (levels) ----------
 const SHIFTS = [
-  { name:'Monday',    title:'Learning the ropes', duration:100, goal:6,  spawn:[9,11],   items:[1,2], slack:26, stations:['warehouse','commission','qa','retoure','pack'] },
-  { name:'Tuesday',   title:'Precision matters',  duration:110, goal:8,  spawn:[7.5,9.5],items:[1,3], slack:24, stations:['warehouse','commission','calib','qa','retoure','pack'] },
+  { name:'Monday',    title:'Learning the ropes', duration:100, goal:6,  spawn:[7,9], opening:[3, 4],   items:[1,2], slack:26, stations:['warehouse','commission','qa','retoure','pack'] },
+  { name:'Tuesday',   title:'Precision matters',  duration:110, goal:8,  spawn:[6,8], opening:[3, 3.5],items:[1,3], slack:24, stations:['warehouse','commission','calib','qa','retoure','pack'] },
   { name:'Wednesday', title:'Make it personal',   duration:120, goal:11, spawn:[6,8],items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','qa','retoure','pack'] },
   { name:'Thursday',  title:'VIP treatment',      duration:130, goal:13, spawn:[5.5,7],  items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
   { name:'Friday',    title:'The Friday rush',    duration:140, goal:16, spawn:[4.5,6],  items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
@@ -718,7 +718,7 @@ function startShift(idx){
   G.st = Object.fromEntries(G.stations.map(s => [s.id, s]));
   layoutStations();
   Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[],
-    seq: 0, huSeq:0, nextSpawn:2, crane:null, autoRouted:0, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
+    seq: 0, huSeq:0, nextSpawn:2, spawned:0, crane:null, autoRouted:0, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
     truck:{ x:1210, load:0, state:'parked', t:0 } });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
   resetPallets();
@@ -1013,7 +1013,10 @@ function update(dt){
   const cfg = G.cfg;
   // spawn orders
   if (G.time >= G.nextSpawn && G.time < cfg.duration - 18){
-    makeOrder(); G.nextSpawn = G.time + rand(cfg.spawn[0], cfg.spawn[1]);
+    makeOrder(); G.spawned = (G.spawned || 0) + 1;
+    // early shifts open with a short burst so the hall fills up quickly, then settle to the normal rate
+    const op = cfg.opening;
+    G.nextSpawn = G.time + (op && G.spawned < op[0] ? op[1] : rand(cfg.spawn[0], cfg.spawn[1]));
   }
   // Goods-in: trucks unload returns and (rarely) new stock on their own
   const gi = G.st.goodsin;
