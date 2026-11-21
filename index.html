@@ -239,7 +239,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-13';
+const GAME_VERSION = '2026.11.21-14';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2057,262 +2057,277 @@ function star(cx, cy, r){
   for (let i=0; i<10; i++){ const a = -Math.PI/2 + i*Math.PI/5, rad = i%2 ? r*0.45 : r; ctx.lineTo(cx + Math.cos(a)*rad, cy + Math.sin(a)*rad); }
   ctx.closePath(); ctx.fill();
 }
-function outPos(st, i){ const sp = Math.min(36, (st.w-60)/Math.max(1, st.outMax-1) ); return { x: st.x + 52 + i*sp, y: st.y + st.h - 26 }; }
 
-// ---------- station machines: a small animated scene per station (local box -27..27) ----------
+// ---------- station machines: each station is its own machine; units flow IN (left) -> machine -> OUT (right) ----------
 const huItem = hu => hu && (hu.item || (hu.order && hu.order.lines && hu.order.lines[0] && hu.order.lines[0].item)) || null;
 const ease = k => k*k*(3 - 2*k);
 const tri = x => 1 - Math.abs(((x % 2) + 2) % 2 - 1);   // 0..1..0 triangle wave, period 2
 function ell(x, y, rx, ry, col){ ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fillStyle = col; ctx.fill(); }
 function circ(x, y, r, col){ ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = col; ctx.fill(); }
 function line(x0, y0, x1, y1, col, lw){ ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.stroke(); }
-function sparks(x, y, n, T, spread, col, len){
-  for (let i=0; i<n; i++){ const ph = (T*2.2 + i*0.137) % 1, a = -Math.PI/2 + (Math.sin(i*12.9898)*0.5)*spread;
-    const r = ph*len, px = x + Math.cos(a)*r, py = y + Math.sin(a)*r + ph*ph*len*0.7;
-    ctx.globalAlpha = 1 - ph; line(px, py, px - Math.cos(a)*2.2, py - Math.sin(a)*2.2 - ph*1.5, col, 1.1); }
+function box(x, y, w, h, r, col){ rr(x, y, w, h, r); ctx.fillStyle = col; ctx.fill(); }
+function sparks(x, y, n, T, spread, col, len, dir=-Math.PI/2){
+  for (let i=0; i<n; i++){ const ph = (T*2.2 + i*0.137) % 1, a = dir + (Math.sin(i*12.9898)*0.5)*spread;
+    const r = ph*len, px = x + Math.cos(a)*r, py = y + Math.sin(a)*r + ph*ph*len*0.5;
+    ctx.globalAlpha = 1 - ph; line(px, py, px - Math.cos(a)*2.2, py - Math.sin(a)*2.2, col, 1.1); }
   ctx.globalAlpha = 1;
 }
-const SCENES = {
-  // picker arm moves tools from the delivered totes into the order box
-  commission(k, on, T, hu){
-    rr(-24, 2, 18, 13, 2); ctx.fillStyle = '#5d6b85'; ctx.fill(); ctx.fillStyle = hu ? hu.order.color : '#3a4560'; ctx.fillRect(-24, 2, 18, 3);  // tote
-    rr(7, 3, 18, 12, 2); ctx.fillStyle = '#c98a4b'; ctx.fill(); ctx.fillStyle = '#e0b07a'; ctx.fillRect(7, 3, 18, 3);                           // order box
-    // gantry
-    ctx.fillStyle = '#3a4560'; ctx.fillRect(-26, -24, 52, 4); ctx.fillRect(-26, -24, 3, 38); ctx.fillRect(23, -24, 3, 38);
-    const cyc = on ? (T*0.9) % 1 : 0.15, side = cyc < 0.5 ? ease(cyc*2) : 1 - ease((cyc-0.5)*2);   // 0 = over tote, 1 = over box
-    const carrying = on && cyc > 0.12 && cyc < 0.5, x = -15 + side*31, drop = on ? Math.abs(Math.sin(cyc*Math.PI*4))*7 : 0;
-    rr(x-5, -25, 10, 6, 2); ctx.fillStyle = '#4f8cff'; ctx.fill();                      // carriage
-    line(x, -19, x, -8 + drop, '#9aa6bb', 2);
-    ctx.fillStyle = '#c7d0de'; ctx.fillRect(x-4, -8 + drop, 8, 2); line(x-4, -6 + drop, x-3, -2 + drop, '#c7d0de', 1.4); line(x+4, -6 + drop, x+3, -2 + drop, '#c7d0de', 1.4);
-    const it = huItem(hu);
-    if (carrying && it) drawIcon(it.icon, x, 2 + drop, 11);
-    if (on && it){ for (let i=0; i<Math.floor(k*3); i++) drawIcon(it.icon, 11 + i*5, 6, 8); }
+function beacon(x, y, on, T, col){ circ(x, y, 3.2, '#1b2232'); const b = on ? (Math.floor(T*4) % 2 ? col : shade(col, -0.5)) : '#3a4560';
+  if (on){ ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 8; circ(x, y, 2.2, b); ctx.restore(); } else circ(x, y, 2.2, b); }
+function lightTower(x, y, state, T){ // red / amber / green stack
+  box(x - 2.5, y, 5, 13, 1.5, '#1b2232');
+  circ(x, y + 2.5, 1.7, state === 'blocked' && Math.floor(T*4) % 2 ? '#ff5468' : '#4a2028');
+  circ(x, y + 6.5, 1.7, state === 'idle' ? '#ffc53d' : '#4a3d1c');
+  circ(x, y + 10.5, 1.7, state === 'on' ? '#3ddc84' : '#1d3a2a');
+}
+// evenly spread slot positions along a line
+const spread = (n, a, b) => Array.from({ length:n }, (_, i) => a + (b - a)*(n === 1 ? 0.5 : i/(n - 1)));
+
+// Each body draws inside (0,0)-(w,h) and returns the slot positions (where the unit being worked on sits).
+const BODIES = {
+  // goods-to-person pick port: totes arrive left, a gantry picker moves the tools into the order boxes on the right
+  commission(w, h, s){
+    const n = s.n, ys = spread(n, h*0.3, h*0.72);
+    // tote port (left)
+    box(2, 10, 30, h - 20, 4, '#1b2232');
+    for (let i=0; i<(h - 24)/5; i++){ ctx.fillStyle = '#2c3850'; ctx.fillRect(4, 12 + i*5, 26, 1.6); }
+    const waiting = []; G.orders.forEach(o => o.lines && o.lines.forEach(l => l.state === 'atPick' && waiting.push(o.color)));
+    for (let i=0; i<Math.min(3, waiting.length); i++){ const ty = 18 + i*((h - 40)/2); box(5, ty, 24, 17, 2.5, '#5d6b85'); ctx.fillStyle = waiting[i]; ctx.fillRect(5, ty, 24, 4); }
+    // order boxes (right)
+    ys.forEach(y => { box(w - 30, y - 9, 26, 18, 2, '#c98a4b'); ctx.fillStyle = '#e0b07a'; ctx.fillRect(w - 30, y - 9, 26, 3.5); ctx.fillStyle = '#7a5530'; ctx.fillRect(w - 27, y - 5, 20, 11); });
+    // gantry: two rails top & bottom, a bridge that travels left-right, carriage on it
+    ctx.fillStyle = '#3a4560'; ctx.fillRect(0, 2, w, 5); ctx.fillRect(0, h - 7, w, 5);
+    ctx.fillStyle = '#ffc53d'; for (let i=0; i<w; i+=8) ctx.fillRect(i, 2, 4, 1.2);
+    const c = s.on ? (s.T*0.8) % 1 : 0.1, side = c < 0.5 ? ease(c*2) : 1 - ease((c - 0.5)*2);
+    const bxp = 17 + side*(w - 34), ty = s.on ? h*0.35 + Math.sin(s.T*0.8*Math.PI)*h*0.15 : h/2;
+    box(bxp - 4, 0, 8, h, 2, '#4f8cff'); ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(bxp - 3, 1, 1.5, h - 2);
+    box(bxp - 7, ty - 6, 14, 12, 3, '#2c3850'); circ(bxp, ty, 3.5, '#c7d0de'); circ(bxp, ty, 1.5, '#4f8cff');
+    const it = huItem(s.hu); if (it && s.on && c > 0.08 && c < 0.5) drawIcon(it.icon, bxp, ty + 9, 11);
+    return ys.map(y => ({ x:w - 17, y }));
   },
-  // a roll-up dock door, boxes roll in over a roller conveyor
-  goodsin(k, on, T, hu){
-    ctx.fillStyle = '#273145'; ctx.fillRect(-27, -27, 18, 54);                        // wall
-    const open = on ? 1 : 0.35;
-    ctx.fillStyle = '#0b0f17'; ctx.fillRect(-26, -20, 15, 36);
-    for (let i=0; i<6; i++){ const yy = -20 + i*6*(1-open*0.8); ctx.fillStyle = i%2 ? '#8a96ad' : '#6b7790'; ctx.fillRect(-26, yy, 15, 6*(1-open*0.8)); }
-    for (let i=0; i<5; i++){ ctx.fillStyle = i%2 ? '#ffc53d' : '#151b26'; ctx.fillRect(-27, -26 + i*3, 18, 3); }   // hazard header
-    // rollers
-    ctx.fillStyle = '#1b2232'; ctx.fillRect(-11, 8, 38, 9);
-    for (let i=0; i<8; i++){ const rx = -9 + i*5; circ(rx, 12.5, 2, '#5a6680'); line(rx, 10.5, rx + Math.cos(T*8)*1.5, 12.5 + Math.sin(T*8)*1.5, on ? '#c7d0de' : '#3a4560', 0.8); }
-    const boxes = 2;
-    for (let i=0; i<boxes; i++){ const ph = on ? ((T*0.45 + i*0.5) % 1) : 0.6 + i*0.3, bx = -16 + ph*44;
-      if (bx > 24) continue; ctx.save(); ctx.beginPath(); ctx.rect(-11, -27, 38, 54); ctx.clip();
-      const stock = !hu || hu.kind === 'stock' || hu.kind === 'pstock';
-      rr(bx - 6, -1, 12, 9, 1.5); ctx.fillStyle = stock ? '#c98a4b' : (hu.order.color); ctx.fill(); ctx.fillStyle = stock ? '#a8703a' : 'rgba(0,0,0,0.25)'; ctx.fillRect(bx - 1, -1, 2, 9);
-      ctx.restore(); }
-    // scanner arch
-    ctx.fillStyle = '#3a4560'; ctx.fillRect(14, -14, 3, 24); ctx.fillRect(14, -14, 12, 3);
-    if (on && Math.sin(T*10) > 0){ ctx.fillStyle = 'rgba(255,84,104,0.55)'; ctx.fillRect(16, -11, 1.5, 20); }
+  // clean room with a coordinate measuring machine: granite table, travelling bridge, probe
+  calib(w, h, s){
+    box(0, 0, w, h, 5, 'rgba(34,195,230,0.08)'); ctx.strokeStyle = 'rgba(160,230,255,0.45)'; ctx.lineWidth = 1.5; rr(1, 1, w - 2, h - 2, 5); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(3, 3, 1.2, h - 6); ctx.fillRect(w - 4.2, 3, 1.2, h - 6);   // glass reflections
+    // granite
+    const gx = 7, gy = 10, gw = w - 14, gh = h - 40;
+    box(gx, gy, gw, gh, 3, '#3b4252');
+    ctx.fillStyle = 'rgba(255,255,255,0.05)'; for (let i=0; i<40; i++){ ctx.fillRect(gx + ((i*37) % gw), gy + ((i*53) % gh), 1, 1); }
+    const n = s.n, xs = spread(n, gx + 14, gx + gw - 14), sy = gy + gh*0.6;
+    xs.forEach(x => box(x - 10, sy - 8, 20, 16, 2, '#2c3340'));          // fixtures
+    // bridge moving top-bottom, probe left-right
+    const by = s.on ? gy + 6 + tri(s.T*0.5)*(gh - 12) : gy + 8, px = s.on ? gx + 12 + tri(s.T*0.8 + 0.3)*(gw - 24) : gx + 12;
+    ctx.fillStyle = '#c7d0de'; box(gx - 4, by - 4, 7, 8, 1.5, '#9aa6bb'); box(gx + gw - 3, by - 4, 7, 8, 1.5, '#9aa6bb');
+    box(gx - 2, by - 2.5, gw + 4, 5, 1.5, '#e6ebf3'); ctx.fillStyle = '#22c3e6'; ctx.fillRect(gx + 2, by - 0.6, gw - 4, 1.2);
+    box(px - 4, by - 5, 8, 10, 2, '#22c3e6'); circ(px, by, 1.5, s.on && Math.sin(s.T*12) > 0 ? '#ff5468' : '#0e131d');
+    // monitor with measurement curve
+    const my = h - 25; box(8, my, w - 16, 19, 3, '#0b0f17'); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1; rr(8, my, w - 16, 19, 3); ctx.stroke();
+    ctx.strokeStyle = 'rgba(61,220,132,0.35)'; line(12, my + 9.5, w - 12, my + 9.5, 'rgba(61,220,132,0.25)', 0.8);
+    if (s.on){ ctx.beginPath(); for (let x=0; x<(w - 24)*s.k; x++){ const yy = my + 9.5 + Math.sin(x*0.5 + 1)*3*Math.exp(-x*0.02); x ? ctx.lineTo(12 + x, yy) : ctx.moveTo(12, yy); } ctx.strokeStyle = '#3ddc84'; ctx.lineWidth = 1.2; ctx.stroke(); }
+    if (s.on && s.k > 0.85){ circ(w - 16, my + 9.5, 4, '#3ddc84'); drawIcon('check', w - 16, my + 9.5, 6, '#0e131d', 4); }
+    return xs.map(x => ({ x, y:sy }));
   },
-  // grinding wheel with a drill bit fed against it, spark shower
-  regrind(k, on, T, hu){
-    rr(-24, 2, 22, 14, 3); ctx.fillStyle = '#4a5878'; ctx.fill();          // motor housing
-    const a = on ? T*22 : 0;
-    ctx.save(); ctx.translate(-8, -4);
-    ell(0, 0, 15, 15, '#6f7fa8'); ell(0, 0, 12, 12, '#9aa8ff');
-    ctx.rotate(a); for (let i=0; i<6; i++){ ctx.rotate(Math.PI/3); line(3, 0, 11, 0, 'rgba(14,19,29,0.35)', 1.2); }
-    ctx.restore(); circ(-8, -4, 3, '#2c3850');
-    // guard
-    ctx.beginPath(); ctx.arc(-8, -4, 17, Math.PI*1.05, Math.PI*1.75); ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 3; ctx.stroke();
-    // drill bit in a holder, oscillating feed
-    const feed = on ? 2 + Math.sin(T*5)*2 : 6;
-    ctx.save(); ctx.translate(14 + feed, -4); ctx.rotate(-0.15);
-    rr(0, -4, 12, 8, 2); ctx.fillStyle = '#5a6680'; ctx.fill();
-    ctx.fillStyle = '#c7d0de'; ctx.beginPath(); ctx.moveTo(0, -1.8); ctx.lineTo(-9, -0.6); ctx.lineTo(-11, 0); ctx.lineTo(-9, 0.6); ctx.lineTo(0, 1.8); ctx.fill();
-    if (on){ ctx.strokeStyle = 'rgba(80,90,110,0.9)'; ctx.lineWidth = 0.8; for (let i=0; i<4; i++){ const ox = -2 - i*2.3 - (T*12 % 2.3); ctx.beginPath(); ctx.moveTo(ox, -1.6); ctx.lineTo(ox - 1.3, 1.6); ctx.stroke(); } }
+  // one big laser cabinet: viewing window onto a rotary index table, extraction duct, control panel, beacon
+  sign(w, h, s){
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
+    box(1, 2, w - 2, h - 4, 7, '#3a3150'); ctx.shadowColor = 'transparent';
+    box(3, 4, w - 6, h - 8, 6, '#4a3f66'); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(6, 6, w - 12, 2);
+    // vents + duct
+    for (let i=0; i<5; i++){ ctx.fillStyle = '#2a2340'; ctx.fillRect(10 + i*6, 10, 3.5, 7); }
+    box(w - 24, 8, 14, 10, 3, '#5a6680'); circ(w - 17, 13, 3, '#2c3850');
+    // window
+    const wx = 7, wy = 22, ww = w - 14, wh = h - 54;
+    box(wx, wy, ww, wh, 5, '#120d1e');
+    const cx = wx + ww/2, cy = wy + wh/2, R = Math.min(ww, wh)*0.36;
+    if (s.on){ const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, R*1.8); g.addColorStop(0, 'rgba(176,124,255,0.35)'); g.addColorStop(1, 'rgba(176,124,255,0)'); ctx.fillStyle = g; ctx.fillRect(wx, wy, ww, wh); }
+    ell(cx, cy, R + 3, R + 3, '#5a6680'); ell(cx, cy, R, R, '#8e99ad');
+    const rot = s.on ? s.T*0.6 : 0, n = s.n, pos = [];
+    for (let i=0; i<n; i++){ const a = rot + i*Math.PI*2/n - Math.PI/2, p = { x:cx + Math.cos(a)*R*0.55*(n > 1 ? 1 : 0), y:cy + Math.sin(a)*R*0.55*(n > 1 ? 1 : 0) }; pos.push(p); }
+    // laser head + beam on the first part
+    if (s.on && pos[0]){ const p = pos[0], fl = 0.6 + 0.4*Math.sin(s.T*40), tx = p.x + Math.sin(s.T*9)*5, ty = p.y + Math.cos(s.T*7)*3;
+      ctx.save(); ctx.shadowColor = '#ff5fd2'; ctx.shadowBlur = 10; line(wx + ww - 8, wy + 4, tx, ty, `rgba(255,95,210,${fl})`, 1.4); ctx.restore(); circ(tx, ty, 2.4, `rgba(255,230,255,${fl})`);
+      for (let i=0; i<3; i++){ const ph = (s.T*1.3 + i/3) % 1; ctx.globalAlpha = (1 - ph)*0.3; circ(tx + Math.sin(ph*6 + i)*3, ty - ph*12, 1.4 + ph*3, '#c7d0de'); } ctx.globalAlpha = 1; }
+    box(wx + ww - 13, wy + 1, 10, 6, 2, '#b07cff');
+    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.beginPath(); ctx.moveTo(wx + 4, wy + wh); ctx.lineTo(wx + 16, wy); ctx.lineTo(wx + 24, wy); ctx.lineTo(wx + 12, wy + wh); ctx.fill();   // glass glare
+    // control panel
+    const py = h - 28; box(8, py, w - 16, 20, 3, '#2a2340');
+    box(12, py + 4, 22, 12, 2, '#0b0f17'); ctx.fillStyle = s.on ? '#b07cff' : '#3a4560'; ctx.fillRect(14, py + 9, 18*(s.on ? s.k : 0) + 1, 2.5);
+    circ(42, py + 10, 3, '#3ddc84'); circ(51, py + 10, 3, '#ffc53d'); if (w > 70) circ(w - 16, py + 10, 4, '#ff5468');
+    beacon(w - 8, 6, s.on, s.T, '#b07cff');
+    return pos;
+  },
+  // multi-head embroidery machine: cone rack on top, needle heads, hoops on a pantograph table
+  patch(w, h, s){
+    const n = s.n, heads = Math.max(3, n), xs = spread(heads, 14, w - 14);
+    // table
+    box(2, 30, w - 4, h - 46, 4, '#2b3346'); ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(4, 32, w - 8, 2);
+    // hoops on the pantograph (wiggle while stitching)
+    const dx = s.on ? Math.sin(s.T*3.1)*2 : 0, dy = s.on ? Math.cos(s.T*2.3)*1.5 : 0, hy = 30 + (h - 46)/2;
+    xs.forEach((x, i) => { const act = i < n && s.slots[i] && !s.slots[i].done;
+      ell(x + dx, hy + dy, 10, 12, '#8a6a40'); ell(x + dx, hy + dy, 8, 10, act ? (s.slots[i].hu.order ? s.slots[i].hu.order.color : '#c7d0de') : '#3a4560');
+      if (act){ const kk = clamp(s.slots[i].t/s.slots[i].dur, 0, 1); ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(x + dx, hy + dy - 3, 4, -Math.PI/2, -Math.PI/2 + kk*Math.PI*2); ctx.lineTo(x + dx, hy + dy - 3); ctx.fill(); } });
+    // machine beam with heads and needles
+    box(0, 12, w, 14, 4, '#ff5fa2'); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(3, 13.5, w - 6, 1.5); ctx.fillStyle = '#d94889'; ctx.fillRect(0, 22, w, 4);
+    xs.forEach((x, i) => { const act = i < n && s.slots[i] && !s.slots[i].done && s.on;
+      box(x - 5, 20, 10, 10, 2, '#d94889'); const ny = act ? Math.abs(Math.sin(s.T*16 + i))*4 : 0; line(x, 28, x, 31 + ny, '#e6ebf3', 1.2); });
+    // thread cones on top
+    const cones = ['#ffd23f', '#4f8cff', '#3ddc84', '#ff5468', '#f4f6fa', '#b07cff', '#ff8a1f', '#22c3e6'];
+    for (let i=0; i<Math.floor((w - 8)/8); i++){ circ(6 + i*8, 6, 3, cones[i % cones.length]); circ(6 + i*8, 6, 1, '#1b2232'); }
+    // finished stack
+    box(6, h - 13, w - 12, 9, 2, '#1b2232'); ctx.fillStyle = '#ff5fa2'; for (let i=0; i<Math.min(5, st_processed(s)); i++) ctx.fillRect(9 + i*7, h - 11, 5, 5);
+    return xs.slice(0, n).map(x => ({ x, y:hy + 18 }));
+  },
+  // premium inspection booth: gold-framed carpet, turntable under a ring light, stanchions with rope
+  care(w, h, s){
+    box(0, 0, w, h, 5, '#2a2036'); ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 1.5; rr(3, 3, w - 6, h - 6, 4); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,210,63,0.25)'; ctx.lineWidth = 1; rr(6, 6, w - 12, h - 12, 3); ctx.stroke();
+    const cx = w/2, cy = h*0.4, R = Math.min(w, h)*0.3;
+    if (s.on){ const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, R*2); g.addColorStop(0, 'rgba(255,230,140,0.35)'); g.addColorStop(1, 'rgba(255,230,140,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
+    // ring light of LEDs
+    for (let i=0; i<24; i++){ const a = i/24*Math.PI*2, on = s.on && (Math.floor(s.T*8) + i) % 6 !== 0; circ(cx + Math.cos(a)*(R + 7), cy + Math.sin(a)*(R + 7), 1.4, on ? '#fff2b8' : '#5a5040'); }
+    ell(cx, cy + 2, R, R, '#1b1626'); ell(cx, cy, R, R, '#6f7b94'); ell(cx, cy, R - 4, R - 4, '#8e99ad');
+    const a = s.on ? s.T*1.6 : 0;
+    for (let i=0; i<8; i++){ const aa = a + i*Math.PI/4; circ(cx + Math.cos(aa)*(R - 2), cy + Math.sin(aa)*(R - 2), 0.9, '#ffd23f'); }
+    const it = huItem(s.hu); if (it){ ctx.save(); ctx.translate(cx, cy); ctx.scale(s.on ? Math.cos(a) : 1, 1); drawIcon(it.icon, 0, 0, R*1.1); ctx.restore(); }
+    if (s.on) for (let i=0; i<3; i++){ const ph = (s.T*0.9 + i/3) % 1, sz = Math.sin(ph*Math.PI)*3.5; ctx.fillStyle = '#fff6c9'; ctx.save(); ctx.translate(cx + [-R*0.7, R*0.6, R*0.2][i], cy + [-R*0.5, -R*0.2, R*0.6][i]); star(0, 0, sz); ctx.restore(); }
+    // stanchions + rope
+    const sp = [[9, h - 10], [w - 9, h - 10]]; ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(9, h - 10); ctx.quadraticCurveTo(w/2, h - 4, w - 9, h - 10); ctx.stroke();
+    sp.forEach(([x, y]) => { circ(x, y, 3.2, '#b8860b'); circ(x, y, 1.8, '#ffd23f'); });
+    return spread(s.n, cx - (s.n - 1)*10, cx + (s.n - 1)*10).map(x => ({ x, y:cy + R + 14 }));
+  },
+  // QA: an inspector at a light table with a magnifier lamp and a result screen
+  qa(w, h, s){
+    const T = s.T, it = huItem(s.hu);
+    // back wall shelf with binders
+    box(2, 2, w - 4, 10, 2, '#2b3346'); const bc = ['#ff5468', '#4f8cff', '#ffd23f', '#3ddc84', '#b07cff'];
+    for (let i=0; i<Math.floor((w - 10)/6); i++) box(5 + i*6, 3.5, 4.5, 7, 1, bc[i % bc.length]);
+    // inspector (front view, behind the desk)
+    const px = w*0.38, py = 34, tilt = s.on ? Math.sin(T*1.3)*0.08 : Math.sin(T*0.4)*0.03;
+    ctx.save(); ctx.translate(px, py);
+    // body: white lab coat with collar and badge
+    ctx.fillStyle = '#e8edf5'; ctx.beginPath(); ctx.moveTo(-14, 26); ctx.quadraticCurveTo(-15, 8, -6, 6); ctx.lineTo(6, 6); ctx.quadraticCurveTo(15, 8, 14, 26); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4f8cff'; ctx.beginPath(); ctx.moveTo(-4, 6); ctx.lineTo(0, 13); ctx.lineTo(4, 6); ctx.fill();          // shirt
+    ctx.strokeStyle = '#b9c2d3'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-5, 6); ctx.lineTo(-1, 16); ctx.moveTo(5, 6); ctx.lineTo(1, 16); ctx.stroke();
+    box(5, 14, 5, 6, 1, '#ff5468'); ctx.fillStyle = '#fff'; ctx.fillRect(6, 15.5, 3, 1);                                      // badge
+    // neck + head
+    ctx.fillStyle = '#e0a878'; ctx.fillRect(-2.5, 2, 5, 5);
+    ctx.save(); ctx.rotate(tilt);
+    ell(0, -5, 7.5, 8.5, '#f1c27d');
+    ctx.fillStyle = '#5a3a22'; ctx.beginPath(); ctx.ellipse(0, -9, 8.2, 6.2, 0, Math.PI, 0); ctx.fill(); ctx.beginPath(); ctx.ellipse(-6.5, -5, 2, 5, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(6.5, -5, 2, 5, 0, 0, 7); ctx.fill();
+    ell(-7.6, -4, 1.5, 2, '#e0a878'); ell(7.6, -4, 1.5, 2, '#e0a878');                        // ears
+    // safety glasses
+    ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.1; rr(-6, -6, 5, 3.6, 1.2); ctx.stroke(); rr(1, -6, 5, 3.6, 1.2); ctx.stroke(); line(-1, -4.5, 1, -4.5, '#2c3850', 1);
+    ctx.fillStyle = 'rgba(160,210,255,0.35)'; ctx.fillRect(-5.5, -5.5, 4, 2.6); ctx.fillRect(1.5, -5.5, 4, 2.6);
+    const blink = Math.sin(T*0.9) > 0.97; const look = s.on ? 0.8 : 0;
+    if (!blink){ circ(-3.5, -4.2 + look, 0.9, '#1b2232'); circ(3.5, -4.2 + look, 0.9, '#1b2232'); }
+    ctx.strokeStyle = '#b5705a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, -0.5, 2.2, 0.25, Math.PI - 0.25); ctx.stroke();   // smile
+    ell(-4.8, -1.3, 1.4, 0.9, 'rgba(255,120,120,0.25)'); ell(4.8, -1.3, 1.4, 0.9, 'rgba(255,120,120,0.25)');
     ctx.restore();
-    if (on) sparks(4, -2, 12, T, 1.6, '#ffb000', 16);
+    ctx.restore();
+    // desk (light table)
+    const dy = 56; box(2, dy, w - 4, h - dy - 4, 4, '#4a556c'); box(5, dy + 3, w - 10, h - dy - 12, 3, s.on ? '#dfe7f5' : '#5a6680');
+    if (s.on){ const sy = dy + 4 + tri(T*1.2)*(h - dy - 14); ctx.fillStyle = 'rgba(255,84,104,0.6)'; ctx.fillRect(5, sy, w - 10, 1.2); }
+    // arms resting on the desk; one hand holds a magnifier over the item
+    const mx = px + 12 + (s.on ? Math.sin(T*1.7)*8 : 0), my = dy + 12 + (s.on ? Math.sin(T*3.4)*3 : 0);
+    ctx.lineCap = 'round'; line(px - 10, py + 20, px - 8, dy + 6, '#e8edf5', 5.5); line(px + 10, py + 20, mx - 4, my + 2, '#e8edf5', 5.5); ctx.lineCap = 'butt';
+    circ(px - 8, dy + 7, 2.6, '#f1c27d'); circ(mx - 4, my + 2, 2.6, '#f1c27d');
+    ctx.beginPath(); ctx.arc(mx + 1, my - 2, 5.5, 0, 7); ctx.fillStyle = 'rgba(160,210,255,0.3)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.6; ctx.stroke();
+    // result screen on an arm (right)
+    const sx = w - 22; box(sx, 16, 18, 24, 2, '#0b0f17'); ctx.strokeStyle = '#3a4560'; ctx.lineWidth = 1; rr(sx, 16, 18, 24, 2); ctx.stroke(); line(sx + 9, 40, sx + 9, dy, '#3a4560', 2);
+    if (s.on){ for (let i=0; i<4; i++){ const on = s.k*4 > i; circ(sx + 4, 21 + i*5, 1.2, on ? '#3ddc84' : '#3a4560'); ctx.fillStyle = on ? '#8a96ad' : '#2c3850'; ctx.fillRect(sx + 7, 20.3 + i*5, 8, 1.4); } }
+    else circ(sx + 9, 28, 1.6, Math.floor(T*1.5) % 2 ? '#ffc53d' : '#3a4560');
+    const xs = spread(s.n, 16, w*0.62);
+    return xs.map(x => ({ x, y:h - 14 }));
   },
-  // measuring dial with a sweeping needle and a probe touching the tool on a granite plate
-  calib(k, on, T, hu){
-    rr(-2, 10, 26, 9, 1.5); ctx.fillStyle = '#3b4252'; ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(-2, 10, 26, 1.5);   // granite plate
-    const it = huItem(hu); if (it && on) drawIcon(it.icon, 12, 6, 14);
-    // probe column
-    ctx.fillStyle = '#5a6680'; ctx.fillRect(22, -24, 3, 38);
-    const pz = on ? tri(T*1.4)*5 : 0;
-    rr(8, -12 + pz, 16, 5, 1.5); ctx.fillStyle = '#22c3e6'; ctx.fill(); line(12, -7 + pz, 12, -2 + pz, '#c7d0de', 1.4); circ(12, -1.5 + pz, 1.2, '#ff5468');
-    // dial gauge
-    ctx.save(); ctx.translate(-11, -6);
-    ell(0, 0, 14, 14, '#c7d0de'); ell(0, 0, 12, 12, '#f4f6fa');
-    for (let i=0; i<20; i++){ const a = i/20*Math.PI*2; line(Math.cos(a)*9.5, Math.sin(a)*9.5, Math.cos(a)*(i%5 ? 11 : 12), Math.sin(a)*(i%5 ? 11 : 12), '#2c3850', i%5 ? 0.6 : 1); }
-    ctx.beginPath(); ctx.arc(0, 0, 8, -Math.PI*0.25, Math.PI*0.05); ctx.strokeStyle = '#3ddc84'; ctx.lineWidth = 2; ctx.stroke();
-    const na = on ? -Math.PI*0.1 + Math.sin(T*3.3)*0.9*(1-k) + (k > 0.85 ? 0 : 0) : -Math.PI*0.7;
-    ctx.rotate(na); line(0, 0, 9.5, 0, '#ff5468', 1.4); ctx.restore(); circ(-11, -6, 1.6, '#2c3850');
-    if (on && k > 0.85){ circ(-11, 13.5, 3.5, '#3ddc84'); drawIcon('check', -11, 13.5, 6, '#0e131d', 4); }
+  // CNC tool grinder: enclosure with window, spinning wheels, coolant spray, tool magazine below
+  regrind(w, h, s){
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
+    box(1, 2, w - 2, h*0.62, 6, '#4a5878'); ctx.shadowColor = 'transparent';
+    ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(4, 4, w - 8, 2);
+    const wx = 6, wy = 9, ww = w - 22, wh = h*0.62 - 14;
+    box(wx, wy, ww, wh, 4, '#0f1520');
+    const a = s.on ? s.T*20 : 0, wcx = wx + ww*0.35, wcy = wy + wh/2, R = Math.min(ww*0.3, wh*0.42);
+    [[0, 0, R], [R*0.9, -R*0.55, R*0.55]].forEach(([ox, oy, r], j) => { ctx.save(); ctx.translate(wcx + ox, wcy + oy);
+      ell(0, 0, r, r, j ? '#6f7fa8' : '#9aa8ff'); ctx.rotate(a*(j ? -1.3 : 1)); for (let i=0; i<6; i++){ ctx.rotate(Math.PI/3); line(r*0.25, 0, r*0.9, 0, 'rgba(14,19,29,0.35)', 1); } ctx.restore(); circ(wcx + ox, wcy + oy, r*0.22, '#2c3850'); });
+    // tool in spindle, fed in from the right
+    const feed = s.on ? Math.sin(s.T*4)*2 : 4, tx = wcx + R + 2 + feed;
+    box(tx + 8, wcy - 4, 12, 8, 2, '#5a6680');
+    ctx.fillStyle = '#c7d0de'; ctx.beginPath(); ctx.moveTo(tx + 8, wcy - 1.8); ctx.lineTo(tx + 1, wcy - 0.5); ctx.lineTo(tx, wcy); ctx.lineTo(tx + 1, wcy + 0.5); ctx.lineTo(tx + 8, wcy + 1.8); ctx.fill();
+    if (s.on){ sparks(tx, wcy, 10, s.T, 1.4, '#ffb000', 12, Math.PI*0.8);
+      for (let i=0; i<6; i++){ const ph = (s.T*3 + i/6) % 1; ctx.globalAlpha = 1 - ph; circ(tx + 2 - ph*6 + Math.sin(i)*3, wcy - 6 + ph*14, 1, '#4fc3ff'); } ctx.globalAlpha = 1; }   // coolant
+    ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.beginPath(); ctx.moveTo(wx + 4, wy + wh); ctx.lineTo(wx + 14, wy); ctx.lineTo(wx + 20, wy); ctx.lineTo(wx + 10, wy + wh); ctx.fill();
+    lightTower(w - 8, 8, s.state, s.T);
+    // tool magazine
+    const my = h*0.62 + 6; box(2, my, w - 4, h - my - 2, 4, '#2b3346');
+    const xs = spread(s.n, 16, w - 16);
+    for (let i=0; i<Math.floor((w - 8)/9); i++) circ(8 + i*9, my + 5, 2.2, '#1b2232');
+    return xs.map(x => ({ x, y:my + (h - my)/2 + 2 }));
   },
-  // laser head scans over the tool and engraves a line of text
-  sign(k, on, T, hu){
-    ctx.fillStyle = '#1b2232'; ctx.fillRect(-26, -26, 52, 52); ctx.strokeStyle = '#3a4560'; ctx.lineWidth = 1; ctx.strokeRect(-25.5, -25.5, 51, 51);
-    ctx.fillStyle = 'rgba(176,124,255,0.08)'; ctx.fillRect(-25, -25, 50, 50);
-    // work plate with tool
-    rr(-20, 2, 40, 18, 2); ctx.fillStyle = '#8e99ad'; ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(-20, 2, 40, 2);
-    // engraved text grows with progress
-    const gx = -15, gw = on ? 30*k : 0;
-    ctx.strokeStyle = '#2a2f3a'; ctx.lineWidth = 1.1; ctx.beginPath();
-    for (let x=0; x<gw; x+=1){ const y = 11 + Math.sin(x*1.7)*2 + (x % 6 < 1 ? 0 : 0); x === 0 ? ctx.moveTo(gx + x, y) : ctx.lineTo(gx + x, y); }
-    ctx.stroke();
-    // gantry rail + head
-    ctx.fillStyle = '#3a4560'; ctx.fillRect(-24, -20, 48, 3);
-    const hx = on ? gx + gw : -18;
-    rr(hx - 5, -22, 10, 9, 2); ctx.fillStyle = '#b07cff'; ctx.fill(); ctx.fillStyle = '#2c3850'; ctx.fillRect(hx - 2, -13, 4, 3);
-    if (on){ const fl = 0.6 + 0.4*Math.sin(T*40);
-      ctx.save(); ctx.shadowColor = '#ff5fd2'; ctx.shadowBlur = 8; line(hx, -10, hx, 11 + Math.sin(gw*1.7)*2, `rgba(255,95,210,${fl})`, 1.4); ctx.restore();
-      circ(hx, 11 + Math.sin(gw*1.7)*2, 2.2, `rgba(255,220,255,${fl})`);
-      for (let i=0; i<3; i++){ const ph = (T*1.3 + i/3) % 1; ctx.globalAlpha = (1 - ph)*0.35; circ(hx + Math.sin(ph*6 + i)*3, 9 - ph*14, 1.5 + ph*3, '#9aa6bb'); } ctx.globalAlpha = 1; }
+  // dock door on the left, rollers through a scanner tunnel, supplier pallet stack
+  goodsin(w, h, s){
+    // rolling door
+    box(0, 4, 14, h - 8, 2, '#1b2232'); const open = s.on ? 0.8 : 0.25;
+    for (let i=0; i<10; i++){ const yy = 6 + i*(h - 12)/10; ctx.fillStyle = i % 2 ? '#8a96ad' : '#6b7790'; ctx.fillRect(2, yy, 10*(1 - open) + 1, (h - 12)/10 - 0.5); }
+    for (let i=0; i<6; i++){ ctx.fillStyle = i % 2 ? '#ffc53d' : '#151b26'; ctx.fillRect(13, 4 + i*(h - 8)/6, 3, (h - 8)/6); }
+    // roller conveyor through the middle
+    const cy = h*0.42; box(16, cy - 11, w - 16, 22, 2, '#1b2232');
+    for (let x=18; x<w - 2; x+=6){ ctx.fillStyle = s.on ? (Math.floor(x/6 + s.T*10) % 2 ? '#5a6680' : '#4a5468') : '#3a4560'; ctx.fillRect(x, cy - 10, 2.5, 20); }
+    // boxes rolling in
+    for (let i=0; i<2; i++){ const ph = s.on ? (s.T*0.35 + i*0.5) % 1 : 0.2 + i*0.3, bx = 16 + ph*(w - 36);
+      const stock = !s.hu || s.hu.kind === 'stock' || s.hu.kind === 'pstock'; box(bx, cy - 7, 14, 14, 2, stock ? '#c98a4b' : s.hu.order.color); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(bx + 6, cy - 7, 2, 14); }
+    // scanner tunnel
+    const sx = w*0.62; box(sx - 7, cy - 15, 14, 30, 3, '#3a4560'); box(sx - 4, cy - 12, 8, 24, 2, '#151b26');
+    if (s.on && Math.sin(s.T*10) > 0){ ctx.fillStyle = 'rgba(255,84,104,0.7)'; ctx.fillRect(sx - 0.7, cy - 12, 1.4, 24); }
+    // pallet with supplier boxes
+    const py = h - 30; box(22, py, 40, 26, 2, '#8a6a40'); ctx.fillStyle = '#6b5030'; for (let i=0; i<3; i++) ctx.fillRect(22, py + 3 + i*9, 40, 2);
+    for (let i=0; i<4; i++) box(24 + (i % 2)*19, py + 2 + Math.floor(i/2)*12, 17, 10, 1.5, '#c98a4b');
+    const xs = spread(s.n, w*0.78, w - 12);
+    return xs.map(x => ({ x, y:h - 16 }));
   },
-  // sewing machine: needle bobs, fabric slides, stitches appear, spool turns
-  patch(k, on, T, hu){
-    // fabric in the order's colour
-    const col = hu ? hu.order.color : '#5a6680', slide = on ? (T*6) % 8 : 0;
-    rr(-27, 6, 54, 10, 2); ctx.fillStyle = col; ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-27, 13, 54, 3);
-    ctx.strokeStyle = '#f4f6fa'; ctx.lineWidth = 1; ctx.setLineDash([2.5, 2.5]); ctx.lineDashOffset = slide;
-    ctx.beginPath(); ctx.moveTo(-27, 10.5); ctx.lineTo(on ? 2 : -27, 10.5); ctx.stroke(); ctx.setLineDash([]);
-    if (on){ rr(-14, 7, 10*Math.min(1, k*1.4), 7, 1.5); ctx.fillStyle = '#ffd23f'; ctx.fill(); }   // the logo patch being sewn on
-    // machine body (C-shape)
-    ctx.fillStyle = '#ff5fa2'; rr(-6, -22, 30, 8, 3); ctx.fill(); rr(16, -22, 8, 30, 3); ctx.fill();
-    ctx.fillStyle = '#d94889'; rr(-6, -16, 9, 9, 2); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(-4, -21, 26, 1.5);
-    // needle
-    const ny = on ? Math.abs(Math.sin(T*14))*5 : 0;
-    ctx.fillStyle = '#9aa6bb'; ctx.fillRect(0, -8, 2, 3 + ny); line(1, -5 + ny, 1, 4 + ny, '#e6ebf3', 1);
-    // spool + thread
-    ctx.save(); ctx.translate(10, -26); ctx.rotate(on ? T*6 : 0); ctx.fillStyle = '#ffd23f'; ctx.fillRect(-3, -1.5, 6, 3); ctx.restore();
-    ell(10, -26, 3, 1.4, '#c7d0de'); line(10, -24, 1, -8, 'rgba(255,210,63,0.6)', 0.6);
-  },
-  // the tool turns on a lit turntable under a ring light, sparkles when it gleams
-  care(k, on, T, hu){
-    // ring light
-    ctx.beginPath(); ctx.arc(0, -16, 12, Math.PI, 0); ctx.strokeStyle = on ? '#fff2b8' : '#5a6680'; ctx.lineWidth = 3; ctx.stroke();
-    if (on){ const g = ctx.createRadialGradient(0, 4, 2, 0, 4, 26); g.addColorStop(0, 'rgba(255,210,63,0.28)'); g.addColorStop(1, 'rgba(255,210,63,0)'); ctx.fillStyle = g; ctx.fillRect(-27, -27, 54, 54); }
-    // turntable
-    ell(0, 16, 20, 6, '#3a4560'); ell(0, 14, 20, 6, '#5a6680'); ell(0, 14, 15, 4.2, '#6f7b94');
-    const a = on ? T*1.6 : 0;
-    for (let i=0; i<6; i++){ const aa = a + i*Math.PI/3, mx = Math.cos(aa)*17, my = 14 + Math.sin(aa)*5; if (Math.sin(aa) > 0) circ(mx, my, 1, '#ffd23f'); }
-    const it = huItem(hu);
-    if (it){ ctx.save(); ctx.translate(0, 2); ctx.scale(on ? Math.cos(a) : 1, 1); drawIcon(it.icon, 0, 0, 20); ctx.restore(); }
-    // polishing cloth sweeps over the tool
-    if (on){ const cx = Math.sin(T*4)*9; rr(cx - 5, -6, 10, 6, 2); ctx.fillStyle = '#ffd23f'; ctx.fill(); ctx.fillStyle = '#e6b800'; ctx.fillRect(cx - 5, -2, 10, 1); }
-    // twinkles
-    if (on) for (let i=0; i<3; i++){ const ph = (T*0.9 + i/3) % 1, s = Math.sin(ph*Math.PI)*3.5; ctx.fillStyle = '#fff6c9'; ctx.save(); ctx.translate([-14, 13, 8][i], [-2, -6, 8][i]); star(0, 0, s); ctx.restore(); }
-  },
-  // light table: a magnifier sweeps over the item, scan line, verdict screen
-  qa(k, on, T, hu){
-    rr(-26, 4, 36, 20, 3); ctx.fillStyle = on ? '#dfe7f5' : '#3a4560'; ctx.fill();             // light table
-    ctx.strokeStyle = 'rgba(14,19,29,0.12)'; ctx.lineWidth = 0.6; for (let i=1; i<6; i++){ line(-26 + i*6, 4, -26 + i*6, 24, 'rgba(14,19,29,0.12)', 0.6); }
-    const it = huItem(hu); if (it && on) drawIcon(it.icon, -8, 14, 15);
-    if (on){ const sy = 5 + tri(T*1.2)*18; ctx.fillStyle = 'rgba(255,84,104,0.7)'; ctx.fillRect(-26, sy, 36, 1.2); }
-    // magnifier on an arm
-    const mx = on ? -8 + Math.sin(T*1.7)*9 : -18, my = on ? 10 + Math.sin(T*3.4)*4 : -10;
-    line(20, -24, mx + 4, my - 4, '#5a6680', 2);
-    ctx.beginPath(); ctx.arc(mx, my, 6, 0, 7); ctx.fillStyle = 'rgba(160,210,255,0.25)'; ctx.fill(); ctx.strokeStyle = '#ff5468'; ctx.lineWidth = 2; ctx.stroke();
-    // verdict screen
-    rr(13, -12, 13, 16, 2); ctx.fillStyle = '#0b0f17'; ctx.fill(); ctx.strokeStyle = '#3a4560'; ctx.lineWidth = 1; ctx.stroke();
-    if (on){ for (let i=0; i<4; i++){ const w = 3 + ((i*7 + Math.floor(T*6)) % 6); ctx.fillStyle = '#3ddc84'; ctx.fillRect(15, -10 + i*3.4, w, 1.4); } }
-    else { circ(19.5, -4, 1.4, Math.floor(T*1.5) % 2 ? '#ffc53d' : '#3a4560'); }
-  },
-  // red boxes drop into a wire cage, a turning return arrow
-  retoure(k, on, T, hu){
-    // cage
-    ctx.strokeStyle = '#6b7790'; ctx.lineWidth = 1; ctx.strokeRect(-24, -4, 30, 26);
-    for (let i=1; i<5; i++) line(-24 + i*6, -4, -24 + i*6, 22, '#4a5468', 0.8);
-    for (let i=1; i<4; i++) line(-24, -4 + i*6.5, 6, -4 + i*6.5, '#4a5468', 0.8);
-    const n = Math.min(4, (st => st ? st.processed : 0)(G.st.retoure) % 5);
-    for (let i=0; i<n; i++){ rr(-22 + (i%2)*13, 13 - Math.floor(i/2)*9, 12, 8, 1.5); ctx.fillStyle = '#8a3a46'; ctx.fill(); }
-    if (on){ const ph = ease(Math.min(1, k*1.3)), by = -24 + ph*(13 - Math.floor(n/2)*9 + 24);
-      rr(-22 + (n%2)*13, by, 12, 8, 1.5); ctx.fillStyle = '#c0485a'; ctx.fill(); drawIcon('x', -16 + (n%2)*13, by + 4, 6, '#ffd0d6', 3); }
-    // return arrow sign
-    ctx.save(); ctx.translate(17, -12); ctx.rotate(on ? -T*2 : 0);
+  // gravity chute into wire-mesh cages for defective returns
+  retoure(w, h, s){
+    // chute (slanted rollers) from left
+    ctx.save(); ctx.translate(4, 10); ctx.rotate(0.12); box(0, 0, w*0.45, 16, 2, '#1b2232');
+    for (let x=3; x<w*0.45 - 2; x+=5) { ctx.fillStyle = '#4a5468'; ctx.fillRect(x, 1, 2, 14); } ctx.restore();
+    // cages
+    const cw = (w*0.55 - 10)/2, cx0 = w*0.45, cy = 8, ch = h - 14;
+    for (let c=0; c<2; c++){ const x = cx0 + c*(cw + 4);
+      box(x, cy, cw, ch, 2, '#141a24'); ctx.strokeStyle = '#7d8799'; ctx.lineWidth = 1.2; ctx.strokeRect(x + 0.5, cy + 0.5, cw - 1, ch - 1);
+      const cnt = Math.min(6, Math.max(0, (G.st.retoure ? G.st.retoure.processed : 0) - c*6));
+      for (let i=0; i<cnt; i++) box(x + 3 + (i % 2)*(cw/2 - 1), cy + ch - 12 - Math.floor(i/2)*10, cw/2 - 5, 8, 1.5, '#8a3a46');
+      ctx.strokeStyle = 'rgba(125,135,153,0.6)'; ctx.lineWidth = 0.6; for (let i=1; i<5; i++){ line(x + i*cw/5, cy, x + i*cw/5, cy + ch, 'rgba(125,135,153,0.5)', 0.6); } for (let i=1; i<6; i++){ line(x, cy + i*ch/6, x + cw, cy + i*ch/6, 'rgba(125,135,153,0.5)', 0.6); } }
+    // a box sliding down the chute while working
+    if (s.on){ const k = ease(s.k), bx = 6 + k*(w*0.45 - 10), by = 12 + k*(w*0.45)*0.12; box(bx, by, 14, 10, 1.5, '#c0485a'); drawIcon('x', bx + 7, by + 5, 6, '#ffd0d6', 3); }
+    // turning return sign
+    ctx.save(); ctx.translate(16, h - 16); ctx.rotate(s.on ? -s.T*2 : 0);
     ctx.beginPath(); ctx.arc(0, 0, 7, 0.3, Math.PI*1.7); ctx.strokeStyle = '#a07cff'; ctx.lineWidth = 2.4; ctx.stroke();
-    const ax = Math.cos(0.3)*7, ay = Math.sin(0.3)*7; ctx.fillStyle = '#a07cff'; ctx.beginPath(); ctx.moveTo(ax + 3.5, ay - 1); ctx.lineTo(ax - 3, ay - 1.5); ctx.lineTo(ax, ay + 4); ctx.fill();
-    ctx.restore();
+    const ax = Math.cos(0.3)*7, ay = Math.sin(0.3)*7; ctx.fillStyle = '#a07cff'; ctx.beginPath(); ctx.moveTo(ax + 3.5, ay - 1); ctx.lineTo(ax - 3, ay - 1.5); ctx.lineTo(ax, ay + 4); ctx.fill(); ctx.restore();
+    return spread(s.n, 30, w*0.4).map(x => ({ x, y:h - 14 }));
   },
-  // a box gets filled, flaps fold shut, tape runs across, then a shipping label
-  pack(k, on, T, hu){
-    for (let i=0; i<7; i++) circ(-24 + i*8, 18, 1.6, '#3a4560');
-    if (!on){ rr(-10, 2, 20, 12, 1.5); ctx.fillStyle = '#7a5f40'; ctx.fill(); ctx.fillStyle = '#5a4630'; ctx.fillRect(-10, 2, 20, 2); return; }
-    const it = huItem(hu);
-    const fill = clamp(k/0.35, 0, 1), close = clamp((k - 0.35)/0.25, 0, 1), tape = clamp((k - 0.6)/0.2, 0, 1), label = k > 0.82;
-    if (it && fill < 1) drawIcon(it.icon, 0, -14 + ease(fill)*16, 13);
-    rr(-12, 0, 24, 14, 1.5); ctx.fillStyle = '#c98a4b'; ctx.fill();
-    ctx.fillStyle = '#a8703a'; ctx.fillRect(-12, 0, 24, 2);
-    // flaps rotate down
-    ctx.save(); ctx.translate(-12, 0); ctx.rotate(-Math.PI*0.75*(1 - ease(close))); ctx.fillStyle = '#e0b07a'; ctx.fillRect(0, -1.5, 12, 3); ctx.restore();
-    ctx.save(); ctx.translate(12, 0); ctx.rotate(Math.PI*0.75*(1 - ease(close))); ctx.fillStyle = '#e0b07a'; ctx.fillRect(-12, -1.5, 12, 3); ctx.restore();
-    if (tape > 0){ ctx.fillStyle = 'rgba(255,240,200,0.85)'; ctx.fillRect(-12, -1.6, 24*tape, 3.2);
-      // tape gun
-      const gx = -12 + 24*tape; rr(gx - 2, -10, 7, 6, 1.5); ctx.fillStyle = '#3ddc84'; ctx.fill(); circ(gx, -4, 2.4, '#f2e6c9'); }
-    if (label){ rr(-8, 4, 12, 7, 1); ctx.fillStyle = '#f4f6fa'; ctx.fill(); ctx.fillStyle = hu ? hu.order.color : '#3ddc84'; ctx.fillRect(-7, 5, 3, 5);
-      for (let i=0; i<4; i++) ctx.fillRect(-3 + i*1.6, 5, 0.8, 5); }
+  // automatic packing line, left to right: carton erector, filling, taping, labelling
+  pack(w, h, s){
+    const cy = h*0.55; box(0, cy - 9, w, 18, 2, '#1b2232');
+    for (let x=2; x<w; x+=6){ ctx.fillStyle = s.on ? (Math.floor(x/6 - s.T*10) % 2 ? '#5a6680' : '#4a5468') : '#3a4560'; ctx.fillRect(x, cy - 8, 2.5, 16); }
+    const mods = [['ERECT', 0.1], ['FILL', 0.37], ['TAPE', 0.62], ['LABEL', 0.86]];
+    mods.forEach(([lbl, f], i) => { const mx = w*f; box(mx - 12, cy - 26, 24, 14, 3, i === 1 ? '#3ddc84' : '#3a4560'); box(mx - 12, cy + 12, 24, 6, 2, '#2c3850');
+      ctx.fillStyle = i === 1 ? '#0e131d' : '#c9d2e3'; ctx.font = `800 6.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(lbl, mx, cy - 17); line(mx - 10, cy - 12, mx - 10, cy + 12, '#3a4560', 1.5); line(mx + 10, cy - 12, mx + 10, cy + 12, '#3a4560', 1.5); });
+    // flat carton stack (left)
+    for (let i=0; i<4; i++) box(4, 4 + i*2.2, 26, 6, 1, i % 2 ? '#a8703a' : '#c98a4b');
+    // the box travels the line as the job progresses
+    if (s.on){ const it = huItem(s.hu), bx = w*0.08 + s.k*(w*0.84);
+      const stage = s.k < 0.3 ? 0 : s.k < 0.55 ? 1 : s.k < 0.78 ? 2 : 3;
+      box(bx - 8, cy - 7, 16, 14, 1.5, '#c98a4b');
+      if (stage >= 2){ ctx.fillStyle = 'rgba(255,240,200,0.9)'; ctx.fillRect(bx - 8, cy - 1.5, 16, 3); } else { ctx.fillStyle = '#7a5530'; ctx.fillRect(bx - 6, cy - 5, 12, 10); if (it && stage === 1) drawIcon(it.icon, bx, cy, 9); }
+      if (stage >= 3){ box(bx - 6, cy + 1.5, 9, 5, 1, '#f4f6fa'); ctx.fillStyle = s.hu.order ? s.hu.order.color : '#3ddc84'; ctx.fillRect(bx - 5, cy + 2.5, 2, 3); }
+      // fill robot / tape head motion
+      const fx = w*0.37; line(fx, cy - 12, fx + Math.sin(s.T*5)*4, cy - 4 + Math.abs(Math.sin(s.T*5))*3, '#9aa6bb', 2);
+    }
+    lightTower(w - 8, 3, s.state, s.T);
+    return spread(s.n, w*0.2, w*0.55).map(x => ({ x, y:h - 9 }));
   },
 };
-function drawMachine(st, vx, vy, vw, vh){
-  const def = st.def, scene = SCENES[def.id]; if (!scene) return;
-  const T = G.time || 0, act = st.slots.find(s => s && !s.done), blocked = st.slots.some(s => s && s.blocked), on = !!act && !blocked;
-  const k = act ? clamp(act.t/act.dur, 0, 1) : 0, hu = act ? act.hu : null;
-  ctx.save();
-  rr(vx, vy, vw, vh, 6); ctx.fillStyle = '#0f141d'; ctx.fill();
-  ctx.clip();
-  if (on){ const g = ctx.createRadialGradient(vx + vw/2, vy + vh*0.6, 2, vx + vw/2, vy + vh*0.6, vw*0.8); g.addColorStop(0, hexA(def.color, 0.22)); g.addColorStop(1, hexA(def.color, 0)); ctx.fillStyle = g; ctx.fillRect(vx, vy, vw, vh); }
-  const s = Math.min(vw, vh)/54; ctx.translate(vx + vw/2, vy + vh/2); ctx.scale(s, s);
-  if (!on) ctx.globalAlpha = 0.55;
-  try { scene(k, on, T, hu); } catch(e){}
-  ctx.globalAlpha = 1;
-  ctx.restore();
-  // status LED and frame
-  const led = blocked ? (Math.floor(T*4) % 2 ? '#ff5468' : '#5a1f28') : on ? '#3ddc84' : (Math.floor(T*1.2) % 2 ? '#ffc53d' : '#4a3d1c');
-  ctx.beginPath(); ctx.arc(vx + vw - 5, vy + 5, 2.2, 0, 7); ctx.fillStyle = led; ctx.fill();
-  ctx.strokeStyle = on ? hexA(def.color, 0.55) : '#263048'; ctx.lineWidth = 1; rr(vx + 0.5, vy + 0.5, vw - 1, vh - 1, 6); ctx.stroke();
-}
+const st_processed = s => s.st ? s.st.processed : 0;
 
-// robot arm seen from above: base on a hazard-striped plate, two links reaching down to the bench, gripper
-function drawRobotArm(x, y, col, working, T, seed, blocked){
-  ctx.save(); ctx.translate(x, y);
-  const ph = working ? T*2.4 + seed*1.7 : 0;
-  const a1 = Math.PI/2 + (working ? Math.sin(ph)*0.55 : -0.35), a2 = (working ? -0.9 + Math.sin(ph*1.9 + 1)*0.6 : -1.5);
-  const L1 = 11, L2 = 10;
-  const ex = Math.cos(a1)*L1, ey = Math.sin(a1)*L1, gx = ex + Math.cos(a1 + a2)*L2, gy = ey + Math.sin(a1 + a2)*L2;
-  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2;
-  // links
-  ctx.lineCap = 'round';
-  line(0, 0, ex, ey, shade(col, -0.3), 6.5); line(0, 0, ex, ey, col, 4.5);
-  ctx.shadowColor = 'transparent';
-  line(ex, ey, gx, gy, '#5a6680', 5); line(ex, ey, gx, gy, '#9aa6bb', 3);
-  ctx.lineCap = 'butt';
-  circ(ex, ey, 3.2, '#2c3850'); circ(ex, ey, 1.6, '#c7d0de');
-  // gripper fingers open and close
-  const open = working ? 1.6 + Math.sin(ph*3.8)*1.4 : 2.6, ga = a1 + a2;
-  ctx.save(); ctx.translate(gx, gy); ctx.rotate(ga);
-  ctx.fillStyle = '#c7d0de'; ctx.fillRect(0, -open - 1.2, 4, 1.4); ctx.fillRect(0, open - 0.2, 4, 1.4); ctx.fillStyle = '#5a6680'; ctx.fillRect(-1.5, -open - 1.2, 2, open*2 + 2.4);
-  ctx.restore();
-  // base turret
-  circ(0, 0, 5.6, '#1b2232'); circ(0, 0, 4.6, col); circ(0, 0, 2, '#0e131d');
-  const led = blocked ? (Math.floor(T*4) % 2 ? '#ff5468' : '#5a1f28') : working ? '#3ddc84' : '#3a4560';
-  circ(3.6, -3.6, 1.3, led);
-  ctx.restore();
-}
-// operator seen from above, facing +y (towards the bench) when ang = PI/2
-function drawOperator(x, y, col, working, T, seed, blocked){
-  ctx.save(); ctx.translate(x, y); ctx.scale(1.15, 1.15);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(0.5, 1.5, 9, 6.5, 0, 0, 7); ctx.fill();
-  const ph = working ? Math.sin(T*9 + seed*2.1) : 0, ph2 = working ? Math.sin(T*9 + seed*2.1 + 2.2) : 0;
-  // arms reach forward to the bench while working
-  ctx.fillStyle = shade(col, -0.25);
-  rr(-8.5, -1 + (working ? 2 + ph*2.5 : 0), 3.6, 7 + (working ? 2 + ph*2 : 0), 1.6); ctx.fill();
-  rr(4.9, -1 + (working ? 2 + ph2*2.5 : 0), 3.6, 7 + (working ? 2 + ph2*2 : 0), 1.6); ctx.fill();
-  ctx.fillStyle = '#f1c27d';
-  circ(-6.7, 6.5 + (working ? 4 + ph*4.5 : 0), 1.8, '#f1c27d'); circ(6.7, 6.5 + (working ? 4 + ph2*4.5 : 0), 1.8, '#f1c27d');
-  // shoulders: vest in the station colour with reflective stripe
-  ctx.beginPath(); ctx.ellipse(0, 0, 7.4, 4.4, 0, 0, 7); ctx.fillStyle = col; ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(-7, -0.6, 14, 1.2);
-  // head with a dark cap, peak towards the bench
-  circ(0, 0.6, 3.5, '#2a3346'); ctx.fillStyle = '#1b2232'; ctx.beginPath(); ctx.ellipse(0, 3.4, 2.8, 1.4, 0, 0, Math.PI); ctx.fill();
-  ctx.restore();
-  if (blocked){ ctx.fillStyle = Math.floor(T*3) % 2 ? '#ff5468' : '#ff8a9a'; ctx.font = `900 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('!', x + 9, y - 6); }
-}
 // floor zone corner brackets
 function zoneCorners(x, y, w, h, col){
   const L = 10; ctx.strokeStyle = col; ctx.lineWidth = 2.4; ctx.lineCap = 'square';
@@ -2320,11 +2335,25 @@ function zoneCorners(x, y, w, h, col){
     ctx.beginPath(); ctx.moveTo(cx + sx*L, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy*L); ctx.stroke(); });
   ctx.lineCap = 'butt';
 }
-function miniHU(hu, x, y){
+function miniHU(hu, x, y, f, blocked){
   const c = hu.kind === 'stock' || hu.kind === 'pstock' ? '#c98a4b' : hu.kind === 'scrap' ? '#8a3a46' : hu.kind === 'tote' ? '#7d8799' : hu.order.color;
-  rr(x - 8, y - 5.5, 16, 11, 2); ctx.fillStyle = c; ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x - 8, y + 1.5, 16, 4);
-  ctx.fillStyle = '#10141c'; ctx.font = `800 7px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText(hu.kind === 'stock' || hu.kind === 'pstock' ? 'NEW' : String(hu.order.num).slice(-3), x, y + 2);
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1.5;
+  rr(x - 9, y - 6, 18, 12, 2.5); ctx.fillStyle = c; ctx.fill(); ctx.shadowColor = 'transparent';
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x - 9, y + 2, 18, 4);
+  ctx.fillStyle = '#10141c'; ctx.font = `800 7.5px ${FONT}`; ctx.textAlign = 'center';
+  ctx.fillText(hu.kind === 'stock' || hu.kind === 'pstock' ? 'NEW' : String(hu.order.num).slice(-3), x, y + 2.5);
+  // progress bar under the unit
+  rr(x - 9, y + 7.5, 18, 3, 1.5); ctx.fillStyle = 'rgba(14,19,29,0.9)'; ctx.fill();
+  rr(x - 9, y + 7.5, Math.max(3, 18*f), 3, 1.5); ctx.fillStyle = blocked ? (Math.floor(perfT*4) % 2 ? '#ff5468' : '#ff8a9a') : '#3ddc84'; ctx.fill();
+}
+// layout of a station's floor zone: IN lane (left), machine (middle), OUT spaces (right)
+function cellLayout(st){
+  const {x, y, w, h} = st, top = y + 32, bot = y + h - 6, outW = st.outMax > 0 ? 38 : 0;
+  return { inX:x + 6, inW:16, top, bot, mx:x + 26, my:top, mw:w - 26 - 6 - (outW ? outW + 2 : 0), mh:bot - top - (st.outMax > 0 ? 0 : 14), outX:x + w - 6 - outW, outW };
+}
+function outPos(st, i){
+  const L = cellLayout(st), n = Math.max(1, st.outMax), sp = n > 1 ? Math.min(28, (L.bot - L.top - 26)/(n - 1)) : 0;
+  return { x:L.outX + L.outW/2, y:L.top + 13 + i*sp };
 }
 
 function drawStation(st, t){
@@ -2332,10 +2361,10 @@ function drawStation(st, t){
   const {x,y,w,h,def} = st, T = G.time || 0;
   const sel = G.selected, targets = sel ? validTargets(sel) : [];
   const isTarget = sel && targets.includes(st), full = !hasRoom(st);
-  // ---- floor zone: tinted floor, painted safety line, yellow corner brackets
+  const L = cellLayout(st);
+  // ---- floor zone
   ctx.save();
-  rr(x, y, w, h, 5); ctx.fillStyle = 'rgba(20,26,38,0.92)'; ctx.fill();
-  ctx.fillStyle = hexA(def.color, 0.045); ctx.fill();
+  rr(x, y, w, h, 5); ctx.fillStyle = 'rgba(20,26,38,0.92)'; ctx.fill(); ctx.fillStyle = hexA(def.color, 0.045); ctx.fill();
   ctx.save(); rr(x, y, w, h, 5); ctx.clip();
   ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth = 1;
   for (let i=12; i<w; i+=12){ ctx.beginPath(); ctx.moveTo(x+i, y); ctx.lineTo(x+i, y+h); ctx.stroke(); }
@@ -2343,8 +2372,8 @@ function drawStation(st, t){
   if (st.flash > 0){ ctx.fillStyle = `rgba(255,255,255,${st.flash*0.18})`; ctx.fillRect(x, y, w, h); }
   if (st.flash < 0){ ctx.fillStyle = `rgba(255,84,104,${-st.flash*0.25})`; ctx.fillRect(x, y, w, h); }
   ctx.restore();
-  ctx.setLineDash([7, 5]); ctx.strokeStyle = hexA(def.color, 0.55); ctx.lineWidth = 1.6; rr(x+2, y+2, w-4, h-4, 4); ctx.stroke(); ctx.setLineDash([]);
-  zoneCorners(x+1, y+1, w-2, h-2, '#ffc53d');
+  ctx.setLineDash([7, 5]); ctx.strokeStyle = hexA(def.color, 0.5); ctx.lineWidth = 1.5; rr(x+2, y+2, w-4, h-4, 4); ctx.stroke(); ctx.setLineDash([]);
+  zoneCorners(x+1, y+1, w-2, h-2, 'rgba(255,197,61,0.85)');
   // ---- name sign
   const sx = x + 8, sw = w - 16;
   ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
@@ -2356,76 +2385,43 @@ function drawStation(st, t){
   ctx.fillText(fitText(def.name, sw - 44), sx + 22, y + 20);
   if (st.key){ rr(sx + sw - 18, y + 8.5, 15, 15, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = `800 9.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(st.key, sx + sw - 10.5, y + 19.5); }
-  // ---- workbench with machine; operators stand behind it (one per workstation slot)
-  const bx = x + 8, by = y + 44, bw = w - 16, bh = 30;
-  // mounting rail for the robot arms, with hazard stripes
-  rr(bx + 2, by - 15, bw*0.6, 12, 2); ctx.fillStyle = '#151b26'; ctx.fill();
-  ctx.save(); rr(bx + 2, by - 15, bw*0.6, 12, 2); ctx.clip();
-  for (let i=-2; i<bw*0.6/6 + 2; i++){ ctx.fillStyle = 'rgba(255,197,61,0.22)'; ctx.beginPath(); ctx.moveTo(bx + i*6, by - 3); ctx.lineTo(bx + i*6 + 3, by - 3); ctx.lineTo(bx + i*6 + 9, by - 15); ctx.lineTo(bx + i*6 + 6, by - 15); ctx.fill(); }
-  ctx.restore();
-  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
-  rr(bx, by, bw, bh, 4); ctx.fillStyle = '#3a4458'; ctx.fill(); ctx.shadowColor = 'transparent';
-  rr(bx, by, bw, bh, 4); ctx.fillStyle = '#4a556c'; ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(bx + 2, by + 2, bw - 4, 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(bx, by + bh - 4, bw, 4);
-  ctx.fillStyle = hexA(def.color, 0.75); ctx.fillRect(bx, by + bh - 4, bw, 1.6);
-  // bench clutter: a clipboard with the job sheet and a small parts tray
-  rr(bx + 4, by + 5, 9, 12, 1.5); ctx.fillStyle = '#c9a36a'; ctx.fill(); ctx.fillStyle = '#f4f6fa'; ctx.fillRect(bx + 5.5, by + 7.5, 6, 8.5);
-  ctx.fillStyle = '#8a96ad'; for (let i=0; i<3; i++) ctx.fillRect(bx + 6.5, by + 9 + i*2.2, 4, 0.8); ctx.fillStyle = '#5a6680'; ctx.fillRect(bx + 7, by + 4, 3, 2);
-  const mS = Math.min(52, bw*0.42), mx = bx + bw - mS/2 - 2, my = by + bh/2 - 4;
-  const opW = bw - mS - 6, n = st.slotCount, gap = opW / n;
-  for (let i=0; i<n; i++){
-    const s = st.slots[i], ox = bx + gap*(i + 0.5), oy = by - 9;
-    const working = !!s && !s.done && !s.blocked;
-    drawRobotArm(ox, oy, def.color, working, T, i + def.id.length, s && s.blocked);
-    if (s){
-      miniHU(s.hu, ox, by + 13);
-      // progress ring next to the robot base
-      const f = s.done ? 1 : s.t/s.dur, rx = ox + Math.min(12, gap/2 - 2), ry = oy - 2;
-      circ(rx, ry, 5.5, 'rgba(14,19,29,0.85)');
-      ctx.beginPath(); ctx.arc(rx, ry, 4.3, -Math.PI/2, -Math.PI/2 + f*Math.PI*2); ctx.strokeStyle = s.blocked ? '#ff5468' : def.color; ctx.lineWidth = 2; ctx.stroke();
-    }
-  }
-  // machine on the bench
-  const act = st.slots.find(s => s && !s.done), blocked = st.slots.some(s => s && s.blocked), on = !!act && !blocked;
-  ctx.save(); ctx.translate(mx, my); ctx.scale(mS/54, mS/54);
-  if (on){ const g = ctx.createRadialGradient(0, 4, 2, 0, 4, 34); g.addColorStop(0, hexA(def.color, 0.30)); g.addColorStop(1, hexA(def.color, 0)); ctx.fillStyle = g; ctx.fillRect(-34, -30, 68, 64); }
-  if (!on) ctx.globalAlpha = 0.8;
-  try { SCENES[def.id] && SCENES[def.id](act ? clamp(act.t/act.dur, 0, 1) : 0, on, T, act ? act.hu : null); } catch(e){}
-  ctx.globalAlpha = 1; ctx.restore();
-  const led = blocked ? (Math.floor(T*4) % 2 ? '#ff5468' : '#5a1f28') : on ? '#3ddc84' : (Math.floor(T*1.2) % 2 ? '#ffc53d' : '#4a3d1c');
-  circ(bx + bw - 5, by + bh - 7, 2, led);
-  if (blocked){ rr(bx + 2, by + bh + 2, 50, 11, 3); ctx.fillStyle = 'rgba(255,84,104,0.9)'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 7.5px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('OUT FULL', bx + 7, by + bh + 10); }
-  // ---- IN: a short roller lane with the waiting units
-  const qy = y + h - 52, lx = x + 26, lw = Math.min(st.queueMax*14 + 6, w - 40);
-  rr(lx - 4, qy - 7, lw, 14, 3); ctx.fillStyle = '#1b2232'; ctx.fill();
-  for (let i=0; i<lw/5; i++){ ctx.fillStyle = '#2c3850'; ctx.fillRect(lx - 2 + i*5, qy - 6, 1.6, 12); }
-  ctx.fillStyle = '#8a96ad'; ctx.font = `800 8.5px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('IN', x + 9, qy + 3);
+  // ---- IN lane (left): vertical rollers, units queue top to bottom, flow arrow into the machine
+  box(L.inX, L.top, L.inW, L.bot - L.top, 3, '#1b2232');
+  for (let yy = L.top + 3; yy < L.bot - 2; yy += 5){ ctx.fillStyle = '#2c3850'; ctx.fillRect(L.inX + 2, yy, L.inW - 4, 1.6); }
+  ctx.fillStyle = '#8a96ad'; ctx.font = `800 7px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('IN', L.inX + L.inW/2, L.top - 1.5);
+  const qsp = Math.min(14, (L.bot - L.top - 10)/Math.max(1, st.queueMax));
   for (let i=0; i<st.queueMax; i++){
-    const px = lx + 4 + i*14;
+    const px = L.inX + L.inW/2, py = L.top + 8 + i*qsp;
     if (i < st.queue.length){ const q = st.queue[i], c = q.kind === 'stock' || q.kind === 'pstock' ? '#c98a4b' : q.kind === 'scrap' ? '#8a3a46' : q.order.color;
-      rr(px - 5, qy - 4.5, 10, 9, 2);
-      if (isReady(st, q)){ ctx.fillStyle = c; ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(px - 5, qy + 1, 10, 3.5); } else { ctx.strokeStyle = c; ctx.lineWidth = 1.6; ctx.stroke(); } }
-    else if (i < st.queue.length + st.incoming){ rr(px - 5, qy - 4.5, 10, 9, 2); ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 1.3; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]); }
+      rr(px - 5.5, py - 4.5, 11, 9, 2);
+      if (isReady(st, q)){ ctx.fillStyle = c; ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(px - 5.5, py + 1, 11, 3.5); } else { ctx.strokeStyle = c; ctx.lineWidth = 1.6; ctx.stroke(); } }
+    else if (i < st.queue.length + st.incoming){ rr(px - 5.5, py - 4.5, 11, 9, 2); ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 1.3; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]); }
   }
-  if (def.needsTotes){ // totes waiting at the pick station
-    const waiting = []; G.orders.forEach(o => o.lines && o.lines.forEach(l => l.state === 'atPick' && waiting.push(o.color)));
-    const nT = Math.min(waiting.length, 5);
-    for (let i=0; i<nT; i++){ const tx = x + w - 14 - i*9; ctx.fillStyle = '#5d6b85'; ctx.fillRect(tx-3.5, qy-4, 7, 8); ctx.fillStyle = waiting[i]; ctx.fillRect(tx-3.5, qy-4, 7, 2.5); }
-    if (waiting.length){ ctx.fillStyle = '#8a96ad'; ctx.font = `700 7.5px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText('TOTES', x + w - 10 - nT*9, qy+3); ctx.textAlign = 'left'; }
-  }
-  // ---- OUT: painted floor spaces
+  const flowArrow = (ax, ay) => { ctx.fillStyle = 'rgba(255,197,61,0.55)'; ctx.beginPath(); ctx.moveTo(ax, ay - 4); ctx.lineTo(ax + 4, ay); ctx.lineTo(ax, ay + 4); ctx.fill(); };
+  flowArrow(L.inX + L.inW + 1, (L.top + L.bot)/2);
+  // ---- the machine
+  const act = st.slots.find(s => s && !s.done), blocked = st.slots.some(s => s && s.blocked), on = !!act && !blocked;
+  const state = blocked ? 'blocked' : on ? 'on' : 'idle';
+  const scene = { n:st.slotCount, slots:st.slots, on, k:act ? clamp(act.t/act.dur, 0, 1) : 0, hu:act ? act.hu : null, T, st, state };
+  let pos = [];
+  ctx.save(); ctx.translate(L.mx, L.my);
+  try { pos = (BODIES[def.id] || (() => []))(L.mw, L.mh, scene) || []; } catch(e){ console.error(e); }
+  ctx.restore();
+  for (let i=0; i<st.slotCount; i++){ const s = st.slots[i], p = pos[i]; if (!s || !p) continue;
+    miniHU(s.hu, L.mx + p.x, L.my + p.y, s.done ? 1 : s.t/s.dur, s.blocked); }
+  if (blocked){ rr(L.mx + L.mw/2 - 24, L.my + L.mh/2 - 6, 48, 12, 3); ctx.fillStyle = 'rgba(255,84,104,0.92)'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 7.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('OUT FULL', L.mx + L.mw/2, L.my + L.mh/2 + 2.5); }
+  // ---- OUT (right): painted floor spaces, or the day's count for end stations
   if (st.outMax > 0){
-    ctx.save(); ctx.translate(x + 15, y + h - 26); ctx.rotate(-Math.PI/2); ctx.fillStyle = 'rgba(138,150,173,0.8)'; ctx.font = `900 8px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('OUT', 0, 3); ctx.restore();
+    flowArrow(L.outX - 3, (L.top + L.bot)/2);
+    ctx.fillStyle = '#8a96ad'; ctx.font = `800 7px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('OUT', L.outX + L.outW/2, L.top - 1.5);
     for (let i=0; i<st.outMax; i++){ const p = outPos(st, i);
       ctx.fillStyle = 'rgba(255,255,255,0.025)'; ctx.fillRect(p.x-16, p.y-12, 32, 24);
       ctx.strokeStyle = 'rgba(255,197,61,0.28)'; ctx.lineWidth = 1; ctx.strokeRect(p.x-15.5, p.y-11.5, 31, 23);
       ctx.fillStyle = 'rgba(255,197,61,0.35)'; ctx.fillRect(p.x-16, p.y-12, 5, 1.5); ctx.fillRect(p.x+11, p.y+10.5, 5, 1.5); }
   } else {
-    ctx.fillStyle = '#8a96ad'; ctx.font = `700 10px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(def.role === 'sink' ? `Shipped today: ${G.shipped}` : `Returned today: ${st.processed}`, x+10, y+h-18);
+    ctx.fillStyle = '#8a96ad'; ctx.font = `700 9.5px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(def.role === 'sink' ? `Shipped today: ${G.shipped}` : `Returned today: ${st.processed}`, L.mx + 2, y + h - 9);
   }
   ctx.restore();
-  // hover highlight: the floor line lights up
   if (hoverSt === st && sel){ ctx.strokeStyle = !G.hints ? '#ffffff' : isTarget ? '#3ddc84' : '#ff5468'; ctx.lineWidth = 3; rr(x, y, w, h, 5); ctx.stroke(); }
   drawAutoBadge(st, x + 8, y - 8);
   if (sel && full){ rr(x+w/2-24, y-10, 48, 18, 6); ctx.fillStyle = '#ff5468'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('FULL', x+w/2, y+3); }
