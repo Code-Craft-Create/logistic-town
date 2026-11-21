@@ -287,7 +287,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-28';
+const GAME_VERSION = '2026.11.21-29';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -828,6 +828,7 @@ const hasRoom = st => st.queue.length + st.incoming < st.queueMax;
 function selectable(hu){
   if (hu.gone) return false;
   if (hu.loc === 'out' || hu.loc === 'await' || hu.loc === 'bay') return true;
+  if (hu.loc === 'carried' && hu.mover) return palletReroutable(hu.mover);
   if (hu.loc === 'transit' && !hu.tr.feed) return hu.tr.to === null || hu.tr.d < hu.tr.portAt;
   return false;
 }
@@ -1547,8 +1548,20 @@ function moverGo(m, to, state, stopShort){
   const dx = p[k].x-m.x, dy = p[k].y-m.y;
   m.rev = (dx*Math.cos(m.ang) + dy*Math.sin(m.ang)) < -0.3*Math.hypot(dx, dy) ? m.path.cum[k] : 0;
 }
-// Dispatch a pallet: it waits in its bay until a transporter picks it up (re-routing is allowed until then)
+// a pallet on a transporter can be re-routed while it is loaded or driving, until it turns off the ring road at its destination
+const palletReroutable = m => m.state === 'load' || m.state === 'toHold' || (m.state === 'toDrop' && m.path && !m.path.checked);
+// Dispatch a pallet: it waits in its bay until a transporter picks it up; re-routing is allowed on the way too
 function dispatchPallet(hu, st){
+  if (hu.loc === 'carried'){
+    if (st.def.id === 'warehouse'){ toast('The Shuttle Warehouse only takes totes. Pallets are stored in the High-Bay Warehouse.', 'bad'); sfx('error'); return false; }
+    if (hu.dest === st){ G.selected = null; return true; }
+    if (!hasRoom(st)){ toast(`${st.def.name} is full. Wait or choose another route.`, 'bad'); sfx('error'); return false; }
+    if (hu.dest) hu.dest.incoming--;
+    hu.dest = st; st.incoming++;
+    const m = hu.mover; if (m && m.state !== 'load') moverGo(m, dropPoint(st), 'toDrop', 16);
+    G.selected = null; sfx('dispatch'); hideTip('route'); hideTip('pallet_route'); if (hu.flag) hideTip('flag');
+    return true;
+  }
   if (st.def.id === 'warehouse'){ toast('The Shuttle Warehouse only takes totes. Pallets are stored in the High-Bay Warehouse.', 'bad'); sfx('error'); return false; }
   if (hu.loc === 'await' && hu.dest === st){ G.selected = null; return true; }
   if (!hasRoom(st)){ toast(`${st.def.name} is full. Wait or choose another route.`, 'bad'); sfx('error'); return false; }
@@ -1737,7 +1750,7 @@ function drawMover(m, t){
   const fp = forkPos(m, 16);
   if (m.state === 'load'){ const k = clamp(m.t/MOVER.load, 0, 1), e = k*k*(3-2*k), f = m.from || fp;
     drawPalletHU(hu, f.x + (fp.x-f.x)*e, f.y + (fp.y-f.y)*e, m.ang*e, 1, 1 - 0.12*e); }
-  else if (hu.loc === 'carried' && m.state !== 'unload' && m.state !== 'unloadHold') drawPalletHU(hu, fp.x, fp.y, m.ang, 1, 0.88);
+  else if (hu.loc === 'carried' && m.state !== 'unload' && m.state !== 'unloadHold'){ hu.px = fp.x; hu.py = fp.y; drawPalletHU(hu, fp.x, fp.y, m.ang, 1, 0.88); }
   else if (m.state === 'unload' || m.state === 'unloadHold'){ const k = clamp(m.t/MOVER.load, 0, 1), e = k*k*(3-2*k), to = m.to || fp;
     drawPalletHU(hu, fp.x + (to.x-fp.x)*e, fp.y + (to.y-fp.y)*e, m.ang*(1-e), m.state === 'unload' ? 1 - 0.75*e : 1, 0.88 + 0.12*e); }
 }
