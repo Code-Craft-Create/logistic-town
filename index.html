@@ -287,7 +287,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-27';
+const GAME_VERSION = '2026.11.21-28';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -519,7 +519,7 @@ const ORDER_COLORS = ['#ff8a1f','#4f8cff','#3ddc84','#ff5fa2','#22c3e6','#b07cff
 // stage: lower stages must be completed before higher ones. Same stage = any order.
 const has = (o, tag) => o.items.some(i => i.tags.includes(tag));
 const STEPS = {
-  pick:        { label:'Commissioning',        short:'PICK',  stage:0, want: o => o.type === 'new' },
+  pick:        { label:'Commissioning',        short:'PICK',  stage:0, want: o => o.type === 'new' && !o.pallet },   // pallets from the high-bay skip it
   // customer returns (alt: a separate entry path, shown on its own line in the routing plan)
   receive:     { label:'Goods-in check',       short:'RECV',   stage:0, alt:true, want: o => o.type !== 'new' },
   regrind:     { label:'Regrinding',           short:'GRIND', stage:0.5, alt:true, want: o => o.type === 'regrind' },
@@ -540,7 +540,7 @@ const STATIONS = [
     desc:'Stores every tool in totes. Click an order\'s glowing totes to send them to Commissioning. Returned totes (↩) and new stock from Goods-in go back here.' },
   { id:'hbw', name:'High-Bay Warehouse', icon:'hbw', color:'#ff8a1f', role:'storage', accepts:['pstock'], place:'hbw',
     slots:1, time:1.5, queue:4, out:0,
-    desc:'Hochregallager for Euro pallets with oversize tools (compressors, welders, table saws). Click a glowing pallet: the stacker crane brings it to the pallet I/O. Transporters with a driver move pallets over the hall roads to every station\'s pallet bay. New pallets from Goods-in are stored here.' },
+    desc:'Hochregallager for Euro pallets with oversize tools (compressors, welders, table saws). Click a glowing pallet: the stacker crane brings it to the pallet I/O. Pallets skip Commissioning and go straight to their first service or to Packing. Transporters with a driver move pallets over the hall roads to every station\'s pallet bay. New pallets from Goods-in are stored here.' },
   { id:'commission', name:'Commissioning', icon:'box', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
     slots:1, time:5, queue:4, out:3, defect:{ chance:0.07, reason:'Wrong item picked', redo:true, returnTote:true },
     desc:'Picks the tools from the delivered totes into an order-specific handling unit (HU). Starts once all of the order\'s totes have arrived.' },
@@ -868,7 +868,7 @@ function makeOrder(){
     tip('recal', `Customer return! <b>#${o.num}</b> sent measuring tools back for <b>re-calibration</b>. After Goods-in, route it to the <b>Calibration Lab</b>. If a tool is out of tolerance there is no guarantee: it goes <b>straight back to the customer</b> (Packing), not to QA.`); return; }
   if (returns){ G.inbound.push({ o });
     tip('regrind', `Customer return! <b>#${o.num}</b> sent back blunt cutting tools. The parcel is unloaded at <b>Goods-in</b> on its own. Then route it to <b>Regrinding</b>, then the services on its card, then Packing.`); return; }
-  if (pallet) tip('pallet', `Oversize order! <b>#${o.num}</b> needs a <b>${items[0].name}</b> on a Euro pallet. Its pallet is <b style="color:var(--accent)">glowing in the High-Bay Warehouse</b> (bottom). Click it: the stacker crane brings it to the pallet I/O.`);
+  if (pallet) tip('pallet', `Oversize order! <b>#${o.num}</b> needs a <b>${items[0].name}</b> on a Euro pallet. Its pallet is <b style="color:var(--accent)">glowing in the High-Bay Warehouse</b> (bottom). Click it: the stacker crane brings it to the pallet I/O. Pallets <b>skip Commissioning</b>: send it straight to its first service (or to Packing).`);
   if (G.cfg === SHIFTS[0] || G.shiftIdx === 0) tip('release', 'A new order arrived! Its totes are <b style="color:var(--accent)">glowing in the Shuttle Warehouse</b> (same colour as the order card). <b>Click each glowing tote</b> to send it to Commissioning.');
 }
 
@@ -2803,8 +2803,9 @@ function drawBoard(){
     ctx.fillStyle = STEP_COLOR('calibration'); ctx.fillText('or Goods-in → Calibration', x+12, yy+14);
     ctx.fillStyle = '#8a96ad'; ctx.font = `500 9.5px ${FONT}`; ctx.fillText('then from step 2 on', x+12, yy+27); yy += 46;
   }
+  if (activeHas('hbw')){ drawIcon('pallet', x+18, yy-2, 12, '#c98a4b', 2.4); ctx.fillStyle = '#e0b07a'; ctx.font = `700 10px ${FONT}`; ctx.fillText('Pallets: skip step 1', x+28, yy+2); yy += 18; }
   drawIcon('warn', x+18, yy-2, 12, '#ff5468', 2.4); ctx.fillStyle = '#ff5468'; ctx.font = `700 10.5px ${FONT}`; ctx.fillText('Flagged → QA first', x+28, yy+2);
-  ctx.fillStyle = '#8a96ad'; ctx.font = `500 9.5px ${FONT}`; ctx.fillText('only if the order needs it', x+12, y+h-12);
+  if (yy < y + h - 30){ ctx.fillStyle = '#8a96ad'; ctx.font = `500 9.5px ${FONT}`; ctx.fillText('only if the order needs it', x+12, y+h-12); }
 }
 function stageList(){
   const map = {};
@@ -3265,7 +3266,7 @@ function showHelp(fromTitle){
       <li>Full OUT trays <b>block</b> a station. Keep units moving!</li>
       <li><b style="color:var(--good)">Automation</b> (shop, expensive): an <b>Auto-router</b> makes a station send its finished units on by itself, one every 8 / 4 / 2 s depending on the level. It only handles the normal case. Flagged units, return totes and defective items still need you, until you buy <b>Exception handling</b>. Once you own ${MAINT.after} automation upgrades, auto-routers <b>break down</b> now and then: click the station to send a <b>service worker</b>, and route by hand until it is repaired.</li>
       <li>Late orders pay 40% and cost satisfaction. Focus customers (★) pay 50% more.</li>
-      <li>Oversize tools (compressors, welders, table saws) are stored on <b>Euro pallets</b> in the <b>High-Bay Warehouse</b>. Click a glowing pallet, then route it like any order: <b>transporters with a driver</b> drive pallets over the hall roads to each station's pallet bay. Rejected pallets are parked in the <b>pallet buffer</b>.</li>
+      <li>Oversize tools (compressors, welders, table saws) are stored on <b>Euro pallets</b> in the <b>High-Bay Warehouse</b>. Click a glowing pallet, then route it like any order, except that pallets <b>skip Commissioning</b>: <b>transporters with a driver</b> drive pallets over the hall roads to each station's pallet bay. Rejected pallets are parked in the <b>pallet buffer</b>.</li>
       <li>Later on, <b>Goods-in</b> opens: customers send back blunt drills and milling cutters. They are unloaded automatically; route them to <b>Regrinding</b>, then any services on their card, then Packing. Now and then new stock arrives too: send the cardboard box to the Shuttle Warehouse.</li>
     </ul>
     <div class="grid2">${all.map(d => `<div class="scard"><div class="t">${ico(d.icon)}${d.name}</div>${d.desc}</div>`).join('')}</div>
