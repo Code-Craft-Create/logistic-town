@@ -346,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-45';
+const GAME_VERSION = '2026.11.21-46';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -1630,8 +1630,10 @@ ROAD.w = ROAD.x1-ROAD.x0; ROAD.h = ROAD.y1-ROAD.y0; ROAD.L = 2*(ROAD.w+ROAD.h);
 const HB = { x:236, y:826, w:664, h:178, cols:24, aisleY:915, ioX:886 };
 const HB_BAYS = [{ x:930, y:852 }, { x:964, y:852 }];
 // transporter parking and pallet buffers: one set at the bottom right, one in the top-left corner of the hall (3 spots each)
-const DEPOT = { x:1014, y:904, sp:30, per:3, max:6 }, DEPOT_T = { x:246, y:84, sp:28 };
-const HOLD = { x:1168, y:852, sp:32, per:3 }, HOLD_T = { x:350, y:84, sp:28 };
+// both corners use the same layout: parked right next to the ring road (bottom: just below it, top left: just inside it)
+const CORNER_D = 44;
+const DEPOT = { x:1014, y:ROAD.y1 + CORNER_D, sp:28, per:3, max:6 }, DEPOT_T = { x:246, y:ROAD.y0 + CORNER_D, sp:28 };
+const HOLD = { x:1118, y:ROAD.y1 + CORNER_D, sp:28, per:3 }, HOLD_T = { x:350, y:ROAD.y0 + CORNER_D, sp:28 };
 const MOVER = { base:2, speed:165, load:0.7 };
 const CRANE = { speed:240, grab:0.8, drop:0.45 };
 const PALLET = { share:0.22, stockShare:0.4, extraTime:14 };
@@ -1999,15 +2001,14 @@ function drawHBW(t){
   for (const f of G.hbwFeed){ const q = along(f.path, f.path.d); f.hu.px = q.x; f.hu.py = q.y; drawPalletHU(f.hu, q.x, q.y); }
   // transporter depot and pallet buffer
   ctx.strokeStyle = 'rgba(214,222,236,0.3)'; ctx.lineWidth = 1.2;
-  for (let i=0; i<=DEPOT.per; i++){ const px = DEPOT.x - DEPOT.sp/2 + i*DEPOT.sp; ctx.beginPath(); ctx.moveTo(px, DEPOT.y - 18); ctx.lineTo(px, DEPOT.y + 18); ctx.stroke(); }
-  for (let i=0; i<=DEPOT.per; i++){ const px = DEPOT_T.x - DEPOT_T.sp/2 + i*DEPOT_T.sp; ctx.beginPath(); ctx.moveTo(px, DEPOT_T.y - 16); ctx.lineTo(px, DEPOT_T.y + 16); ctx.stroke(); }
-  ctx.fillStyle = '#8a96ad'; ctx.font = `700 8.5px ${FONT}`; ctx.textAlign = 'center';
   const busyN = (G.movers||[]).filter(m => m.state !== 'idle').length;
-  ctx.fillText(`TRANSPORTERS ${busyN}/${(G.movers||[]).length} BUSY`, DEPOT.x + DEPOT.sp, DEPOT.y + 32);
-  rr(HOLD.x - 18, HOLD.y - 14, (HOLD.per - 1)*HOLD.sp + 36, 58, 6); ctx.strokeStyle = 'rgba(255,138,31,0.45)'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillText('PALLET BUFFER', HOLD.x + (HOLD.per-1)*HOLD.sp/2, HOLD.y + 58);
-  rr(HOLD_T.x - 16, HOLD_T.y - 14, (HOLD.per - 1)*HOLD_T.sp + 32, 30, 6); ctx.strokeStyle = 'rgba(255,138,31,0.45)'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
-  ctx.font = `700 7.5px ${FONT}`; ctx.fillText('PALLET BUFFER', HOLD_T.x + HOLD_T.sp, HOLD_T.y + 26); ctx.fillText('TRANSPORTERS', DEPOT_T.x + DEPOT_T.sp, DEPOT_T.y + 36); ctx.textAlign = 'left';
+  [[DEPOT, HOLD, `TRANSPORTERS ${busyN}/${(G.movers||[]).length} BUSY`], [DEPOT_T, HOLD_T, 'TRANSPORTERS']].forEach(([D, Hd, lbl]) => {
+    ctx.strokeStyle = 'rgba(214,222,236,0.3)'; ctx.lineWidth = 1.2;
+    for (let i=0; i<=DEPOT.per; i++){ const px = D.x - D.sp/2 + i*D.sp; ctx.beginPath(); ctx.moveTo(px, D.y - 16); ctx.lineTo(px, D.y + 16); ctx.stroke(); }
+    rr(Hd.x - 16, Hd.y - 14, (HOLD.per - 1)*Hd.sp + 32, 30, 6); ctx.strokeStyle = 'rgba(255,138,31,0.45)'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#8a96ad'; ctx.font = `700 7.5px ${FONT}`; ctx.textAlign = 'center';
+    ctx.fillText('PALLET BUFFER', Hd.x + Hd.sp, Hd.y + 26); ctx.fillText(lbl, D.x + D.sp, D.y + 36); });
+  ctx.textAlign = 'left';
   drawAutoBadge(st, HB_BAYS[0].x - 17, HB_BAYS[0].y - 34);
   // selection target glow
   const sel = G.selected;
