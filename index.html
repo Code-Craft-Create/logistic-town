@@ -127,7 +127,9 @@ button{font:inherit;color:inherit}
 .goal small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px}
 .goal b{font-size:20px}
 .stars{font-size:40px;letter-spacing:6px;color:#4a5468;margin:4px 0 10px}
-.stars .lit{color:var(--accent);text-shadow:0 0 18px rgba(255,138,31,.6)}
+.stars .lit{color:var(--accent);text-shadow:0 0 18px rgba(255,138,31,.6);display:inline-block;animation:starIn .45s cubic-bezier(.3,1.6,.5,1) backwards}
+.stars .lit:nth-child(1){animation-delay:2.9s}.stars .lit:nth-child(2){animation-delay:3.25s}.stars .lit:nth-child(3){animation-delay:3.6s}
+@keyframes starIn{from{color:#4a5468;text-shadow:none;transform:scale(.5)}}
 .kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 6px;font-size:12px;background:var(--panel2)}
 ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .shop{display:flex;flex-direction:column;gap:8px}
@@ -1807,9 +1809,46 @@ const SFX = {
   order(t){ AU.osc('sine', 523, t, 0.35, 0.07); AU.osc('sine', 784, t+0.1, 0.45, 0.06); },
   late(t){ AU.osc('sawtooth', 110, t, 0.45, 0.1, { to:70, lp:500 }); },
   truck(t){ AU.osc('sawtooth', 70, t, 0.9, 0.06, { to:110, lp:300 }); AU.osc('square', 392, t+0.1, 0.12, 0.035, {lp:1100}); AU.osc('square', 392, t+0.3, 0.12, 0.035, {lp:1100}); },
-  fanfare(t){ [[60,0],[64,.12],[67,.24],[72,.36],[67,.52],[72,.64]].forEach(([m,dt]) => { AU.osc('triangle', mtof(m+12), t+dt, 0.35, 0.11); AU.osc('square', mtof(m), t+dt, 0.3, 0.03, { lp:1400 }); }); },
-  fail(t){ [67,63,60,55].forEach((m,i) => AU.osc('triangle', mtof(m), t+i*0.18, 0.4, 0.1)); },
+  fanfare(t){ endJingle(t, true); },
+  fail(t){ endJingle(t, false); },
 };
+// End-of-shift jingles: a factory shift whistle, then a brass fanfare with timpani, a soft cymbal swell
+// and one bell per star (win), or a muted "wah-wah" trombone (fail). The music pauses meanwhile.
+function brass(m, t, dur, peak, o={}){
+  const c = AU.ctx, g = c.createGain(), fl = c.createBiquadFilter(), f = mtof(m);
+  fl.type = 'lowpass'; fl.Q.value = 1.2;
+  fl.frequency.setValueAtTime(500, t); fl.frequency.linearRampToValueAtTime(o.bright || 2000, t + 0.06); fl.frequency.exponentialRampToValueAtTime(o.dark || 1100, t + Math.min(dur, 0.5));
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.035);
+  g.gain.setValueAtTime(peak, t + Math.max(0.04, dur - 0.12)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.15);
+  fl.connect(g); g.connect(AU.sfxBus);
+  [-7, 7].forEach(dt => { const o2 = c.createOscillator(); o2.type = 'sawtooth'; o2.frequency.setValueAtTime(f, t); o2.detune.value = dt;
+    if (o.wah){ o2.frequency.setValueAtTime(f * 1.03, t); o2.frequency.exponentialRampToValueAtTime(f, t + 0.12); }
+    if (o.vib){ const l = c.createOscillator(), lg = c.createGain(); l.frequency.value = 5.5; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * 0.025, t + dur * 0.6); l.connect(lg); lg.connect(o2.frequency); l.start(t); l.stop(t + dur + 0.2); }
+    o2.connect(fl); o2.start(t); o2.stop(t + dur + 0.2); });
+}
+function bell(f, t, peak){ AU.osc('sine', f, t, 1.4, peak, { a:0.004 }); AU.osc('sine', f * 2.76, t, 0.5, peak * 0.18, { a:0.004 }); AU.osc('sine', f * 2, t, 0.8, peak * 0.25, { a:0.004, echo:false }); }
+function whistle(t, dur, lo){ [[lo, 0], [lo * 1.26, 4]].forEach(([f, d]) => AU.osc('triangle', f, t, dur, 0.05, { a:0.09, to:f * 1.015, slide:dur * 0.7, lp:1400, detune:d })); AU.noise(t, dur, 0.012, { type:'bandpass', f:lo * 2, q:3, a:0.1 }); }
+function timp(f, t, peak){ AU.osc('sine', f, t, 0.7, peak, { to:f * 0.9, slide:0.5 }); AU.noise(t, 0.08, peak * 0.2, { type:'lowpass', f:300 }); }
+function endJingle(t, won){
+  Music.holdUntil = t + (won ? 5 : 4.2);
+  if (won){
+    whistle(t, 0.75, 349);
+    for (let i = 0; i < 10; i++) timp(98, t + 0.35 + i * 0.055, 0.03 + i * 0.012);       // timpani roll, crescendo
+    const T = t + 0.95;
+    [[67,0,.11],[67,.13,.11],[67,.26,.11],[72,.4,.42],[69,.86,.15],[71,1.03,.15]].forEach(([m,d,l]) => { brass(m, T+d, l, 0.07); brass(m-12, T+d, l, 0.04); });
+    const C = T + 1.2;
+    [60,64,67,72].forEach(m => brass(m, C, 1.5, 0.045, { dark:900 })); brass(48, C, 1.6, 0.05, { bright:900, dark:500 });
+    timp(65, T, 0.2); timp(98, T + 0.4, 0.14); timp(65, C, 0.24);
+    AU.noise(C, 1.9, 0.03, { type:'lowpass', f:2500, to:900, a:0.25 });                   // soft cymbal swell
+    const stars = (G.result && G.result.stars) || 0;
+    [659, 784, 1047].slice(0, stars).forEach((f, i) => bell(f, C + 0.75 + i * 0.35, 0.09));
+  } else {
+    whistle(t, 0.6, 311);
+    const T = t + 0.75;
+    [[58,0,.32],[57,.4,.32],[56,.8,.32],[55,1.2,1.1]].forEach(([m,d,l], i) => brass(m, T+d, l, 0.06, { bright:1100, dark:650, wah:true, vib:i === 3 }));
+    timp(73, T + 1.2, 0.12); AU.osc('sine', 55, T + 2.3, 0.5, 0.12, { to:40 });
+  }
+}
 const lastSfx = {};
 function sfx(n){
   if (G.silent || !AU.ctx || !G.sfxOn) return;
@@ -1820,7 +1859,7 @@ function sfx(n){
 // layers, density and tempo grow with shift progress (plus a little with workload),
 // and in the last seconds it modulates up, adds a ticking clock and pushes the tempo.
 const Music = {
-  bpm:88, step:0, next:0, timer:null, P:0, W:0, left:999,
+  bpm:88, step:0, next:0, timer:null, P:0, W:0, left:999, holdUntil:0,
   prog:[[57,60,64,67],[53,57,60,64],[48,52,55,59],[55,59,62,65]],
   start(){ if (!AU.ctx || this.timer) return; this.next = AU.ctx.currentTime + 0.1; this.timer = setInterval(() => this.tick(), 30); this.setOn(G.musicOn); },
   setOn(on){ if (!AU.ctx) return; const g = AU.musBus.gain, t = AU.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(on ? 0.3 : 0, t + 0.6); },
@@ -1836,7 +1875,7 @@ const Music = {
     while (this.next < c.currentTime + 0.15){ this.play(this.step, this.next); this.next += 60/this.bpm/4; this.step++; }
   },
   play(s, t){
-    if (!G.musicOn) return;
+    if (!G.musicOn || t < this.holdUntil) return;
     const paused = G.mode !== 'play', bus = AU.musBus;
     const st = s % 16, bar = Math.floor(s/16);
     const U = paused ? 0 : clamp(this.P * 0.9 + this.W * 0.3, 0, 1); // urgency drives the layers
