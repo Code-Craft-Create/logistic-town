@@ -348,7 +348,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-49';
+const GAME_VERSION = '2026.11.21-50';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -894,7 +894,7 @@ function layoutStations(){
   // high-bay warehouse, ring road and pallet bays
   list.filter(s => s.def.place === 'hbw').forEach(st => { st.x = HB.x; st.y = HB.y; st.w = HB.w; st.h = HB.h; st.dock = { x:HB.x, y:HB.y }; st.port = { x:0, y:0, s:0 }; st.side = 'bottom'; });
   G.roads = list.some(s => s.def.place === 'hbw');
-  W = G.roads ? 1362 : 1320; H = G.roads ? 1012 : 800;
+  W = G.roads ? 1384 : 1320; H = G.roads ? 1012 : 800;
   G.spurs = [];
   if (G.roads){
     for (const st of list){ if (st.def.role === 'storage') continue;
