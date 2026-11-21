@@ -187,6 +187,21 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .toolstrip .ic{width:20px;height:20px}
 .hero{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
 .hero svg{flex:none}
+.tbtnrow{display:contents}
+/* laptops / desktops: the top bar becomes the head of the left column so the hall gets the full height */
+@media (min-width:901px) and (min-height:621px){
+  #app{grid-template-rows:auto minmax(0,1fr);grid-template-columns:272px minmax(0,1fr)}
+  #floor{grid-row:1/3;grid-column:2}
+  #top{grid-column:1;grid-row:1;display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;padding:12px;align-items:start;
+    border-right:1px solid var(--line);background:linear-gradient(#1a2231,#151c29)}
+  #top .brand{grid-column:1/3;font-size:16px}
+  #top #clockGroup,#top #satGroup{grid-column:1/3;width:auto}
+  #top .hgroup b{font-size:17px}
+  #top .spacer{display:none}
+  #top .tbtn{height:30px;min-width:30px;padding:0 8px;font-size:12px}
+  .tbtnrow{grid-column:1/3;display:flex;gap:6px;justify-content:space-between}
+  #side{grid-row:2;grid-column:1}
+}
 @media (max-width:900px), (max-height:620px){
   #app{grid-template-columns:230px 1fr;grid-template-rows:46px 1fr}
   #top{gap:10px;padding:0 10px}
@@ -260,12 +275,14 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
     <div class="hgroup"><label>Cash</label><b id="cashTxt">$0</b></div>
     <div class="hgroup" id="satGroup"><label>Customer satisfaction</label><div class="bar"><div id="satFill" style="width:100%"></div></div></div>
     <div class="spacer"></div>
+    <div class="tbtnrow">
     <button class="tbtn" id="bSpeed" title="Game speed (F)">1×</button>
     <button class="tbtn on" id="bHints" title="Route hints (H): the routing line turns green/red over stations. Off = expert mode, +25% pay"></button>
     <button class="tbtn on" id="bMusic" title="Music (M)"></button>
     <button class="tbtn on" id="bSfx" title="Sound effects (S)"></button>
     <button class="tbtn" id="bHelp" title="How to play"></button>
     <button class="tbtn" id="bPause" title="Pause (Space)"></button>
+    </div>
   </header>
   <aside id="side">
     <h3>Incoming orders <span id="inCount">0</span></h3>
@@ -287,7 +304,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-29';
+const GAME_VERSION = '2026.11.21-30';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2051,10 +2068,13 @@ const mouse = { x:-1, y:-1, inside:false };
 let hoverHU = null, hoverSt = null, drag = null, hoverRack = null;
 
 function drawFloor(t){
-  ctx.fillStyle = '#121925'; ctx.fillRect(0, 0, W, H);
+  // tiled floor covers the whole visible canvas, not only the W x H world (no darker side areas)
+  const fx0 = Math.floor(-view.ox/view.s/40)*40 - 40, fy0 = Math.floor(-view.oy/view.s/40)*40 - 40;
+  const fx1 = (cv.width/view.dpr - view.ox)/view.s + 40, fy1 = (cv.height/view.dpr - view.oy)/view.s + 40;
+  ctx.fillStyle = '#121925'; ctx.fillRect(fx0, fy0, fx1-fx0, fy1-fy0);
   ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth = 1;
-  for (let x=0; x<=W; x+=40){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  for (let y=0; y<=H; y+=40){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  for (let x=fx0; x<=fx1; x+=40){ ctx.beginPath(); ctx.moveTo(x,fy0); ctx.lineTo(x,fy1); ctx.stroke(); }
+  for (let y=fy0; y<=fy1; y+=40){ ctx.beginPath(); ctx.moveTo(fx0,y); ctx.lineTo(fx1,y); ctx.stroke(); }
   // walkway paint
   if (!G.roads){ ctx.strokeStyle = 'rgba(255,197,61,0.12)'; ctx.setLineDash([16,10]); ctx.lineWidth = 3;
     ctx.strokeRect(LOOP.x0-250, 54, LOOP.w+500, 728); ctx.setLineDash([]); }
