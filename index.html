@@ -326,7 +326,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-32';
+const GAME_VERSION = '2026.11.21-33';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -538,6 +538,10 @@ const CICONS = {
     [C.dark,'M2 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0z M7.4 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0z'],[C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M18.2 3.4h1.6v1.8h1.8v1.6h-1.8v1.8h-1.6V6.8h-1.8V5.2h1.8z']],
   u_drive: [[C.dark,'M2.5 12a9.5 9.5 0 1 0 19 0a9.5 9.5 0 1 0-19 0z M5.2 12a6.8 6.8 0 1 1 13.6 0a6.8 6.8 0 1 1-13.6 0z'],[C.steel,'M5.2 10.9h13.6v2.2H5.2z M10.9 12h2.2v6.8h-2.2z'],
     [C.orange,'M9.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0z'],[C.amber,'M5.4 4.6l1.6-1.4 1.2 1.3-1.6 1.4z']],
+  u_pauto: [[C.steel,'M3 1.5h11v1.4H3z M3 20.6h19V22H3z'],[C.dark,'M5.4 2.9h4.6v1.6H5.4z M5.4 19h4.6v1.6H5.4z'],[C.orange,'M6.2 4.5h3v14.5h-3z'],[C.amber,'M2.5 12.5h12v2.6h-12z'],[C.wood,'M9.5 15.1h10v1.6h-10z M10 16.7h2v1.6h-2z M17 16.7h2v1.6h-2z'],[C.cardboard,'M11 10.4h7.4v4.7H11z'],
+    [C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M19.9 2.6l-3 4h1.9l-.8 2.9 3-4.1h-1.9z']],
+  u_repairs: [[C.metal,'M14.6 2.2a5.2 5.2 0 0 0-4.9 7L2.6 16.3a2 2 0 0 0 0 2.8l2 2a2 2 0 0 0 2.8 0l7.1-7.1a5.2 5.2 0 0 0 7-4.9l-3 3-3.1-.8-.8-3.1z'],[C.dark,'M4.2 18.2a1 1 0 1 0 2 0a1 1 0 1 0-2 0z'],[C.amber,'M1 2.6h5.5v1.4H1z M1 5.6h4v1.4H1z M1 8.6h3v1.4H1z'],
+    [C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M19.9 2.6l-3 4h1.9l-.8 2.9 3-4.1h-1.9z']],
   u_crane: [[C.steel,'M3 1.5h19v1.4H3z M3 20.6h19V22H3z'],[C.dark,'M11 2.9h4.6v1.6H11z M11 19h4.6v1.6H11z'],[C.orange,'M11.8 4.5h3v14.5h-3z'],[C.amber,'M8 11.5h12v2.6H8z'],[C.wood,'M15 7.4h5v4.1h-5z'],
     [C.amber,'M1.5 8h4v1.3h-4z M2.5 10.6h3v1.3h-3z M1.5 13.2h4v1.3h-4z']],
   u_router: [[C.steel,'M1.5 16.5h21v4h-21z'],[C.dark,'M3.5 18.5a1 1 0 1 0 2 0a1 1 0 1 0-2 0z M9.5 18.5a1 1 0 1 0 2 0a1 1 0 1 0-2 0z M15.5 18.5a1 1 0 1 0 2 0a1 1 0 1 0-2 0z'],
@@ -654,18 +658,21 @@ const UPGRADES = [
   { id:'routerX', icon:'u_routerX', late:true, label:'Exception handling', desc:'auto-router also handles flagged units, return totes and defective items', max:1, cost:() => 2200, needs: d => autoCapable(d),
     req: up => (up.router || 0) >= 3, reqText:'Needs Auto-router 3/3' },
   { id:'crane',   icon:'u_crane', label:'Faster stacker crane', desc:'crane 40% faster', max:2, cost:l => 180 + l*160, needs: d => d.id === 'hbw' },
+  { id:'pauto',   icon:'u_pauto', label:'Auto-retrieval', desc:'the stacker crane fetches pallets of the most urgent order on its own', max:1, cost:() => 650, needs: d => d.id === 'hbw' },
 ];
 // Auto-router: seconds between two automatic dispatches per level (index = level)
 const AUTO = { interval:[0, 8, 4, 2], unlockAfter:6 };
 // Maintenance: once the hall owns MAINT.after automation upgrades, each auto-router wears out after
 // a random number of dispatches (life) and stops until a service worker has walked over and repaired it.
 const MAINT = { after:3, life:[6, 12], walk:150, repair:5, room:{ x:1100, y:712, w:196, h:68 } };
+const repairTime = () => MAINT.repair * Math.pow(0.7, (G.global && G.global.repairs) || 0);
 const autoBought = () => Object.values(G.upgrades || {}).reduce((n, u) => n + (u.router || 0) + (u.routerX ? 1 : 0), 0); // automation shows up in the shop once shifts 1-6 (up to Saturday) were played
 const autoCapable = d => (d.out > 0 && d.role !== 'storage') || d.id === 'hbw';
 const GLOBAL_UPGRADES = [
   { id:'conveyor', icon:'u_conveyor', label:'Faster conveyor', desc:'+15% belt speed', max:3, cost:l => 220 + l*180 },
   { id:'buffers',  icon:'u_buffers', label:'Bigger buffers',  desc:'+1 IN / OUT space everywhere', max:2, cost:l => 300 + l*250 },
   { id:'service',  icon:'u_service', label:'Extra service worker', desc:'+1 technician to repair broken automation', max:2, cost:l => [700, 1100][l], needs: () => autoBought() >= MAINT.after },
+  { id:'repairs',  icon:'u_repairs', label:'Rapid repair kit', desc:'service workers walk 30% faster and repair 30% quicker', max:2, cost:l => [450, 800][l], needs: () => autoBought() >= MAINT.after },
 ];
 
 // ===================================================================
@@ -1226,6 +1233,13 @@ function update(dt){
       if (o){ const s0 = G.silent; G.silent = true; retrieve(o, o.lines.findIndex(l => l.state === 'stored')); G.silent = s0; }
     }
   }
+  const hu_ = G.upgrades.hbw || {};
+  if (hu_.pauto && G.st.hbw && G.craneJobs && !G.craneJobs.length && G.crane && G.crane.state === 'idle' && G.hbwOut.some(x => !x)){
+    G.pautoT = (G.pautoT || 0) - dt;
+    if (G.pautoT <= 0){ G.pautoT = 1.2;
+      const o = G.orders.filter(o => o.pallet && o.lines.some(l => l.state === 'stored')).sort((a, b) => a.due - b.due)[0];
+      if (o){ const s0 = G.silent; G.silent = true; retrieve(o, o.lines.findIndex(l => l.state === 'stored')); G.silent = s0; } }
+  }
   updateRobots(dt); updateCrane(dt); updateMovers(dt);
   for (const f of G.fetch){ f.path.d += RETRIEVE_SPEED*(1 + 0.4*(wu.shuttle||0))*dt; if (f.path.d >= f.path.len){ f.line.state = 'atPick'; f.done = true; } }
   G.fetch = G.fetch.filter(f => !f.done);
@@ -1379,7 +1393,7 @@ function updateWorkers(dt){
       } else takeJob(w);
     }
     if (w.state === 'walk' || w.state === 'return'){
-      w.path.d = Math.min(w.path.len, w.path.d + MAINT.walk*dt); w.step += dt;
+      w.path.d = Math.min(w.path.len, w.path.d + MAINT.walk*(1 + 0.3*(G.global.repairs || 0))*dt); w.step += dt;
       const p = walkAt(w.path); w.x = p.x; w.y = p.y; w.ang = lerpAng(w.ang, p.ang, Math.min(1, dt*14));
       if (w.path.d >= w.path.len){
         if (w.state === 'walk'){ w.state = 'repair'; w.t = 0; w.at = w.job; w.job.auto.state = 'repair'; w.path = null; sfx('clunk');
@@ -1388,8 +1402,8 @@ function updateWorkers(dt){
       }
     } else if (w.state === 'repair'){
       w.t += dt; w.ang = lerpAng(w.ang, w.face, Math.min(1, dt*10));
-      const a = w.at.auto; a.rep = Math.min(1, w.t / MAINT.repair);
-      if (w.t >= MAINT.repair){
+      const a = w.at.auto, rt = repairTime(); a.rep = Math.min(1, w.t / rt);
+      if (w.t >= rt){
         a.state = 'ok'; a.rep = 0; a.cd = 0.6; a.pulse = 0.7; a.life = rand(MAINT.life[0], MAINT.life[1]); G.repairs++;
         floatText(w.at.x + w.at.w/2, (w.at.def.id === 'hbw' ? HB.y : w.at.y) - 16, 'Repaired', '#3ddc84'); sfx('fix');
         const from = servicePlace(w.at);
