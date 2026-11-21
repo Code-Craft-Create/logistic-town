@@ -241,7 +241,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-23';
+const GAME_VERSION = '2026.11.21-24';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -512,11 +512,11 @@ const acceptsKind = (def, kind) => [].concat(def.accepts || []).includes(kind);
 const SHIFTS = [
   { name:'Monday',    title:'Learning the ropes', duration:100, goal:6,  spawn:[7,9], opening:[3, 4],   items:[1,2], slack:26, stations:['warehouse','commission','qa','retoure','pack'] },
   { name:'Tuesday',   title:'Precision matters',  duration:110, goal:8,  spawn:[6,8], opening:[3, 3.5],items:[1,3], slack:24, stations:['warehouse','commission','calib','qa','retoure','pack'] },
-  { name:'Wednesday', title:'Make it personal',   duration:120, goal:11, spawn:[6,8],items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','qa','retoure','pack'] },
-  { name:'Thursday',  title:'VIP treatment',      duration:130, goal:13, spawn:[5.5,7],  items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
-  { name:'Friday',    title:'The Friday rush',    duration:140, goal:16, spawn:[4.5,6],  items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
-  { name:'Saturday',  title:'Returns and restock', duration:150, goal:21, spawn:[4,5.3], items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','goodsin','regrind','qa','retoure','pack'] },
-  { name:'Next Monday', title:'Heavy lifting', duration:160, goal:21, spawn:[4,5.3], items:[1,3], slack:22, stations:['warehouse','hbw','commission','calib','sign','patch','care','goodsin','regrind','qa','retoure','pack'] },
+  { name:'Wednesday', title:'Make it personal',   duration:120, goal:10, spawn:[6.5,8.5],items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','qa','retoure','pack'] },
+  { name:'Thursday',  title:'VIP treatment',      duration:130, goal:12, spawn:[6,7.5],  items:[1,3], slack:25, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
+  { name:'Friday',    title:'The Friday rush',    duration:140, goal:14, spawn:[4.8,6.2],  items:[1,3], slack:23, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
+  { name:'Saturday',  title:'Returns and restock', duration:150, goal:18, spawn:[4.5,5.8], items:[1,3], slack:23, stations:['warehouse','commission','calib','sign','patch','care','goodsin','regrind','qa','retoure','pack'] },
+  { name:'Next Monday', title:'Heavy lifting', duration:160, goal:18, spawn:[4.5,5.8], items:[1,3], slack:25, stations:['warehouse','hbw','commission','calib','sign','patch','care','goodsin','regrind','qa','retoure','pack'] },
 ];
 function shiftConfig(i){
   if (i < SHIFTS.length) return SHIFTS[i];
@@ -589,6 +589,17 @@ let W = 1320, H = 800; // grows when the high-bay warehouse and the roads are pa
 const LOOP = { x0:440, y0:300, x1:1060, y1:500 };
 LOOP.w = LOOP.x1-LOOP.x0; LOOP.h = LOOP.y1-LOOP.y0; LOOP.L = 2*(LOOP.w+LOOP.h);
 const WH = { x:16, y:66, w:184, h:700 };
+// Sorting bays: four side stations inside the conveyor loop. Rejected units and units that failed the
+// weight check park here instead of circling, so the player can pick them up calmly.
+const BAY_CAP = 3, BAY_SP = 30;
+const BAYS = [
+  { s:LOOP.w*0.25,                     x:LOOP.x0 + LOOP.w*0.25, y:LOOP.y0 + 56, horiz:true },
+  { s:LOOP.w + LOOP.h*0.5,             x:LOOP.x1 - 58,          y:LOOP.y0 + LOOP.h*0.5, horiz:false },
+  { s:LOOP.w + LOOP.h + LOOP.w*0.25,   x:LOOP.x0 + LOOP.w*0.75, y:LOOP.y1 - 56, horiz:true },
+  { s:2*LOOP.w + LOOP.h + LOOP.h*0.5,  x:LOOP.x0 + 58,          y:LOOP.y0 + LOOP.h*0.5, horiz:false },
+];
+BAYS.forEach(b => { b.port = { s:b.s }; b.dock = { x:b.x, y:b.y }; b.id = null; });
+const bayPosAt = (b, i) => b.horiz ? { x:b.x + (i - (BAY_CAP-1)/2)*BAY_SP, y:b.y } : { x:b.x, y:b.y + (i - (BAY_CAP-1)/2)*BAY_SP };
 
 function loopPos(s){
   const {x0,y0,x1,y1,w,h,L} = LOOP; s = ((s%L)+L)%L;
@@ -720,7 +731,7 @@ function startShift(idx){
   G.st = Object.fromEntries(G.stations.map(s => [s.id, s]));
   layoutStations();
   Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[],
-    seq: 0, huSeq:0, nextSpawn:2, spawned:0, crane:null, autoRouted:0, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
+    seq: 0, huSeq:0, nextSpawn:2, spawned:0, bays:BAYS.map(() => ({ units:[], incoming:0 })), crane:null, autoRouted:0, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
     truck:{ x:1210, load:0, state:'parked', t:0 } });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
   resetPallets();
@@ -741,7 +752,7 @@ function validTargets(hu){
 const hasRoom = st => st.queue.length + st.incoming < st.queueMax;
 function selectable(hu){
   if (hu.gone) return false;
-  if (hu.loc === 'out' || hu.loc === 'await') return true;
+  if (hu.loc === 'out' || hu.loc === 'await' || hu.loc === 'bay') return true;
   if (hu.loc === 'transit' && !hu.tr.feed) return hu.tr.to === null || hu.tr.d < hu.tr.portAt;
   return false;
 }
@@ -890,8 +901,12 @@ function dispatch(hu, st){
     const from = G.stations.find(s => s.out.includes(hu));
     from.out.splice(from.out.indexOf(hu), 1);
     hu.tr = buildPath(from, 0, st);
+  } else if (hu.loc === 'bay'){
+    const q = G.bays[hu.bay]; q.units.splice(q.units.indexOf(hu), 1);
+    hu.tr = buildPath(BAYS[hu.bay], 0, st); hu.bay = null;
   } else {
     if (hu.tr.to) G.st[hu.tr.to].incoming--;
+    leaveBayTrip(hu);
     const p = along(hu.tr, hu.tr.d);
     hu.tr = buildPath(null, loopS(p.x, p.y), st);
   }
@@ -900,7 +915,16 @@ function dispatch(hu, st){
   return true;
 }
 
-function circle(hu, s){ hu.loc = 'transit'; hu.tr = buildPath(null, s, null); }
+function circle(hu, s){
+  hu.loc = 'transit';
+  // nearest sorting bay with room (by conveyor distance); only when every bay is full does the unit keep circling
+  const L = LOOP.L; let bi = -1, bd = 1e9;
+  if (G.bays) BAYS.forEach((b, i) => { const q = G.bays[i]; if (q.units.length + q.incoming >= BAY_CAP) return;
+    const cw = ((b.s - s)%L + L)%L, d = Math.min(cw, L - cw); if (d < bd){ bd = d; bi = i; } });
+  if (bi < 0){ hu.tr = buildPath(null, s, null); return; }
+  hu.tr = buildPath(null, s, BAYS[bi]); hu.tr.bay = bi; hu.tr.to = null; G.bays[bi].incoming++;
+}
+function leaveBayTrip(hu){ if (hu.tr && hu.tr.bay != null){ G.bays[hu.tr.bay].incoming--; hu.tr.bay = null; } }
 
 function portCheck(hu, st){
   let weightFail = false;
@@ -911,7 +935,7 @@ function portCheck(hu, st){
   if (validTargets(hu).includes(st)) return true;
   st.incoming--;
   if (weightFail){
-    toast(`${ico('scale')} #${hu.order.num}: weight check failed at ${st.def.name}. Route it to Quality Assurance.`, 'warn');
+    toast(`${ico('scale')} #${hu.order.num}: weight check failed at ${st.def.name}. It parks in a sorting bay: route it to Quality Assurance.`, 'warn');
     sfx('flag'); event('flag');
   } else {
     G.wrong++; G.money -= 10; G.earned -= 10; changeSat(-3);
@@ -920,7 +944,7 @@ function portCheck(hu, st){
     toast(`${ico('x')} ${st.def.name} rejected ${hu.kind === 'tote' ? 'the return tote' : hu.kind === 'scrap' ? 'the defective item' : hu.kind === 'stock' ? 'the new stock' : '#'+hu.order.num}: ${why}.`, 'bad');
     floatText(st.port.x, st.port.y-14, '−$10', '#ff5468'); sfx('error'); st.flash = -1;
     tip(hu.pallet ? 'wrong_pallet' : 'wrong', hu.pallet ? 'Rejected! A station only accepts pallets that need it <b>next</b>. The transporter parks it in the <b>pallet buffer</b>: click it there and send it somewhere else.'
-      : 'Rejected! A station only accepts units that need it <b>next</b>. The unit now circles on the conveyor. <b>Click it on the belt</b> and send it somewhere else.');
+      : 'Rejected! A station only accepts units that need it <b>next</b>. The unit now parks in the nearest <b>sorting bay</b> inside the conveyor loop. <b>Click it there</b> and send it somewhere else.');
   }
   if (!hu.pallet) circle(hu, st.port.s);
   return false;
@@ -1054,6 +1078,7 @@ function update(dt){
     }
     if (tr.d >= tr.len){
       if (tr.to){ const st = G.st[tr.to]; st.incoming--; st.queue.push(hu); hu.loc = 'queue'; hu.tr = null; sfx('clunk'); }
+      else if (tr.bay != null){ const q = G.bays[tr.bay]; q.incoming--; q.units.push(hu); hu.loc = 'bay'; hu.bay = tr.bay; hu.tr = null; sfx('clunk'); }
       else circle(hu, tr.loopS);
     }
   }
@@ -2019,6 +2044,25 @@ function drawLoop(t){
     });
   }
 }
+function drawBays(t){
+  if (!G.bays) return;
+  BAYS.forEach((b, bi) => {
+    const q = G.bays[bi], busy = q.units.length > 0, lp = loopPos(b.s), inner = laneOff(lp, -23);
+    // short feeder from the inner belt edge to the pad
+    conveyorSeg(inner.x, inner.y, b.x, b.y, 22, t, 0);
+    const len = (BAY_CAP - 1)*BAY_SP + 34, pw = b.horiz ? len : 34, ph = b.horiz ? 34 : len;
+    box(b.x - pw/2, b.y - ph/2, pw, ph, 6, '#1b2232');
+    ctx.save(); ctx.strokeStyle = busy ? 'rgba(255,138,31,' + (0.7 + 0.3*Math.sin(t*5)) + ')' : 'rgba(255,197,61,0.35)'; ctx.lineWidth = busy ? 2.2 : 1.5; ctx.setLineDash([5,4]);
+    rr(b.x - pw/2, b.y - ph/2, pw, ph, 6); ctx.stroke(); ctx.restore();
+    for (let i=0; i<BAY_CAP; i++){ const p = bayPosAt(b, i); ctx.strokeStyle = '#3a4560'; ctx.lineWidth = 1; rr(p.x - 12, p.y - 11, 24, 22, 3); ctx.stroke(); }
+    // hazard stripes on the pad's inner end + label
+    ctx.fillStyle = '#8a96ad'; ctx.font = `800 8px ${FONT}`; ctx.textAlign = 'center';
+    const lx = b.horiz ? b.x : b.x + (bi === 1 ? -26 : 26), ly = b.horiz ? b.y + (bi === 0 ? 27 : -21) : b.y;
+    if (b.horiz) ctx.fillText('SORTING BAY', lx, ly);
+    else { ctx.save(); ctx.translate(lx, ly); ctx.rotate(bi === 1 ? -Math.PI/2 : Math.PI/2); ctx.fillText('SORTING BAY', 0, 3); ctx.restore(); }
+    ctx.textAlign = 'left';
+  });
+}
 function drawSpur(st, t){
   if (st.def.place === 'hbw') return;
   conveyorSeg(st.dock.x, st.dock.y, st.port.x, st.port.y, st.def.role === 'storage' ? 20 : 26, t, 0);
@@ -2700,7 +2744,7 @@ function render(t){
   drawRoads(t); drawHBW(t);
   if (G.roads) (G.movers||[]).forEach(m => drawMover(m, t));
   drawWarehouse(t);
-  drawLoop(t);
+  drawLoop(t); drawBays(t);
   G.stations.forEach(st => drawSpur(st, t));
   drawBoard(); drawDispatchBoard(); drawTruck(t); drawServiceRoom(t);
   G.stations.forEach(st => drawStation(st, t));
@@ -2710,8 +2754,9 @@ function render(t){
     if (hu.loc !== 'transit') continue;
     const p = along(hu.tr, hu.tr.d); hu.px = p.x; hu.py = p.y;
     drawHU(hu, p.x, p.y);
-    if (hu.tr.to === null){ ctx.fillStyle = 'rgba(255,138,31,0.9)'; ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('re-route me', p.x, p.y-17); }
+    if (hu.tr.to === null && hu.tr.bay == null){ ctx.fillStyle = 'rgba(255,138,31,0.9)'; ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('re-route me', p.x, p.y-17); }
   }
+  (G.bays || []).forEach((q, bi) => q.units.forEach((hu, i) => { const p = bayPosAt(BAYS[bi], i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); }));
   drawLoosePallets();
   // flyers to truck
   for (const f of G.flyers){ const k = Math.min(1, f.t), x = f.x0 + (f.x1-f.x0)*k, y = f.y0 + (f.y1-f.y0)*k - Math.sin(k*Math.PI)*50;
