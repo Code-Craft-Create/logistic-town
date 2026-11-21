@@ -346,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-46';
+const GAME_VERSION = '2026.11.21-47';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -898,8 +898,8 @@ function layoutStations(){
       G.spurs.push({ a:j, b:{ x:st.bay.x - dx/d*12, y:st.bay.y - dy/d*12 }, w:20 });
     }
     HB_BAYS.forEach(b => G.spurs.push({ a:{ x:b.x, y:ROAD.y1 }, b:{ x:b.x, y:b.y - 12 }, w:20 }));
-    for (let i=0; i<DEPOT.max; i++){ const q = depotPos(i), top = i % 2; G.spurs.push({ a:{ x:q.x, y:top ? ROAD.y0 : ROAD.y1 }, b:{ x:q.x, y:q.y + (top ? 16 : -16) }, w:top ? 16 : 18 }); }
-    for (let i=0; i<2*HOLD.per; i++){ const q = holdPos(i), top = i >= HOLD.per; G.spurs.push({ a:{ x:q.x, y:top ? ROAD.y0 : ROAD.y1 }, b:{ x:q.x, y:q.y + (top ? 12 : -12) }, w:top ? 16 : 18 }); }
+    for (let i=0; i<DEPOT.max; i++){ const q = depotPos(i), top = i % 2; G.spurs.push({ a:{ x:q.x, y:top ? ROAD.y0 : ROAD.y1 }, b:{ x:q.x, y:q.y - 16 }, w:18 }); }
+    for (let i=0; i<2*HOLD.per; i++){ const q = holdPos(i), top = i >= HOLD.per; G.spurs.push({ a:{ x:q.x, y:top ? ROAD.y0 : ROAD.y1 }, b:{ x:q.x, y:q.y - 12 }, w:18 }); }
   } else list.forEach(st => st.bay = null);
   if (typeof cv !== 'undefined') resize();
 }
