@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -232,6 +235,9 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 
 <script>
 'use strict';
+// Bump on every release. The running game compares it with the published file and offers a reload when they differ
+// (home-screen apps on iOS resume from memory and otherwise keep an old copy).
+const GAME_VERSION = '2026.11.21-7';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2239,7 +2245,7 @@ function showTitle(){
     </ul>
     <div class="btnrow">${sv && sv.shiftIdx > 0 ? `<button class="btn primary" id="mContinue">Continue: Shift ${sv.shiftIdx+1}</button><button class="btn" id="mNew">New game</button>` : `<button class="btn primary" id="mNew">Start the first shift</button>`}
     <button class="btn" id="mHelp">How to play</button></div>
-    <p style="color:var(--muted);font-size:12px;margin-top:16px">Sound on recommended · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">0</span> warehouse · <span class="kbd">Space</span> pause</p>`);
+    <p style="color:var(--muted);font-size:12px;margin-top:16px">Version ${GAME_VERSION} · Sound on recommended · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">0</span> warehouse · <span class="kbd">Space</span> pause</p>`);
   bind('mNew', () => { const keepTips = G.seenTips, mo = G.musicOn, so = G.sfxOn; Object.assign(G, newProfile(), { seenTips:keepTips, musicOn:mo, sfxOn:so }); showIntro(0); });
   bind('mContinue', () => { Object.assign(G, sv); showIntro(sv.shiftIdx); });
   bind('mHelp', () => showHelp(true));
@@ -2307,7 +2313,7 @@ function showShop(){
   bind('mNext', () => showIntro(G.shiftIdx));
 }
 function showPause(){
-  modal(`<h2>Paused</h2><p class="sub">Shift ${G.shiftIdx+1} · ${G.cfg.name} · ${clockStr()}</p>
+  modal(`<h2>Paused</h2><p class="sub">Shift ${G.shiftIdx+1} · ${G.cfg.name} · ${clockStr()} · v${GAME_VERSION}</p>
     <div class="btnrow"><button class="btn primary" id="mResume">Resume ▸</button><button class="btn" id="mHelp2">How to play</button><button class="btn" id="mRestart">Restart shift</button><button class="btn" id="mMenu2">Main menu</button></div>`);
   bind('mResume', () => togglePause());
   bind('mHelp2', () => showHelp());
@@ -2357,6 +2363,31 @@ function frame(now){
 ['touchend','click','keydown'].forEach(ev => document.addEventListener(ev, () => { AU.init(); if (AU.ctx && AU.ctx.state !== 'running') AU.ctx.resume(); }, { passive:true }));
 if (window.ResizeObserver) new ResizeObserver(resize).observe(floorEl);
 resize(); syncButtons(); showTitle(); requestAnimationFrame(frame);
+
+// ---------- update check: fetch the published page uncached and compare versions ----------
+const Updater = {
+  checking:false, last:0,
+  async check(){
+    if (this.checking || !/^https?:/.test(location.protocol) || Date.now() - this.last < 60000) return;
+    this.checking = true; this.last = Date.now();
+    try {
+      const res = await fetch(location.href.split('#')[0].split('?')[0] + '?v=' + Date.now(), { cache:'no-store' });
+      const m = res.ok && (await res.text()).match(/const GAME_VERSION = '([^']+)'/);
+      if (m && m[1] !== GAME_VERSION) this.offer(m[1]);
+    } catch(e){} finally { this.checking = false; }
+  },
+  offer(v){
+    if ($('updBar')) return;
+    const el = document.createElement('button'); el.id = 'updBar';
+    el.innerHTML = `New version ${v} available · tap to update`;
+    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--accent);color:#1a1208;border:0;border-radius:12px;padding:10px 16px;font-weight:800;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.5);cursor:pointer';
+    el.onclick = () => { saveProfile(); location.replace(location.href.split('#')[0].split('?')[0] + '?v=' + encodeURIComponent(v)); };
+    document.body.appendChild(el);
+  }
+};
+setTimeout(() => Updater.check(), 1500);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') Updater.check(); });
+window.addEventListener('pageshow', e => { if (e.persisted) Updater.check(); });
 
 // ---------- test / automation hooks ----------
 window.LT = { get G(){ return G; }, STATIONS, STEPS, SHIFTS, startShift, update, validTargets, dispatch, retrieve, selectable, hasRoom, endShift,

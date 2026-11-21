@@ -40,3 +40,9 @@ Layout, routing rules, order generation, help screen and the routing board updat
 
 New items go into `ITEMS` with an icon key from `CICONS` (or `ICONS`) and tags: `measure` items can be calibrated, `tool` items
 signed, `sewable` clothing patched (a step's `tag` decides which items it applies to).
+
+## Versioning / updates
+`GAME_VERSION` near the top of the script is shown on the title and pause screens. Bump it with every release.
+The running game re-fetches the published page uncached (on start and whenever the app comes back to the foreground, at most once a minute)
+and shows a "New version available · tap to update" button when the version differs. That keeps home-screen apps from staying on an old copy.
+No-cache meta tags are set too. There is no service worker.
