@@ -386,13 +386,13 @@ const ORDER_COLORS = ['#ff8a1f','#4f8cff','#3ddc84','#ff5fa2','#22c3e6','#b07cff
 // stage: lower stages must be completed before higher ones. Same stage = any order.
 const has = (o, tag) => o.items.some(i => i.tags.includes(tag));
 const STEPS = {
-  pick:        { label:'Commissioning',        short:'PICK',  stage:0, want: o => o.type !== 'regrind' },
+  pick:        { label:'Commissioning',        short:'PICK',  stage:0, want: o => o.type === 'new' },
   // customer returns (alt: a separate entry path, shown on its own line in the routing plan)
-  receive:     { label:'Goods-in check',       short:'RECV',   stage:0, alt:true, want: o => o.type === 'regrind' },
+  receive:     { label:'Goods-in check',       short:'RECV',   stage:0, alt:true, want: o => o.type !== 'new' },
   regrind:     { label:'Regrinding',           short:'GRIND', stage:0.5, alt:true, want: o => o.type === 'regrind' },
   // tag: the step only ever applies to items carrying this tag (calibration -> measuring tools, patching -> sewable clothing)
-  calibration: { label:'Calibration',          short:'CAL',   stage:1, tag:'measure', want: o => has(o,'measure') && Math.random() < 0.75 },
-  signing:     { label:'Laser signing',        short:'SIGN',  stage:1, tag:'tool',    want: o => has(o,'tool') && Math.random() < (o.type === 'regrind' ? 0.55 : 0.45) },
+  calibration: { label:'Calibration',          short:'CAL',   stage:1, tag:'measure', want: o => o.type === 'recal' || (has(o,'measure') && Math.random() < 0.75) },
+  signing:     { label:'Laser signing',        short:'SIGN',  stage:1, tag:'tool',    want: o => o.type !== 'recal' && has(o,'tool') && Math.random() < (o.type === 'regrind' ? 0.55 : 0.45) },
   patching:    { label:'Logo patching',        short:'PATCH', stage:1, tag:'sewable', want: o => has(o,'sewable') && Math.random() < 0.75 },
   focus:       { label:'Focus customer check', short:'FOCUS', stage:2, want: o => o.focus },
   pack:        { label:'Packing & shipping',   short:'SHIP',  stage:9, want: () => true },
@@ -410,13 +410,13 @@ const STATIONS = [
     desc:'Picks the tools from the delivered totes into an order-specific handling unit (HU). Starts once all of the order\'s totes have arrived.' },
   { id:'goodsin', name:'Goods-in', icon:'goodsin', color:'#c98a4b', handles:'receive', role:'source', noKey:true,
     slots:1, time:3.5, queue:3, out:3,
-    desc:'Wareneingang. Trucks unload here on their own: new stock (cardboard boxes) goes to the Shuttle Warehouse, cutting tools sent back by customers go to Regrinding. Keep its OUT tray clear.' },
+    desc:'Wareneingang. Trucks unload here on their own: new stock (cardboard boxes) goes to the Shuttle Warehouse, cutting tools sent back by customers go to Regrinding, measuring tools sent back go to the Calibration Lab. Keep its OUT tray clear.' },
   { id:'regrind', name:'Regrinding', icon:'regrind', color:'#9aa8ff', handles:'regrind',
     slots:1, time:8, queue:3, out:3, defect:{ chance:0.10, reason:'Cutting edge chipped', redo:true },
     desc:'Sharpens customer drills and milling cutters (Bohrer, Fräser). Afterwards they may still need Laser Signing and the focus customer check, then Packing.' },
   { id:'calib', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
     slots:1, time:9, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
-    desc:'Checks that measuring tools (calipers, meters, levels…) measure correctly and issues a certificate. Failed tools go to QA, then back here.' },
+    desc:'Checks that measuring tools (calipers, meters, levels…) measure correctly and issues a certificate. Failed tools go to QA, then back here. Measuring tools returned by customers that fail are not repaired: no guarantee, straight back to the customer.' },
   { id:'sign', name:'Laser Signing', icon:'laser', color:'#b07cff', handles:'signing',
     slots:1, time:6, queue:3, out:3, defect:{ chance:0.08, reason:'Engraving blurred', redo:true },
     desc:'Lasers the customer identifier onto tools so they can be traced on site.' },
@@ -441,8 +441,9 @@ const RETRIEVE_SPEED = 300; // px/s for totes on the lift + feeder belt to Commi
 const ROBOT = { base:2, speed:400, grab:0.45, drop:0.25 }; // fetch robots in the shuttle warehouse (count is upgradable)
 const FAIL_PAYOUT = 0.5; // share of a failed shift's earnings you keep
 const TRANSPORT_CHECK = { chance:0.035, reason:'Weight check failed' };
-// Goods-in: share of orders that are customer returns for regrinding, and how often new stock arrives (kept rare)
-const INBOUND = { returnShare:0.28, stockEvery:[30,42], stockPay:12, firstStock:14 };
+// Goods-in: share of orders that are customer returns (cutting tools for regrinding, measuring tools for re-calibration),
+// how often a returned measuring tool fails (it then goes straight back to the customer, no QA), and how often new stock arrives (kept rare)
+const INBOUND = { regrindShare:0.2, recalShare:0.13, recalFail:0.25, returnShare:0.33, stockEvery:[30,42], stockPay:12, firstStock:14 };
 const STOCK_COLOR = '#c98a4b';
 const acceptsKind = (def, kind) => [].concat(def.accepts || []).includes(kind);
 
@@ -453,7 +454,7 @@ const SHIFTS = [
   { name:'Wednesday', title:'Make it personal',   duration:120, goal:11, spawn:[6,8],items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','qa','retoure','pack'] },
   { name:'Thursday',  title:'VIP treatment',      duration:130, goal:13, spawn:[5.5,7],  items:[1,3], slack:22, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
   { name:'Friday',    title:'The Friday rush',    duration:140, goal:16, spawn:[4.5,6],  items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','qa','retoure','pack'] },
-  { name:'Saturday',  title:'Returns and restock', duration:150, goal:20, spawn:[4,5.3], items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','goodsin','regrind','qa','retoure','pack'] },
+  { name:'Saturday',  title:'Returns and restock', duration:150, goal:21, spawn:[4,5.3], items:[1,3], slack:20, stations:['warehouse','commission','calib','sign','patch','care','goodsin','regrind','qa','retoure','pack'] },
 ];
 function shiftConfig(i){
   if (i < SHIFTS.length) return SHIFTS[i];
@@ -651,14 +652,17 @@ function nextHint(hu){
 
 function makeOrder(){
   const cfg = G.cfg;
-  // customer return: cutting tools arrive at Goods-in and need regrinding
-  const returns = activeHas('goodsin') && activeHas('regrind') && Math.random() < INBOUND.returnShare;
+  // customer returns arrive at Goods-in: blunt cutting tools (regrinding) or measuring tools (re-calibration)
+  const r = Math.random(), gi = activeHas('goodsin');
+  const type = gi && activeHas('regrind') && r < INBOUND.regrindShare ? 'regrind'
+    : gi && activeHas('calib') && r < INBOUND.regrindShare + INBOUND.recalShare ? 'recal' : 'new';
+  const returns = type !== 'new';
   const n = returns ? randInt(1, 2) : randInt(cfg.items[0], cfg.items[1]);
-  const pool = ITEMS.filter(i => i.tags.includes('cutting') === returns), items = [];
+  const pool = ITEMS.filter(i => type === 'regrind' ? i.tags.includes('cutting') : type === 'recal' ? i.tags.includes('measure') : !i.tags.includes('cutting')), items = [];
   for (let i=0; i<n && pool.length; i++) items.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
   const id = ++G.seq;
   const o = { id, num:4100 + id + G.shiftIdx*100, customer:pick(CUSTOMERS), items, focus:false, steps:{},
-    created:G.time, color:ORDER_COLORS[id % ORDER_COLORS.length], released:false, shipped:false, late:false, hu:null, type:returns ? 'regrind' : 'new' };
+    created:G.time, color:ORDER_COLORS[id % ORDER_COLORS.length], released:false, shipped:false, late:false, hu:null, type };
   o.focus = activeHas('care') && Math.random() < 0.28;
   // returned tools travel in the customer's parcel (already 'picked' into the HU); new orders wait in the rack
   o.lines = items.map(item => returns ? { item, state:'picked', slot:null } : { item, state:'stored', slot:freeRackSlot() });
@@ -671,6 +675,8 @@ function makeOrder(){
   o.allow = Math.round(allow); o.due = G.time + o.allow;
   G.orders.push(o);
   sfx('order');
+  if (type === 'recal'){ G.inbound.push({ o });
+    tip('recal', `Customer return! <b>#${o.num}</b> sent measuring tools back for <b>re-calibration</b>. After Goods-in, route it to the <b>Calibration Lab</b>. If a tool is out of tolerance there is no guarantee: it goes <b>straight back to the customer</b> (Packing), not to QA.`); return; }
   if (returns){ G.inbound.push({ o });
     tip('regrind', `Customer return! <b>#${o.num}</b> sent back blunt cutting tools. The parcel is unloaded at <b>Goods-in</b> on its own. Then route it to <b>Regrinding</b>, then the services on its card, then Packing.`); return; }
   if (G.cfg === SHIFTS[0] || G.shiftIdx === 0) tip('release', 'A new order arrived! Its totes are <b style="color:var(--accent)">glowing in the Shuttle Warehouse</b> (same colour as the order card). <b>Click each glowing tote</b> to send it to Commissioning.');
@@ -827,7 +833,7 @@ function complete(st, hu){
       tip('return', `QA found the wrong item. Two jobs now: 1) route the grey <b>↩ return tote</b> back to the <b>Shuttle Warehouse</b> (key <span class="kbd">0</span>), 2) click the order's new <b style="color:var(--accent)">glowing tote</b> in the warehouse and send HU <b>#${o.num}</b> back to <b>Commissioning</b> for a re-pick.`);
       return;
     }
-    if (f && d.issue && Math.random() < d.issue.chance){
+    if (f && d.issue && o.type !== 'recal' && Math.random() < d.issue.chance){
       // not fixable: the item is defective -> goes to Retoure, a replacement must be commissioned
       const li = Math.floor(Math.random()*o.lines.length), line = o.lines[li];
       line.state = 'stored'; line.slot = freeRackSlot(); o.steps.pick = 'todo';
@@ -845,6 +851,17 @@ function complete(st, hu){
   const step = d.handles;
   let pickedNow = [];
   if (d.needsTotes){ o.lines.forEach((l, i) => { if (l.state === 'atPick'){ l.state = 'picked'; pickedNow.push(i); } }); }
+  if (o.type === 'recal' && step === 'calibration'){
+    o.steps[step] = 'done';
+    if (Math.random() < INBOUND.recalFail * st.qualMul){
+      // out of tolerance: no guarantee possible -> skip the remaining services, ship it straight back to the customer
+      o.notOk = true; for (const k of Object.keys(o.steps)) if (k !== 'pack' && o.steps[k] === 'todo') o.steps[k] = 'skip';
+      floatText(st.dock.x, st.y+10, 'Not OK: back to customer', '#ffc53d'); sfx('flag');
+      toast(`${ico('warn')} #${o.num}: out of tolerance, no guarantee possible. Send it straight back to the customer via Packing & Shipping (not QA).`, 'warn');
+      tip('notok', `A returned measuring tool failed calibration. There is no guarantee on worn tools, so it is <b>not</b> repaired by QA: send HU <b>#${o.num}</b> straight to <b>Packing & Shipping</b>, back to the customer. You only get paid for the check.`);
+    }
+    return;
+  }
   if (d.defect && Math.random() < d.defect.chance * st.qualMul){
     hu.flag = { reason:d.defect.reason, station:d.id }; G.defects++;
     if (d.defect.returnTote && pickedNow.length) hu.flag.line = pick(pickedNow);
@@ -858,7 +875,7 @@ function ship(hu){
   const o = hu.order; o.shipped = true; hu.gone = true;
   G.hus.splice(G.hus.indexOf(hu), 1); G.orders.splice(G.orders.indexOf(o), 1);
   if (G.selected === hu) G.selected = null;
-  const services = Object.keys(o.steps).filter(k => k !== 'pick' && k !== 'pack' && k !== 'receive').length;
+  const services = Object.keys(o.steps).filter(k => k !== 'pick' && k !== 'pack' && k !== 'receive' && o.steps[k] === 'done').length;
   let pay = 40 + 25*services; if (o.focus) pay *= 1.5;
   const late = G.time > o.due;
   if (late){ pay *= 0.4; G.lateShip++; } else { G.onTime++; changeSat(+2); }
@@ -1316,7 +1333,8 @@ function drawHU(hu, x, y, opts={}){
   ctx.fillStyle = '#10141c'; ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(o.num).slice(-3), 0, 3);
   if (sel || hov){ ctx.strokeStyle = sel ? '#ffffff' : 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; rr(-16.5, -12.5, 33, 25, 5); ctx.stroke(); }
   if (o.focus){ ctx.fillStyle = '#ffd23f'; star(11, -11, 5); }
-  if (o.type === 'regrind'){ ctx.fillStyle = '#10141c'; ctx.beginPath(); ctx.arc(-11, -8, 5.5, 0, 7); ctx.fill(); drawIcon('regrind', -11, -8, 9, '#fff', 2); }
+  if (o.type !== 'new'){ ctx.fillStyle = '#10141c'; ctx.beginPath(); ctx.arc(-11, -8, 5.5, 0, 7); ctx.fill(); drawIcon(o.type === 'recal' ? 'gauge' : 'regrind', -11, -8, 9, '#fff', 2); }
+  if (o.notOk){ rr(-15, -21, 30, 9, 3); ctx.fillStyle = '#ffc53d'; ctx.fill(); ctx.fillStyle = '#10141c'; ctx.font = `900 7px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('NOT OK', 0, -14.5); }
   // pending step dots
   const pend = pendingSteps(o).filter(s => s !== 'pick');
   const dw = 7; let dx = -((pend.length-1)*dw)/2;
@@ -1445,7 +1463,8 @@ function drawBoard(){
   }
   if (activeHas('goodsin') && activeHas('regrind')){
     ctx.fillStyle = STEP_COLOR('regrind'); ctx.font = `700 10px ${FONT}`; ctx.fillText('Returns: Goods-in → Regrind', x+12, yy+1);
-    ctx.fillStyle = '#8a96ad'; ctx.font = `500 9.5px ${FONT}`; ctx.fillText('then from step 2 on', x+12, yy+14); yy += 34;
+    ctx.fillStyle = STEP_COLOR('calibration'); ctx.fillText('or Goods-in → Calibration', x+12, yy+14);
+    ctx.fillStyle = '#8a96ad'; ctx.font = `500 9.5px ${FONT}`; ctx.fillText('then from step 2 on', x+12, yy+27); yy += 46;
   }
   drawIcon('warn', x+18, yy-2, 12, '#ff5468', 2.4); ctx.fillStyle = '#ff5468'; ctx.font = `700 10.5px ${FONT}`; ctx.fillText('Flagged → QA first', x+28, yy+2);
   ctx.fillStyle = '#8a96ad'; ctx.font = `500 9.5px ${FONT}`; ctx.fillText('only if the order needs it', x+12, y+h-12);
@@ -1532,6 +1551,7 @@ function render(t){
 function itemSteps(o, item){ return Object.keys(o.steps).filter(sid => STEPS[sid].tag && item.tags.includes(STEPS[sid].tag)); }
 function chipHTML(o, sid){
   const c = STEP_COLOR(sid), done = o.steps[sid] === 'done';
+  if (o.steps[sid] === 'skip') return `<span class="chip" style="border-color:#4a5468;color:#6b7690;text-decoration:line-through">${STEPS[sid].short}</span>`;
   return `<span class="chip ${done?'done':''}" style="border-color:${c};color:${c};${done?`background:${c}`:''}">${done?'✓ ':''}${STEPS[sid].short}</span>`;
 }
 function orderParts(o, inbox){
@@ -1540,14 +1560,15 @@ function orderParts(o, inbox){
   const blocked = inbox && G.st.commission && !hasRoom(G.st.commission);
   const steps = Object.keys(o.steps).map(s => s === 'pick' && o.steps.pick === 'todo' && o.lines.length
     ? `<span class="chip" style="border-color:${STEP_COLOR('pick')};color:${STEP_COLOR('pick')}">PICK ${linesDone(o)}/${o.lines.length} ${ico('tote')}</span>` : chipHTML(o, s)).join('');
-  const flag = o.hu && o.hu.flag ? `<span class="chip flag">${ico('warn')} ${o.hu.flag.reason}</span>` : '';
+  const flag = o.hu && o.hu.flag ? `<span class="chip flag">${ico('warn')} ${o.hu.flag.reason}</span>`
+    : o.notOk ? `<span class="chip" style="background:var(--warn);border-color:var(--warn);color:#0e131d">NOT OK: back to customer</span>` : '';
   const cls = `oc ${inbox?'inbox':''} ${blocked?'blocked':''} ${o.focus?'focus':''} ${rem<0?'late':''}`;
-  const html = `<div class="oc-h"><span class="sw" style="background:${o.color}"></span><b>#${o.num}</b><span class="cust">${o.customer}</span>${o.type === 'regrind' ? `<span title="Customer return for regrinding" style="display:inline-flex">${ico('regrind')}</span>` : ''}${o.focus?'<span style="color:var(--warn)">★</span>':''}
+  const html = `<div class="oc-h"><span class="sw" style="background:${o.color}"></span><b>#${o.num}</b><span class="cust">${o.customer}</span>${o.type === 'regrind' ? `<span title="Customer return for regrinding" style="display:inline-flex">${ico('regrind')}</span>` : o.type === 'recal' ? `<span title="Customer return for re-calibration" style="display:inline-flex">${ico('gauge')}</span>` : ''}${o.focus?'<span style="color:var(--warn)">★</span>':''}
     <span class="due"></span></div>
     <div class="oc-items">${o.items.map(i => `<span class="it" title="${i.name}">${ico(i.icon)}<span class="dots">${itemSteps(o, i).map(sid => `<i style="background:${STEP_COLOR(sid)}"></i>`).join('')}</span></span>`).join('')}</div>
     <div class="chips">${steps}${flag}</div>
     <div class="tbar"><div></div></div>
-    ${inbox ? (o.type === 'regrind' ? '<span class="release-hint">waiting at Goods-in</span>' : '<span class="release-hint">totes in warehouse ◂</span>') : ''}`;
+    ${inbox ? (o.type !== 'new' ? '<span class="release-hint">waiting at Goods-in</span>' : '<span class="release-hint">totes in warehouse ◂</span>') : ''}`;
   return { cls, html, col, frac, due: rem < 0 ? 'LATE' : Math.ceil(rem)+'s' };
 }
 // Cards are kept as persistent DOM nodes and patched in place (no flicker, hover stays stable)
@@ -1622,7 +1643,9 @@ function showTooltip(hu, cx, cy, rack){
   const o = hu.order, pend = pendingSteps(o), nextIds = hu.flag ? [] : validTargets(hu).map(s => s.def.handles);
   const rows = Object.keys(o.steps).map(sid => {
     const done = o.steps[sid] === 'done', nx = nextIds.includes(sid);
-    return `<div class="row ${done?'done':nx?'next':''}">${done?'✓':nx?'▸':'○'} ${STEPS[sid].label}</div>`; }).join('');
+    if (o.steps[sid] === 'skip') return `<div class="row" style="text-decoration:line-through;opacity:.6">○ ${STEPS[sid].label}</div>`;
+    return `<div class="row ${done?'done':nx?'next':''}">${done?'✓':nx?'▸':'○'} ${STEPS[sid].label}</div>`; }).join('')
+    + (o.notOk ? `<div class="row" style="color:var(--warn)">Out of tolerance: back to the customer, no guarantee</div>` : '');
   const rem = o.due - G.time;
   tt.innerHTML = `<div class="tt-h"><span style="width:10px;height:10px;border-radius:3px;background:${o.color}"></span>#${o.num} · ${o.customer} ${o.focus?'<span style="color:var(--warn)">★ focus</span>':''}</div>
     <div class="items">${o.items.map(i => ico(i.icon) + ' ' + i.name + (itemSteps(o, i).length ? ' <span style="color:var(--muted)">(' + itemSteps(o, i).map(sid => STEPS[sid].short).join(', ') + ')</span>' : '')).join('<br>')}</div>${rows}
@@ -1736,7 +1759,9 @@ function flowHTML(){
 function returnsFlowHTML(){
   const st = id => `<span class="fs">${ico(DEF[id].icon)}${DEF[id].name}</span>`;
   return `<div class="flow"><span style="color:var(--muted);font-size:12px">Customer returns:</span>${st('goodsin')}<span class="ar">➜</span>${st('regrind')}<span class="ar">➜</span><span class="fs">${ico('laser')}Laser / ${ico('star')}Focus <span style="color:var(--muted)">(if needed)</span></span><span class="ar">➜</span>${st('pack')}</div>
-    <p style="margin:-4px 0 10px;color:var(--muted);font-size:13px">New stock from Goods-in (cardboard box) goes to the Shuttle Warehouse.</p>`;
+    <div class="flow"><span style="color:var(--muted);font-size:12px">Measuring tools back for calibration:</span>${st('goodsin')}<span class="ar">➜</span>${st('calib')}<span class="ar">➜</span><span class="fs">${ico('star')}Focus <span style="color:var(--muted)">(if needed)</span></span><span class="ar">➜</span>${st('pack')}</div>
+    <p style="margin:-4px 0 6px;color:var(--muted);font-size:13px">A returned measuring tool that fails calibration is <b>not</b> sent to QA: no guarantee is possible, so it goes straight back to the customer via Packing.</p>
+    <p style="margin:0 0 10px;color:var(--muted);font-size:13px">New stock from Goods-in (cardboard box) goes to the Shuttle Warehouse.</p>`;
 }
 function showTitle(){
   G.mode = 'title';

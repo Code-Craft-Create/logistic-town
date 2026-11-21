@@ -19,7 +19,9 @@ and sound and music are generated with the Web Audio API.
   click the order's new glowing tote, and send the HU back to Commissioning for a re-pick.
 - From Saturday on, **Goods-in** (Wareneingang) unloads trucks on its own: customer returns of blunt cutting tools
   (drill bits, end mills, face mills) go to **Regrinding**, then Laser Signing / Focus Customer Care if their card says so,
-  then Packing. Now and then a cardboard box of new stock arrives: route it to the Shuttle Warehouse (small bonus). Tuning lives in `INBOUND`.
+  then Packing. Customers also send measuring tools back for re-calibration: Goods-in, Calibration Lab, Focus if needed, Packing.
+  If such a tool fails calibration it is not sent to QA (no guarantee on worn tools): it goes straight back to the customer via Packing.
+  Now and then a cardboard box of new stock arrives: route it to the Shuttle Warehouse (small bonus). Tuning lives in `INBOUND`.
 - Ship before the timer runs out. Six short shifts (Mon–Sat) introduce stations step by step, then endless overtime.
   Stations start slow; the upgrade shop shows how busy each station was, so you can fix bottlenecks.
 
