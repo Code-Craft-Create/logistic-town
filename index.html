@@ -132,21 +132,55 @@ button{font:inherit;color:inherit}
 @keyframes starIn{from{color:#4a5468;text-shadow:none;transform:scale(.5)}}
 .kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 6px;font-size:12px;background:var(--panel2)}
 ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
-.shop{display:flex;flex-direction:column;gap:8px}
-.srow{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;flex-wrap:wrap}
-.srow .nm{display:flex;align-items:center;gap:8px;font-weight:700;width:190px;font-size:14px}
-.srow .nm .ic{width:22px;height:22px;flex:none}
-.ubtn{flex:1;min-width:130px;border-radius:9px;padding:7px 9px;border:1px solid var(--line);background:#121925;cursor:pointer;text-align:left;font-size:12px;line-height:1.3}
-.ubtn:hover:not(:disabled){border-color:var(--accent)}
-.ubtn:disabled{opacity:.4;cursor:default}
-.ubtn b{color:var(--accent2)}
-.ubtn.auto{border-color:rgba(61,220,132,.35)}
-.ubtn.auto b{color:var(--good)}
-.ubtn .lv{color:var(--muted);float:right;margin-left:8px}
-.load{position:relative;height:6px;width:120px;background:#0b1018;border-radius:3px;margin-top:5px}
+.shop{display:flex;flex-direction:column;gap:10px}
+.shop-h{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+.shop-h .sub{margin:0}
+.cashbox{flex:none;background:var(--panel2);border:1px solid rgba(255,138,31,.45);border-radius:12px;padding:6px 14px;text-align:right}
+.cashbox small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px}
+.sec{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px 12px 12px}
+.sec-h{display:flex;align-items:center;gap:9px;margin:0 2px 9px;font-weight:700;font-size:15px}
+.sec-h > .ic{width:24px;height:24px}
+.sec-n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.busy{display:flex;align-items:center;gap:8px;flex:none}
+.busy em{font-style:normal;font-size:11.5px;font-weight:600}
+.load{position:relative;display:block;height:6px;width:90px;background:#0b1018;border-radius:3px;overflow:hidden}
 .load span{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
-.load em{position:absolute;left:0;top:7px;font-style:normal;font-size:10px;color:var(--muted);font-weight:600}
-.srow .nm{min-height:34px}
+.mcard.wide{width:min(960px,100%)}
+.ugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.ut{display:flex;flex-direction:column;gap:5px;text-align:left;border-radius:11px;padding:9px 10px;border:1px solid var(--line);background:#121925;cursor:pointer;font-size:12px;line-height:1.3;min-height:104px;transition:border-color .15s,transform .1s}
+.ut:hover:not(:disabled){border-color:var(--accent)}
+.ut:active:not(:disabled){transform:scale(.98)}
+.ut:disabled{cursor:default}
+.ut-top{display:flex;align-items:center;gap:8px}
+.ut-ic{width:32px;height:32px;flex:none;border-radius:9px;background:#1c2536;display:grid;place-items:center}
+.ut-ic .ic{width:26px;height:26px}
+.ut.auto .ut-ic{background:rgba(61,220,132,.12)}
+.ut-name{font-weight:700;font-size:12.5px;line-height:1.2}
+.ut-desc{display:block;color:#a7b1c4;font-size:11.5px}
+.ut-desc::first-letter{text-transform:uppercase}
+.ut-next{display:block;color:var(--muted);font-size:11px;margin-top:-2px}
+.ut-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:6px;padding-top:2px}
+.pips{display:flex;gap:3px}
+.pips i{width:12px;height:5px;border-radius:3px;background:#2a3446}
+.pips i.on{background:var(--accent)}
+.ut-price{font-weight:800;font-size:13px;color:#1a1208;background:linear-gradient(135deg,var(--accent2),var(--accent));border-radius:7px;padding:2px 8px}
+.ut-tag{display:flex;align-items:center;gap:4px;font-weight:700;font-size:11px}
+.ut-tag .ic{width:14px;height:14px}
+.ut-tag.ok{color:var(--good)}
+.ut-tag.lk{color:var(--muted)}
+.ut.poor .ut-price{background:none;color:var(--bad);padding:2px 0}
+.ut.poor .ut-ic,.ut.poor .ut-name{opacity:.7}
+.ut.maxed{background:rgba(61,220,132,.06);border-color:rgba(61,220,132,.3)}
+.ut.maxed .pips i.on{background:var(--good)}
+.ut.maxed .ut-desc{color:var(--muted)}
+.ut.locked{border-style:dashed;background:transparent}
+.ut.locked .ut-ic,.ut.locked .ut-name,.ut.locked .pips{opacity:.45}
+.ut.auto:not(.maxed):not(.locked){border-color:rgba(61,220,132,.35)}
+.ut.auto .pips i.on{background:var(--good)}
+.ut.auto .ut-price{background:var(--good)}
+.ut.auto.poor .ut-price{background:none}
+.shop-note{color:var(--muted);font-size:12.5px;margin:10px 2px 0}
+.stickyrow{position:sticky;bottom:0;margin:12px 0 0;padding:12px 0 2px;background:linear-gradient(180deg,rgba(20,27,39,0),rgba(20,27,39,.97) 40%);z-index:1}
 .cashbig{font-size:22px;font-weight:800;color:var(--accent2)}
 .toolstrip{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
 .toolstrip span{width:34px;height:34px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent2)}
@@ -170,6 +204,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
   .mcard h1{font-size:26px}
 }
 @media (max-width:700px){
+  .shop-h{flex-direction:column;gap:8px}
   #app{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) 150px}
   #top{flex-wrap:wrap;padding:6px 10px;grid-column:1;row-gap:6px}
   #side{grid-row:3;border-right:0;border-top:1px solid var(--line);display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:8px 16px}
@@ -199,6 +234,15 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
   .mcard{padding:14px 16px}
   .mcard h1{font-size:22px}
   .mcard h2{font-size:18px}
+  .ugrid{grid-template-columns:repeat(auto-fill,minmax(134px,1fr));gap:6px}
+  .ut{min-height:96px;padding:7px 8px}
+  .stickyrow .btn{padding:9px 16px;font-size:14px}
+  .stickyrow{padding-top:8px}
+  .shop-h{margin-bottom:10px}
+  .ut-ic{width:28px;height:28px}
+  .ut-ic .ic{width:21px;height:21px}
+  .sec{padding:8px 9px 9px}
+  .cashbig{font-size:18px}
   #modal{padding-top:8px;padding-bottom:8px}
   #tip{bottom:8px;font-size:12px;line-height:1.35;padding:9px 12px 9px 46px}
   .toast{font-size:12px}
@@ -243,7 +287,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-26';
+const GAME_VERSION = '2026.11.21-27';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -438,6 +482,35 @@ const CICONS = {
   // ---------- misc
   tote: [[C.steel,'M3 8h18l-2 12H5z'],[C.orange,'M2.5 6.5h19V9h-19z'],[C.dark,'M9 12h1.4v5H9z M13.6 12H15v5h-1.4z']],
   factory: [[C.metal,'M3 21V10l6 4v-4l6 4V5h5v16z'],[C.orange,'M6 16.5h2v2H6z M11 16.5h2v2h-2z M16.5 16.5h2v2h-2z'],[C.dark,'M15 3h5v2h-5z']],
+  // ---------- upgrade shop
+  u_slots: [[C.wood,'M1.5 11h15v2.6h-15z'],[C.dark,'M3 13.6h2v7.4H3z M13 13.6h2v7.4h-2z M5 17h8v1.4H5z'],[C.steel,'M3.5 5.5h7.5V11H3.5z'],[C.screen,'M4.7 6.7h3.6v2.4H4.7z'],[C.orange,'M9.2 7.2h1v1.2h-1z'],
+    [C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M18.2 3.4h1.6v1.8h1.8v1.6h-1.8v1.8h-1.6V6.8h-1.8V5.2h1.8z']],
+  u_speed: [[C.metal,'M3.8 13.8a8.2 8.2 0 1 0 16.4 0a8.2 8.2 0 1 0-16.4 0z'],[C.white,'M5.6 13.8a6.4 6.4 0 1 0 12.8 0a6.4 6.4 0 1 0-12.8 0z'],[C.orange,'M12 13.8V7.4a6.4 6.4 0 0 1 5.6 3.3z'],
+    [C.dark,'M9.8 1.8h4.4v2.2H9.8z M11.2 4h1.6v1.8h-1.6z'],[C.orange,'M17.4 4.9l1.5-1.5 2.1 2.1-1.5 1.5z'],[C.dark,'M11.3 13.8l.7-5.6.7 5.6a.7.7 0 1 1-1.4 0z']],
+  u_quality: [[C.blue,'M12 1.8l8.5 3.2v6.2c0 5.2-3.6 9.2-8.5 11-4.9-1.8-8.5-5.8-8.5-11V5z'],[C.navy,'M12 4.2l6.2 2.4V11c0 4-2.6 7.2-6.2 8.8C8.4 18.2 5.8 15 5.8 11V6.6z'],
+    [C.green,'M7.6 11.8l1.7-1.7 1.8 1.8 4-4 1.7 1.7-5.7 5.7z']],
+  u_shuttle: [[C.steel,'M1 19.6h22v1.6H1z'],[C.steel,'M10 4.5h8.4l-.9 4.5h-6.6z'],[C.orange,'M7.5 9h13v7.6h-13z'],[C.amber,'M7.5 9h13v1.6h-13z'],[C.dark,'M8.6 16.6h3v3H8.6z M16.4 16.6h3v3h-3z'],
+    [C.amber,'M1 10.5h4.5v1.3H1z M2.2 13h3.3v1.3H2.2z M1 15.5h4.5v1.3H1z']],
+  u_fetchers: [[C.steel,'M1 19.6h17v1.6H1z'],[C.steel,'M5 7.5h7.6l-.8 4H5.8z'],[C.orange,'M2.5 11.5h12.5v5.6H2.5z'],[C.amber,'M2.5 11.5H15v1.5H2.5z'],[C.dark,'M3.6 17.1h2.6v2.5H3.6z M11.3 17.1h2.6v2.5h-2.6z'],
+    [C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M18.2 3.4h1.6v1.8h1.8v1.6h-1.8v1.8h-1.6V6.8h-1.8V5.2h1.8z']],
+  u_auto: [[C.steel,'M1 19.6h17v1.6H1z'],[C.steel,'M5 7.5h7.6l-.8 4H5.8z'],[C.orange,'M2.5 11.5h12.5v5.6H2.5z'],[C.amber,'M2.5 11.5H15v1.5H2.5z'],[C.dark,'M3.6 17.1h2.6v2.5H3.6z M11.3 17.1h2.6v2.5h-2.6z'],
+    [C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M19.9 2.6l-3 4h1.9l-.8 2.9 3-4.1h-1.9z']],
+  u_movers: [[C.orange,'M1.5 9.5h9v7.5h-9z'],[C.glass,'M3 11h4.6v3.2H3z'],[C.dark,'M11 4.5h1.6v14H11z'],[C.steel,'M12.6 17h5.6v1.5h-5.6z'],[C.wood,'M13 14h5v3h-5z'],
+    [C.dark,'M2 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0z M7.4 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0z'],[C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M18.2 3.4h1.6v1.8h1.8v1.6h-1.8v1.8h-1.6V6.8h-1.8V5.2h1.8z']],
+  u_drive: [[C.dark,'M2.5 12a9.5 9.5 0 1 0 19 0a9.5 9.5 0 1 0-19 0z M5.2 12a6.8 6.8 0 1 1 13.6 0a6.8 6.8 0 1 1-13.6 0z'],[C.steel,'M5.2 10.9h13.6v2.2H5.2z M10.9 12h2.2v6.8h-2.2z'],
+    [C.orange,'M9.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0z'],[C.amber,'M5.4 4.6l1.6-1.4 1.2 1.3-1.6 1.4z']],
+  u_crane: [[C.steel,'M3 1.5h19v1.4H3z M3 20.6h19V22H3z'],[C.dark,'M11 2.9h4.6v1.6H11z M11 19h4.6v1.6H11z'],[C.orange,'M11.8 4.5h3v14.5h-3z'],[C.amber,'M8 11.5h12v2.6H8z'],[C.wood,'M15 7.4h5v4.1h-5z'],
+    [C.amber,'M1.5 8h4v1.3h-4z M2.5 10.6h3v1.3h-3z M1.5 13.2h4v1.3h-4z']],
+  u_router: [[C.steel,'M1.5 16.5h21v4h-21z'],[C.dark,'M3.5 18.5a1 1 0 1 0 2 0a1 1 0 1 0-2 0z M9.5 18.5a1 1 0 1 0 2 0a1 1 0 1 0-2 0z M15.5 18.5a1 1 0 1 0 2 0a1 1 0 1 0-2 0z'],
+    [C.green,'M2 9.2h11.5V6.4l5.2 3.9-5.2 3.9v-2.8H2z'],[C.lime,'M7.2 9.1l5.7-5.7h-2.6V1.5h6.5V8h-1.9V5.4L9.2 11.1z']],
+  u_routerX: [[C.amber,'M10.6 2.6a1.6 1.6 0 0 1 2.8 0l8.8 15.6a1.6 1.6 0 0 1-1.4 2.4H3.2a1.6 1.6 0 0 1-1.4-2.4z'],[C.dark,'M11 8h2l-.3 6.4h-1.4z M10.9 15.8h2.2V18h-2.2z'],
+    [C.green,'M13.5 19.4h5.2v-2.2l4.3 3.3-4.3 3.3v-2.2h-5.2z']],
+  u_conveyor: [[C.steel,'M2 13h20v1.6H2z'],[C.dark,'M2 14.6h20v3.6a2.4 2.4 0 0 1-2.4 2.4H4.4A2.4 2.4 0 0 1 2 18.2z'],[C.metal,'M4.5 17.6a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z M10.8 17.6a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z M17.1 17.6a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z'],
+    [C.orange,'M10 6h10l-.9 7h-8.2z'],[C.amber,'M9.6 5h10.8v1.6H9.6z'],[C.amber,'M2 6.5h5v1.3H2z M3.2 9.2h3.8v1.3H3.2z']],
+  u_buffers: [[C.steel,'M3 16.5h13l-1 4.8H4z'],[C.orange,'M2.4 15h14.2v1.8H2.4z'],[C.steel,'M3 9.6h13l-1 4.6H4z'],[C.orange,'M2.4 8.2h14.2V10H2.4z'],[C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M18.2 3.4h1.6v1.8h1.8v1.6h-1.8v1.8h-1.6V6.8h-1.8V5.2h1.8z']],
+  u_service: [[C.metal,'M14.6 2.2a5.2 5.2 0 0 0-4.9 7L2.6 16.3a2 2 0 0 0 0 2.8l2 2a2 2 0 0 0 2.8 0l7.1-7.1a5.2 5.2 0 0 0 7-4.9l-3 3-3.1-.8-.8-3.1z'],[C.dark,'M4.2 18.2a1 1 0 1 0 2 0a1 1 0 1 0-2 0z'],[C.green,'M14.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0z'],[C.white,'M18.2 3.4h1.6v1.8h1.8v1.6h-1.8v1.8h-1.6V6.8h-1.8V5.2h1.8z']],
+  lock: [[C.steel,'M7 10V7.5a5 5 0 0 1 10 0V10h-2.2V7.5a2.8 2.8 0 0 0-5.6 0V10z'],[C.amber,'M4.5 10h15v11h-15z'],[C.dark,'M11 14h2v4h-2z']],
+  done: [[C.green,'M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0z'],[C.white,'M6.8 12.2l1.8-1.8 2.3 2.3 4.6-4.6 1.8 1.8-6.4 6.4z']],
 };
 
 const ORDER_COLORS = ['#ff8a1f','#4f8cff','#3ddc84','#ff5fa2','#22c3e6','#b07cff','#ffd23f','#ff6b5a','#7bd389','#9aa8ff','#f78c6b','#5ce1c6'];
@@ -529,19 +602,19 @@ function shiftConfig(i){
 
 // ---------- 5. DATA: upgrades ----------
 const UPGRADES = [
-  { id:'slots',   label:'Extra workstation', desc:'+1 parallel slot',  max:2, cost:l => 360 + l*300, needs: d => d.role !== 'storage' },
-  { id:'speed',   label:'Staff training',    desc:'−18% process time', max:3, cost:l => 220 + l*170, needs: d => d.role !== 'storage' },
-  { id:'quality', label:'Quality program',   desc:'−40% defects',      max:2, cost:l => 160 + l*140, needs: d => !!d.defect },
-  { id:'shuttle', label:'Faster shuttles',   desc:'shuttles and lift 40% faster', max:2, cost:l => 200 + l*170, needs: d => d.id === 'warehouse' },
-  { id:'fetchers',label:'Extra shuttle',     desc:'+1 shuttle fetching totes at the same time', max:3, cost:l => 240 + l*220, needs: d => d.id === 'warehouse' },
-  { id:'auto',    label:'Auto-retrieval',    desc:'shuttles fetch totes of the most urgent order on their own', max:1, cost:() => 650, needs: d => d.id === 'warehouse' },
-  { id:'movers',  label:'Extra transporter', desc:'+1 pallet transporter with driver', max:2, cost:l => 280 + l*240, needs: d => d.id === 'hbw' },
-  { id:'drive',   label:'Driver training',   desc:'transporters 20% faster', max:2, cost:l => 200 + l*170, needs: d => d.id === 'hbw' },
+  { id:'slots',   icon:'u_slots', label:'Extra workstation', desc:'+1 parallel slot',  max:2, cost:l => 360 + l*300, needs: d => d.role !== 'storage' },
+  { id:'speed',   icon:'u_speed', label:'Staff training',    desc:'−18% process time', max:3, cost:l => 220 + l*170, needs: d => d.role !== 'storage' },
+  { id:'quality', icon:'u_quality', label:'Quality program',   desc:'−40% defects',      max:2, cost:l => 160 + l*140, needs: d => !!d.defect },
+  { id:'shuttle', icon:'u_shuttle', label:'Faster shuttles',   desc:'shuttles and lift 40% faster', max:2, cost:l => 200 + l*170, needs: d => d.id === 'warehouse' },
+  { id:'fetchers',icon:'u_fetchers', label:'Extra shuttle',     desc:'+1 shuttle fetching totes at the same time', max:3, cost:l => 240 + l*220, needs: d => d.id === 'warehouse' },
+  { id:'auto',    icon:'u_auto', label:'Auto-retrieval',    desc:'shuttles fetch totes of the most urgent order on their own', max:1, cost:() => 650, needs: d => d.id === 'warehouse' },
+  { id:'movers',  icon:'u_movers', label:'Extra transporter', desc:'+1 pallet transporter with driver', max:2, cost:l => 280 + l*240, needs: d => d.id === 'hbw' },
+  { id:'drive',   icon:'u_drive', label:'Driver training',   desc:'transporters 20% faster', max:2, cost:l => 200 + l*170, needs: d => d.id === 'hbw' },
   // automation: the station routes finished units by itself. Happy path only, until the (very pricey) exception tier.
-  { id:'router',  late:true, label:'Auto-router', desc:'routes finished units on its own, normal cases only', levelDesc:l => `one unit every ${AUTO.interval[l+1]} s`, max:3, cost:l => [550, 950, 1500][l], needs: d => autoCapable(d) },
-  { id:'routerX', late:true, label:'Exception handling', desc:'auto-router also sends flagged units to QA and return totes / defective items where they belong', max:1, cost:() => 2200, needs: d => autoCapable(d),
-    req: up => (up.router || 0) >= 3, reqText:'needs Auto-router 3/3' },
-  { id:'crane',   label:'Faster stacker crane', desc:'crane 40% faster', max:2, cost:l => 180 + l*160, needs: d => d.id === 'hbw' },
+  { id:'router',  icon:'u_router', late:true, label:'Auto-router', desc:'routes finished units on its own, normal cases only', levelDesc:l => `one unit every ${AUTO.interval[l+1]} s`, max:3, cost:l => [550, 950, 1500][l], needs: d => autoCapable(d) },
+  { id:'routerX', icon:'u_routerX', late:true, label:'Exception handling', desc:'auto-router also handles flagged units, return totes and defective items', max:1, cost:() => 2200, needs: d => autoCapable(d),
+    req: up => (up.router || 0) >= 3, reqText:'Needs Auto-router 3/3' },
+  { id:'crane',   icon:'u_crane', label:'Faster stacker crane', desc:'crane 40% faster', max:2, cost:l => 180 + l*160, needs: d => d.id === 'hbw' },
 ];
 // Auto-router: seconds between two automatic dispatches per level (index = level)
 const AUTO = { interval:[0, 8, 4, 2], unlockAfter:6 };
@@ -551,9 +624,9 @@ const MAINT = { after:3, life:[6, 12], walk:150, repair:5, room:{ x:1100, y:712,
 const autoBought = () => Object.values(G.upgrades || {}).reduce((n, u) => n + (u.router || 0) + (u.routerX ? 1 : 0), 0); // automation shows up in the shop once shifts 1-6 (up to Saturday) were played
 const autoCapable = d => (d.out > 0 && d.role !== 'storage') || d.id === 'hbw';
 const GLOBAL_UPGRADES = [
-  { id:'conveyor', label:'Faster conveyor', desc:'+15% belt speed', max:3, cost:l => 220 + l*180 },
-  { id:'buffers',  label:'Bigger buffers',  desc:'+1 IN / OUT space everywhere', max:2, cost:l => 300 + l*250 },
-  { id:'service',  label:'Extra service worker', desc:'+1 technician to repair broken automation', max:2, cost:l => [700, 1100][l], needs: () => autoBought() >= MAINT.after },
+  { id:'conveyor', icon:'u_conveyor', label:'Faster conveyor', desc:'+15% belt speed', max:3, cost:l => 220 + l*180 },
+  { id:'buffers',  icon:'u_buffers', label:'Bigger buffers',  desc:'+1 IN / OUT space everywhere', max:2, cost:l => 300 + l*250 },
+  { id:'service',  icon:'u_service', label:'Extra service worker', desc:'+1 technician to repair broken automation', max:2, cost:l => [700, 1100][l], needs: () => autoBought() >= MAINT.after },
 ];
 
 // ===================================================================
@@ -3017,7 +3090,7 @@ $('bHelp').onclick = () => { AU.init(); if (G.mode === 'play'){ G.mode = 'paused
 // ===================================================================
 //  MODAL SCREENS
 // ===================================================================
-function modal(html){ $('mcard').innerHTML = html; $('modal').classList.remove('hidden'); $('mcard').scrollTop = 0; }
+function modal(html){ $('mcard').classList.remove('wide'); $('mcard').innerHTML = html; $('modal').classList.remove('hidden'); $('mcard').scrollTop = 0; }
 function hideModal(){ $('modal').classList.add('hidden'); }
 // ---------- cheats (testing): tap the version number 5 times quickly on the title or pause screen ----------
 let cheatTaps = [], cheatBack = null;
@@ -3117,6 +3190,20 @@ function showResult(){
   bind('mRetry', () => { G.shopUpto = G.shiftIdx + 1; saveProfile(); showShop(); });
   bind('mMenu', () => { saveProfile(); showTitle(); });
 }
+function shopTile(u, lv, cost, attrs, extra){
+  const maxed = lv >= u.max, locked = !maxed && extra.locked, poor = !maxed && !locked && G.money < cost;
+  const state = maxed ? 'maxed' : locked ? 'locked' : poor ? 'poor' : 'buy';
+  const pips = Array.from({ length:u.max }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
+  const foot = maxed ? `<span class="ut-tag ok">${ico('done')}Maxed</span>`
+    : locked ? `<span class="ut-tag lk">${ico('lock')}Locked</span>`
+    : `<span class="ut-price">$${cost.toLocaleString('en')}</span>`;
+  const desc = locked ? u.reqText : u.desc;
+  const nxt = extra.next && !maxed && !locked ? `<span class="ut-next">Next: ${extra.next}</span>` : '';
+  return `<button class="ut ${state}${extra.auto ? ' auto' : ''}" ${attrs} ${state === 'buy' ? '' : 'disabled'} aria-label="${u.label}, level ${lv} of ${u.max}">
+    <span class="ut-top"><span class="ut-ic">${ico(u.icon)}</span><span class="ut-name">${u.label}</span></span>
+    <span class="ut-desc">${desc}</span>${nxt}
+    <span class="ut-foot"><span class="pips" title="Level ${lv} of ${u.max}">${pips}</span>${foot}</span></button>`;
+}
 function showShop(){
   G.mode = 'shop';
   const next = shiftConfig(G.shiftIdx);
@@ -3124,24 +3211,31 @@ function showShop(){
   const upto = G.shopUpto != null ? G.shopUpto : G.shiftIdx, played = new Set();
   for (let j=0; j<upto; j++) shiftConfig(j).stations.forEach(id => played.add(id));
   const autoOpen = upto >= AUTO.unlockAfter;
+  const loadBar = ld => { const c = ld > 0.8 ? 'var(--bad)' : ld > 0.55 ? 'var(--warn)' : 'var(--good)';
+    return `<span class="busy" title="Share of last shift this station was busy"><em style="color:${ld > 0.8 ? 'var(--bad)' : 'var(--muted)'}">${Math.round(ld*100)}% busy</em><span class="load"><span style="width:${Math.round(ld*100)}%;background:${c}"></span></span></span>`; };
+  const section = (icon, name, right, tiles, autoTiles) => `<section class="sec"><header class="sec-h">${ico(icon)}<span class="sec-n">${name}</span>${right}</header>
+    <div class="ugrid">${tiles}${autoTiles || ''}</div></section>`;
   const rows = next.stations.filter(id => played.has(id)).map(id => { const d = DEF[id], up = G.upgrades[id] = G.upgrades[id] || {};
-    const btns = UPGRADES.filter(u => (!u.needs || u.needs(d)) && (!u.late || autoOpen)).map(u => { const lv = up[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max, locked = u.req && !u.req(up);
-      const txt = locked ? u.reqText : u.desc + (u.levelDesc && !maxed ? ` (next: ${u.levelDesc(lv)})` : '');
-      return `<button class="ubtn ${u.id.startsWith('router') ? 'auto' : ''}" data-st="${id}" data-up="${u.id}" ${maxed || locked || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${txt}</button>`; }).join('');
+    const list = UPGRADES.filter(u => (!u.needs || u.needs(d)) && (!u.late || autoOpen));
+    const tile = u => { const lv = up[u.id] || 0;
+      return shopTile(u, lv, u.cost(lv), `data-st="${id}" data-up="${u.id}"`, { locked: u.req && !u.req(up), auto: !!u.late, next: u.levelDesc && lv < u.max ? u.levelDesc(lv) : '' }); };
     const ld = G.lastLoad && G.lastLoad[id] != null && d.role !== 'storage' ? G.lastLoad[id] : null;
-    const load = ld == null ? '' : `<div class="load" title="Share of last shift this station was busy"><span style="width:${Math.round(ld*100)}%;background:${ld > 0.8 ? 'var(--bad)' : ld > 0.55 ? 'var(--warn)' : 'var(--good)'}"></span><em>${Math.round(ld*100)}% busy</em></div>`;
-    return `<div class="srow"><div class="nm">${ico(d.icon)}<div>${d.name}${load}</div></div>${btns}</div>`; }).join('');
-  const grow = GLOBAL_UPGRADES.filter(u => !u.needs || u.needs()).map(u => { const lv = G.global[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max;
-    return `<button class="ubtn" data-g="${u.id}" ${maxed || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${u.desc}</button>`; }).join('');
-  modal(`<h2>Upgrade the hall</h2><p class="sub">Busy stations (red) are your bottlenecks. Next: Shift ${G.shiftIdx+1} · ${next.name}. Cash available: <span class="cashbig">$${G.money.toLocaleString('en')}</span></p>
-    <div class="shop"><div class="srow"><div class="nm">${ico('factory')}Whole hall</div>${grow}</div>${rows}</div>
-    ${autoOpen ? '' : `<p style="color:var(--muted);font-size:12.5px;margin:10px 2px 0">More upgrades unlock as new stations open. Station <b style="color:var(--good)">automation</b> becomes available after ${shiftConfig(AUTO.unlockAfter-1).name}.</p>`}
-    ${autoOpen ? `<p style="color:var(--muted);font-size:12.5px;margin:10px 2px 0">${autoBought() >= MAINT.after ? `${ico('wrench')} Your automation needs <b style="color:var(--warn)">maintenance</b>: auto-routers break down now and then, and a service worker has to repair them. More workers: see <b>Whole hall</b>.` : `Heads-up: from ${MAINT.after} automation upgrades on (you own ${autoBought()}), auto-routers start to break down and need a service worker.`}</p>` : ''}
-    <div class="btnrow"><button class="btn primary" id="mNext">Continue to Shift ${G.shiftIdx+1} ▸</button></div>`);
-  $('mcard').querySelectorAll('.ubtn').forEach(b => b.onclick = () => {
-    if (b.dataset.g){ const u = GLOBAL_UPGRADES.find(x => x.id === b.dataset.g), lv = G.global[u.id] || 0; if (G.money < u.cost(lv)) return; G.money -= u.cost(lv); G.global[u.id] = lv+1; }
-    else { const u = UPGRADES.find(x => x.id === b.dataset.up), up = G.upgrades[b.dataset.st], lv = up[u.id] || 0; if (G.money < u.cost(lv) || (u.req && !u.req(up))) return; G.money -= u.cost(lv); up[u.id] = lv+1; }
-    sfx('fix'); saveProfile(); const sc = $('mcard').scrollTop; showShop(); $('mcard').scrollTop = sc; renderHUD();
+    return section(d.icon, d.name, ld == null ? '' : loadBar(ld), list.filter(u => !u.late).map(tile).join(''), list.filter(u => u.late).map(tile).join('')); }).join('');
+  const grow = GLOBAL_UPGRADES.filter(u => !u.needs || u.needs()).map(u => { const lv = G.global[u.id] || 0;
+    return shopTile(u, lv, u.cost(lv), `data-g="${u.id}"`, {}); }).join('');
+  const note = !autoOpen ? `More upgrades unlock as new stations open. Station <b style="color:var(--good)">automation</b> becomes available after ${shiftConfig(AUTO.unlockAfter-1).name}.`
+    : autoBought() >= MAINT.after ? `${ico('wrench')} Your automation needs <b style="color:var(--warn)">maintenance</b>: auto-routers break down now and then, and a service worker has to repair them. More workers: see <b>Whole hall</b>.`
+    : `Heads-up: from ${MAINT.after} automation upgrades on (you own ${autoBought()}), auto-routers start to break down and need a service worker.`;
+  modal(`<div class="shop-h"><div><h2>Upgrade the hall</h2><p class="sub">Next: Shift ${G.shiftIdx+1} · ${next.name}. A <b style="color:var(--bad)">red</b> busy bar marks a bottleneck.</p></div>
+    <div class="cashbox"><small>Cash</small><span class="cashbig">$${G.money.toLocaleString('en')}</span></div></div>
+    <div class="shop">${section('factory', 'Whole hall', '', grow)}${rows}</div>
+    <p class="shop-note">${note}</p>
+    <div class="btnrow stickyrow"><button class="btn primary" id="mNext">Continue to Shift ${G.shiftIdx+1} ▸</button></div>`);
+  $('mcard').classList.add('wide');
+  $('mcard').querySelectorAll('.ut').forEach(b => b.onclick = () => {
+    if (b.dataset.g){ const u = GLOBAL_UPGRADES.find(x => x.id === b.dataset.g), lv = G.global[u.id] || 0; if (lv >= u.max || G.money < u.cost(lv)) return; G.money -= u.cost(lv); G.global[u.id] = lv+1; }
+    else { const u = UPGRADES.find(x => x.id === b.dataset.up), up = G.upgrades[b.dataset.st], lv = up[u.id] || 0; if (lv >= u.max || G.money < u.cost(lv) || (u.req && !u.req(up))) return; G.money -= u.cost(lv); up[u.id] = lv+1; }
+    sfx('fix'); saveProfile(); const sc = $('modal').scrollTop; showShop(); $('modal').scrollTop = sc; renderHUD();
   });
   bind('mNext', () => showIntro(G.shiftIdx));
 }
