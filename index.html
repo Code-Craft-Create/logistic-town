@@ -239,7 +239,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-12';
+const GAME_VERSION = '2026.11.21-13';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2268,6 +2268,32 @@ function drawMachine(st, vx, vy, vw, vh){
   ctx.strokeStyle = on ? hexA(def.color, 0.55) : '#263048'; ctx.lineWidth = 1; rr(vx + 0.5, vy + 0.5, vw - 1, vh - 1, 6); ctx.stroke();
 }
 
+// robot arm seen from above: base on a hazard-striped plate, two links reaching down to the bench, gripper
+function drawRobotArm(x, y, col, working, T, seed, blocked){
+  ctx.save(); ctx.translate(x, y);
+  const ph = working ? T*2.4 + seed*1.7 : 0;
+  const a1 = Math.PI/2 + (working ? Math.sin(ph)*0.55 : -0.35), a2 = (working ? -0.9 + Math.sin(ph*1.9 + 1)*0.6 : -1.5);
+  const L1 = 11, L2 = 10;
+  const ex = Math.cos(a1)*L1, ey = Math.sin(a1)*L1, gx = ex + Math.cos(a1 + a2)*L2, gy = ey + Math.sin(a1 + a2)*L2;
+  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2;
+  // links
+  ctx.lineCap = 'round';
+  line(0, 0, ex, ey, shade(col, -0.3), 6.5); line(0, 0, ex, ey, col, 4.5);
+  ctx.shadowColor = 'transparent';
+  line(ex, ey, gx, gy, '#5a6680', 5); line(ex, ey, gx, gy, '#9aa6bb', 3);
+  ctx.lineCap = 'butt';
+  circ(ex, ey, 3.2, '#2c3850'); circ(ex, ey, 1.6, '#c7d0de');
+  // gripper fingers open and close
+  const open = working ? 1.6 + Math.sin(ph*3.8)*1.4 : 2.6, ga = a1 + a2;
+  ctx.save(); ctx.translate(gx, gy); ctx.rotate(ga);
+  ctx.fillStyle = '#c7d0de'; ctx.fillRect(0, -open - 1.2, 4, 1.4); ctx.fillRect(0, open - 0.2, 4, 1.4); ctx.fillStyle = '#5a6680'; ctx.fillRect(-1.5, -open - 1.2, 2, open*2 + 2.4);
+  ctx.restore();
+  // base turret
+  circ(0, 0, 5.6, '#1b2232'); circ(0, 0, 4.6, col); circ(0, 0, 2, '#0e131d');
+  const led = blocked ? (Math.floor(T*4) % 2 ? '#ff5468' : '#5a1f28') : working ? '#3ddc84' : '#3a4560';
+  circ(3.6, -3.6, 1.3, led);
+  ctx.restore();
+}
 // operator seen from above, facing +y (towards the bench) when ang = PI/2
 function drawOperator(x, y, col, working, T, seed, blocked){
   ctx.save(); ctx.translate(x, y); ctx.scale(1.15, 1.15);
@@ -2332,9 +2358,11 @@ function drawStation(st, t){
     ctx.fillStyle = '#fff'; ctx.font = `800 9.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(st.key, sx + sw - 10.5, y + 19.5); }
   // ---- workbench with machine; operators stand behind it (one per workstation slot)
   const bx = x + 8, by = y + 44, bw = w - 16, bh = 30;
-  // anti-fatigue mat where the operators stand
-  rr(bx + 2, by - 17, bw*0.6, 15, 3); ctx.fillStyle = '#10141c'; ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.04)'; for (let i=0; i<bw*0.6/4 - 1; i++) ctx.fillRect(bx + 5 + i*4, by - 15, 1.4, 11);
+  // mounting rail for the robot arms, with hazard stripes
+  rr(bx + 2, by - 15, bw*0.6, 12, 2); ctx.fillStyle = '#151b26'; ctx.fill();
+  ctx.save(); rr(bx + 2, by - 15, bw*0.6, 12, 2); ctx.clip();
+  for (let i=-2; i<bw*0.6/6 + 2; i++){ ctx.fillStyle = 'rgba(255,197,61,0.22)'; ctx.beginPath(); ctx.moveTo(bx + i*6, by - 3); ctx.lineTo(bx + i*6 + 3, by - 3); ctx.lineTo(bx + i*6 + 9, by - 15); ctx.lineTo(bx + i*6 + 6, by - 15); ctx.fill(); }
+  ctx.restore();
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
   rr(bx, by, bw, bh, 4); ctx.fillStyle = '#3a4458'; ctx.fill(); ctx.shadowColor = 'transparent';
   rr(bx, by, bw, bh, 4); ctx.fillStyle = '#4a556c'; ctx.fill();
@@ -2349,10 +2377,10 @@ function drawStation(st, t){
   for (let i=0; i<n; i++){
     const s = st.slots[i], ox = bx + gap*(i + 0.5), oy = by - 9;
     const working = !!s && !s.done && !s.blocked;
-    drawOperator(ox, oy, def.color, working, T, i + def.id.length, s && s.blocked);
+    drawRobotArm(ox, oy, def.color, working, T, i + def.id.length, s && s.blocked);
     if (s){
       miniHU(s.hu, ox, by + 13);
-      // progress ring next to the operator's head
+      // progress ring next to the robot base
       const f = s.done ? 1 : s.t/s.dur, rx = ox + Math.min(12, gap/2 - 2), ry = oy - 2;
       circ(rx, ry, 5.5, 'rgba(14,19,29,0.85)');
       ctx.beginPath(); ctx.arc(rx, ry, 4.3, -Math.PI/2, -Math.PI/2 + f*Math.PI*2); ctx.strokeStyle = s.blocked ? '#ff5468' : def.color; ctx.lineWidth = 2; ctx.stroke();
