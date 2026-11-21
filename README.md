@@ -30,7 +30,8 @@ and sound and music are generated with the Web Audio API.
   Stations start slow; the upgrade shop shows how busy each station was, so you can fix bottlenecks.
 - Automation (shop, expensive): each station can buy an **Auto-router** (Lv1/2/3 = one unit every 8/4/2 s, `AUTO.interval`).
   It only routes the normal case. Flagged units, return totes and defective items still need you, until the station gets the pricey
-  **Exception handling** tier (needs Auto-router 3/3). Each station's `auto.state` is the hook for later breakdowns (e.g. a service worker).
+  **Exception handling** tier (needs Auto-router 3/3). Automation unlocks in the shop after Saturday.
+- Maintenance: once the hall owns 3 automation upgrades (`MAINT.after`), an auto-router breaks down after a random number of dispatches (`MAINT.life`). Click the broken station (or its red badge) to send a service worker from the Service room. The worker walks the corridor around the conveyor, repairs for `MAINT.repair` s, then walks back. Meanwhile the station routes by hand. "Extra service worker" (whole hall) adds technicians.
 
 Keys: `1`–`9` route · `0` warehouse · `Tab` next unit · `H` hints · `F` speed · `Space` pause.
 

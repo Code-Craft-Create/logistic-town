@@ -239,7 +239,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-9';
+const GAME_VERSION = '2026.11.21-10';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -335,6 +335,7 @@ const ICONS = {
   play:      'M7 4l13 8-13 8z',
   help:      'M12 21a9 9 0 1 0 0-18a9 9 0 1 0 0 18z M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7v.5 M12 17h.01',
   factory:   'M3 21V10l6 4v-4l6 4V5h5v16z M7 17h2 M12 17h2 M17 17h1',
+  wrench:    'M15 3a5 5 0 0 0 6 6l-2.2-2.2-2.6.6-.6-2.6z M15.6 8.4L4.8 19.2a1.5 1.5 0 0 0 2 2L17.6 10.4',
   warn:      'M12 3l10 18H2z M12 10v5 M12 18h.01',
   scale:     'M12 4v17 M7 21h10 M4 7h16 M12 4h.01 M6.5 7L4 13h5z M17.5 7L15 13h5z',
   clock:     'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18z M12 7v5l3.5 2',
@@ -539,11 +540,16 @@ const UPGRADES = [
   { id:'crane',   label:'Faster stacker crane', desc:'crane 40% faster', max:2, cost:l => 180 + l*160, needs: d => d.id === 'hbw' },
 ];
 // Auto-router: seconds between two automatic dispatches per level (index = level)
-const AUTO = { interval:[0, 8, 4, 2], unlockAfter:6 }; // automation shows up in the shop once shifts 1-6 (up to Saturday) were played
+const AUTO = { interval:[0, 8, 4, 2], unlockAfter:6 };
+// Maintenance: once the hall owns MAINT.after automation upgrades, each auto-router wears out after
+// a random number of dispatches (life) and stops until a service worker has walked over and repaired it.
+const MAINT = { after:3, life:[6, 12], walk:150, repair:5, room:{ x:1100, y:712, w:196, h:68 } };
+const autoBought = () => Object.values(G.upgrades || {}).reduce((n, u) => n + (u.router || 0) + (u.routerX ? 1 : 0), 0); // automation shows up in the shop once shifts 1-6 (up to Saturday) were played
 const autoCapable = d => (d.out > 0 && d.role !== 'storage') || d.id === 'hbw';
 const GLOBAL_UPGRADES = [
   { id:'conveyor', label:'Faster conveyor', desc:'+15% belt speed', max:3, cost:l => 220 + l*180 },
   { id:'buffers',  label:'Bigger buffers',  desc:'+1 IN / OUT space everywhere', max:2, cost:l => 300 + l*250 },
+  { id:'service',  label:'Extra service worker', desc:'+1 technician to repair broken automation', max:2, cost:l => [700, 1100][l], needs: () => autoBought() >= MAINT.after },
 ];
 
 // ===================================================================
@@ -656,7 +662,7 @@ function makeStation(def){
   return { def, id:def.id, slotCount:def.slots + (up.slots||0), queueMax:def.queue + G.global.buffers,
     outMax: def.out ? def.out + G.global.buffers : 0, speedMul:Math.pow(0.82, up.speed||0), qualMul:Math.pow(0.6, up.quality||0), busyT:0,
     // automation state. 'state' is the hook for later breakdowns (e.g. 'broken' until a service worker repairs it)
-    auto:{ level:up.router || 0, exceptions:!!up.routerX, cd:1, pulse:0, state:'ok', routed:0 },
+    auto:{ level:up.router || 0, exceptions:!!up.routerX, cd:1, pulse:0, state:'ok', routed:0, life:rand(MAINT.life[0], MAINT.life[1]), rep:0, brokeT:0 },
     slots:[], queue:[], out:[], incoming:0, processed:0, flash:0, scanFlash:0, x:0, y:0, w:160, h:150 };
 }
 function layoutStations(){
@@ -715,6 +721,8 @@ function startShift(idx){
     truck:{ x:1210, load:0, state:'parked', t:0 } });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
   resetPallets();
+  G.maint = autoBought() >= MAINT.after; G.serviceQ = []; G.breakdowns = 0; G.repairs = 0;
+  G.workers = G.maint ? Array.from({ length:1 + (G.global.service || 0) }, (_, i) => { const h = workerHome(i); return { i, x:h.x, y:h.y, ang:-Math.PI/2, state:'idle', path:null, job:null, t:0, step:0 }; }) : [];
   G.mode = 'play';
 }
 
@@ -1089,6 +1097,7 @@ function update(dt){
     }
   }
   for (const st of G.stations) autoRoute(st, dt);
+  updateWorkers(dt);
   // truck
   const tk = G.truck; tk.t += dt;
   if (tk.state === 'leaving'){ tk.x += 260*dt; if (tk.x > W + 200){ tk.state = 'arriving'; tk.x = W + 200; tk.load = 0; } }
@@ -1106,7 +1115,7 @@ const isException = hu => !!(hu.flag || hu.kind === 'tote' || hu.kind === 'scrap
 function autoRoute(st, dt){
   const a = st.auto; if (!a || !a.level) return;
   a.pulse = Math.max(0, a.pulse - dt);
-  if (a.state !== 'ok') return;          // later: broken automation needs a service worker
+  if (a.state !== 'ok'){ a.brokeT += dt; return; }   // broken: the player routes by hand until a service worker fixed it
   a.cd = Math.max(0, a.cd - dt); if (a.cd > 0) return;
   const units = st.def.id === 'hbw' ? G.hbwOut.filter(Boolean) : st.out;
   for (const hu of units){
@@ -1117,11 +1126,15 @@ function autoRoute(st, dt){
     t.sort((p, q) => (p.queue.length + p.incoming - p.slotCount) - (q.queue.length + q.incoming - q.slotCount));
     const sel = G.selected, s0 = G.silent; G.silent = true;
     const ok = dispatch(hu, t[0]); G.silent = s0; if (sel && sel !== hu) G.selected = sel;
-    if (ok){ a.cd = AUTO.interval[a.level]; a.pulse = 0.7; a.routed++; G.autoRouted = (G.autoRouted || 0) + 1; return; }
+    if (ok){ a.cd = AUTO.interval[a.level]; a.pulse = 0.7; a.routed++; G.autoRouted = (G.autoRouted || 0) + 1;
+      if (G.maint && --a.life <= 0) breakDown(st);
+      return; }
   }
 }
 function drawAutoBadge(st, x, y){
   const a = st.auto; if (!a || !a.level) return;
+  st.badge = { x, y, w:54, h:15 };
+  if (a.state !== 'ok') return drawBrokenBadge(st, x, y);
   const w = 54, pulse = a.pulse > 0 ? a.pulse/0.7 : 0;
   ctx.save();
   if (pulse){ ctx.shadowColor = '#3ddc84'; ctx.shadowBlur = 12*pulse; }
@@ -1134,6 +1147,186 @@ function drawAutoBadge(st, x, y){
   ctx.fillText(a.exceptions ? 'AUTO+' : 'AUTO', x+6, y+10.5);
   for (let i=0; i<3; i++){ ctx.beginPath(); ctx.arc(x + w - 20 + i*6, y+7.5, 2, 0, 7); ctx.fillStyle = i < a.level ? (a.exceptions ? '#ffc53d' : '#3ddc84') : '#2c3850'; ctx.fill(); }
   ctx.restore();
+}
+
+// ---------- maintenance: breakdowns and service workers ----------
+function breakDown(st){
+  const a = st.auto; a.state = 'broken'; a.brokeT = 0; a.rep = 0; G.breakdowns++;
+  st.flash = -0.8; sfx('error');
+  toast(`${ico('wrench')} ${st.def.name}: automation broke down. Click it to send a service worker.`, 'bad');
+  tip('maint', `<b>Automation needs maintenance.</b> With this much automation in the hall, auto-routers wear out and break down. A broken one shows a red <b>BROKEN</b> badge. <b>Click the station</b> (with nothing selected) to send a service worker from the <b>Service</b> room. While it is broken, you route that station's units by hand.`);
+}
+function sendService(st){
+  const a = st.auto; if (!G.maint || !a || a.state !== 'broken') return false;
+  a.state = 'called'; G.serviceQ.push(st); sfx('dispatch');
+  if (!G.workers.some(w => w.state === 'idle' || w.state === 'return')) floatText(st.x + st.w/2, st.y - 14, 'Service queued', '#ffc53d');
+  return true;
+}
+function workerHome(i){ const r = MAINT.room; return { x:r.x + 40 + i*34, y:r.y + r.h - 22 }; }
+// walking network: a corridor ring between the conveyor loop and the stations, plus a lane down to the Service room
+const WALK = { x0:414, y0:270, x1:1080, y1:530 }; WALK.w = WALK.x1 - WALK.x0; WALK.h = WALK.y1 - WALK.y0; WALK.L = 2*(WALK.w + WALK.h);
+function servicePlace(st, homeP){
+  // P: where the worker stands. chain: from P out to a point on the corridor ring (last entry). south: reached via the lane below
+  const RB = { x:WALK.x1, y:WALK.y1 }, lane = { x:WALK.x1, y:MAINT.room.y + 35 };
+  if (!st){ const P = homeP; return { P, chain:[P, { x:MAINT.room.x + 12, y:lane.y }, lane, RB], south:true }; }
+  if (st.def.id === 'hbw'){ const P = { x:HB_BAYS[0].x - 26, y:HB_BAYS[0].y - 28 }, low = { x:WALK.x1, y:ROAD.y1 - 20 };
+    return { P, chain:[P, { x:P.x, y:low.y }, low, lane, RB], south:true }; }
+  let P, E;
+  // the worker stands just left of the AUTO badge (top-left corner of the station)
+  if (st.side === 'top'){ const gx = st.x - 7; P = { x:st.x - 2, y:st.y - 1 }; return { P, chain:[P, { x:gx, y:st.y + 8 }, { x:gx, y:WALK.y0 }], south:false }; }
+  if (st.side === 'bottom'){ P = { x:st.x - 1, y:st.y - 3 }; E = { x:P.x, y:WALK.y1 }; }
+  else if (st.side === 'right'){ P = { x:st.x - 4, y:st.y - 1 }; E = { x:WALK.x1, y:P.y }; }
+  else { P = { x:st.x + 72, y:st.y - 7 }; E = { x:WALK.x0, y:P.y }; }
+  return { P, chain:[P, E], south:false };
+}
+function workerRoute(from, to){
+  // from/to: places from servicePlace. Returns a polyline from from.P to to.P
+  let pts;
+  if (from.south && to.south){
+    const a = from.chain.slice(0, -1), b = to.chain.slice(0, -1);
+    pts = [...a, ...b.reverse()];
+  } else {
+    const ea = from.chain[from.chain.length-1], eb = to.chain[to.chain.length-1];
+    const s0 = ringS(WALK, ea.x, ea.y); let d = ringS(WALK, eb.x, eb.y) - s0;
+    d = ((d % WALK.L) + WALK.L) % WALK.L; if (d > WALK.L/2) d -= WALK.L;
+    pts = [...from.chain, ...ringCorners(WALK, s0, s0 + d, d >= 0 ? 1 : -1), ...to.chain.slice().reverse()];
+  }
+  const out = []; for (const q of pts){ const l = out[out.length-1]; if (!l || Math.hypot(l.x-q.x, l.y-q.y) > 0.5) out.push({ x:q.x, y:q.y }); }
+  return mkWalk(out);
+}
+function mkWalk(pts){ const seg = []; let len = 0; for (let i=1; i<pts.length; i++){ const l = Math.hypot(pts[i].x-pts[i-1].x, pts[i].y-pts[i-1].y); seg.push(l); len += l; } return { pts, seg, len, d:0 }; }
+function walkAt(w){ let d = w.d; for (let i=0; i<w.seg.length; i++){ if (d <= w.seg[i] || i === w.seg.length-1){ const a = w.pts[i], b = w.pts[i+1], k = w.seg[i] ? Math.min(1, d/w.seg[i]) : 1;
+  return { x:a.x + (b.x-a.x)*k, y:a.y + (b.y-a.y)*k, ang:Math.atan2(b.y-a.y, b.x-a.x), i }; } d -= w.seg[i]; } return { x:w.pts[0].x, y:w.pts[0].y, ang:0, i:0 }; }
+function homePlace(i){ return servicePlace(null, workerHome(i)); }
+function workerPlace(w){ return w.at ? servicePlace(w.at) : homePlace(w.i); }
+function takeJob(w){
+  const st = G.serviceQ.shift(); if (!st) return false;
+  w.path = workerRoute(workerPlace(w), servicePlace(st)); w.job = st; w.state = 'walk'; w.at = null; return true;
+}
+function updateWorkers(dt){
+  if (!G.maint) return;
+  for (const w of G.workers){
+    if ((w.state === 'idle' || w.state === 'return') && G.serviceQ.length){
+      if (w.state === 'return'){ // turn around where it is: walk from its current position via the lane
+        const p = walkAt(w.path);
+        const back = [{ x:p.x, y:p.y }, ...w.path.pts.slice(0, p.i + 1).reverse()];
+        const st = G.serviceQ.shift(), to = servicePlace(st), tail = workerRoute(w.prevPlace, to).pts;
+        w.path = mkWalk([...back, ...tail.slice(1)]); w.job = st; w.state = 'walk';
+      } else takeJob(w);
+    }
+    if (w.state === 'walk' || w.state === 'return'){
+      w.path.d = Math.min(w.path.len, w.path.d + MAINT.walk*dt); w.step += dt;
+      const p = walkAt(w.path); w.x = p.x; w.y = p.y; w.ang = lerpAng(w.ang, p.ang, Math.min(1, dt*14));
+      if (w.path.d >= w.path.len){
+        if (w.state === 'walk'){ w.state = 'repair'; w.t = 0; w.at = w.job; w.job.auto.state = 'repair'; w.path = null; sfx('clunk');
+          const b = w.at.badge || { x:w.at.x + 8, y:w.at.y - 8, w:54, h:15 }; w.face = Math.atan2(b.y + 7 - w.y, b.x + 27 - w.x); }
+        else { w.state = 'idle'; w.path = null; w.at = null; w.ang = -Math.PI/2; }
+      }
+    } else if (w.state === 'repair'){
+      w.t += dt; w.ang = lerpAng(w.ang, w.face, Math.min(1, dt*10));
+      const a = w.at.auto; a.rep = Math.min(1, w.t / MAINT.repair);
+      if (w.t >= MAINT.repair){
+        a.state = 'ok'; a.rep = 0; a.cd = 0.6; a.pulse = 0.7; a.life = rand(MAINT.life[0], MAINT.life[1]); G.repairs++;
+        floatText(w.at.x + w.at.w/2, (w.at.def.id === 'hbw' ? HB.y : w.at.y) - 16, 'Repaired', '#3ddc84'); sfx('fix');
+        const from = servicePlace(w.at);
+        if (!takeJob(w)){ w.prevPlace = from; w.path = workerRoute(from, homePlace(w.i)); w.state = 'return'; w.at = null; w.job = null; }
+      }
+    }
+  }
+}
+function lerpAng(a, b, k){ let d = b - a; while (d > Math.PI) d -= 2*Math.PI; while (d < -Math.PI) d += 2*Math.PI; return a + d*k; }
+function drawBrokenBadge(st, x, y){
+  const a = st.auto, t = perfT/1000, w = 54;
+  const blink = a.state === 'broken' ? (Math.floor(t*3) % 2 === 0) : true;
+  ctx.save();
+  if (a.state === 'broken'){ ctx.shadowColor = '#ff5468'; ctx.shadowBlur = 8 + 6*Math.sin(t*6); }
+  rr(x, y, w, 15, 5); ctx.fillStyle = a.state === 'repair' ? '#2a2210' : '#3a1218'; ctx.fill(); ctx.shadowColor = 'transparent';
+  if (a.state === 'repair'){ ctx.save(); rr(x, y, w, 15, 5); ctx.clip(); ctx.fillStyle = 'rgba(255,197,61,0.35)'; ctx.fillRect(x, y, w*a.rep, 15); ctx.restore(); }
+  const col = a.state === 'repair' ? '#ffc53d' : a.state === 'called' ? '#ffb15c' : '#ff5468';
+  ctx.strokeStyle = col; ctx.lineWidth = 1.4; rr(x, y, w, 15, 5); ctx.stroke();
+  if (blink){ drawIcon('wrench', x + 9, y + 7.5, 10, col, 2.6);
+    ctx.fillStyle = col; ctx.font = `800 8.5px ${FONT}`; ctx.textAlign = 'left';
+    ctx.fillText(a.state === 'broken' ? 'BROKEN' : a.state === 'called' ? 'CALLED' : 'REPAIR', x + 16, y + 10.5); }
+  ctx.restore();
+  if (a.state === 'broken'){
+    // sparks and a little smoke from the dead controller
+    for (let i=0; i<4; i++){ const ph = (t*1.7 + i*0.27) % 1, sx = x + w - 6, sy = y + 4;
+      ctx.globalAlpha = (1 - ph) * 0.9; ctx.fillStyle = i % 2 ? '#ffd166' : '#ff8a1f';
+      ctx.beginPath(); ctx.arc(sx + Math.cos(i*2.3)*ph*14, sy - ph*10 + ph*ph*16 - 4, 1.4, 0, 7); ctx.fill(); }
+    for (let i=0; i<2; i++){ const ph = (t*0.5 + i*0.5) % 1; ctx.globalAlpha = (1 - ph) * 0.35; ctx.fillStyle = '#9aa6bb';
+      ctx.beginPath(); ctx.arc(x + w - 10 + Math.sin(ph*5 + i)*4, y - 2 - ph*18, 3 + ph*5, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    if (!G.serviceQ.includes(st)){ ctx.fillStyle = '#ff8a9a'; ctx.font = `700 8.5px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('click to repair', x + w + 5, y + 10.5); }
+  }
+}
+function drawServiceRoom(t){
+  if (!G.maint) return;
+  const { x, y, w, h } = MAINT.room, free = G.workers.filter(k => k.state === 'idle').length;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
+  rr(x, y, w, h, 10); ctx.fillStyle = '#18202e'; ctx.fill(); ctx.restore();
+  ctx.save(); rr(x, y, w, h, 10); ctx.clip();
+  ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth = 1;
+  for (let i=-h; i<w; i+=10){ ctx.beginPath(); ctx.moveTo(x+i, y+h); ctx.lineTo(x+i+h, y); ctx.stroke(); }
+  // header strip
+  ctx.fillStyle = '#ffc53d'; ctx.fillRect(x, y, w, 18);
+  ctx.restore();
+  drawIcon('wrench', x + 11, y + 9, 11, '#151b26', 2.6);
+  ctx.fillStyle = '#151b26'; ctx.font = `900 10px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('SERVICE', x + 20, y + 13);
+  ctx.textAlign = 'right'; ctx.font = `800 9px ${FONT}`; ctx.fillText(`${free}/${G.workers.length} free`, x + w - 8, y + 13);
+  // pegboard with tools and a workbench
+  const px = x + w - 74, py = y + 24;
+  rr(px, py, 66, 22, 3); ctx.fillStyle = '#232c3d'; ctx.fill();
+  ctx.fillStyle = '#3a4560'; for (let i=0; i<12; i++) for (let j=0; j<3; j++){ ctx.fillRect(px + 4 + i*5, py + 4 + j*6, 1, 1); }
+  drawIcon('wrench', px + 10, py + 11, 13, '#9aa6bb', 2.4); drawIcon('screwdriver', px + 26, py + 11, 13, '#ff8a1f', 2.2);
+  drawIcon('hammer', px + 42, py + 11, 13, '#c7d0de', 2.2); drawIcon('pliers', px + 57, py + 11, 13, '#ff5468', 2.2);
+  rr(px, py + 28, 66, 12, 3); ctx.fillStyle = '#5a4630'; ctx.fill(); ctx.fillStyle = '#7a5f40'; ctx.fillRect(px + 2, py + 29, 62, 3);
+  // door on the left wall
+  ctx.fillStyle = '#0e131d'; ctx.fillRect(x - 1, y + 26, 4, 18);
+  ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.5; rr(x, y, w, h, 10); ctx.stroke();
+  // empty spots
+  for (let i=0; i<G.workers.length; i++){ const q = workerHome(i); ctx.strokeStyle = 'rgba(255,197,61,0.25)'; ctx.setLineDash([2,2]); ctx.beginPath(); ctx.arc(q.x, q.y, 9, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+}
+function drawWorker(k, t){
+  const moving = k.state === 'walk' || k.state === 'return', rep = k.state === 'repair';
+  // route preview: dotted line to where the worker is heading
+  if (k.state === 'walk' && k.path){ const p = walkAt(k.path);
+    ctx.strokeStyle = 'rgba(255,197,61,0.6)'; ctx.lineWidth = 2; ctx.setLineDash([2,6]); ctx.lineDashOffset = -t*20;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); for (let i=p.i+1; i<k.path.pts.length; i++) ctx.lineTo(k.path.pts[i].x, k.path.pts[i].y); ctx.stroke(); ctx.setLineDash([]); }
+  const ph = moving ? Math.sin(k.step * 11) : 0, bob = moving ? Math.abs(Math.cos(k.step * 11)) * 0.6 : 0;
+  ctx.save(); ctx.translate(k.x, k.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(1, 3, 11, 7.5, 0, 0, 7); ctx.fill();
+  ctx.rotate(k.ang); ctx.scale(1.5 + bob*0.05, 1.5 + bob*0.05);
+  // feet
+  ctx.fillStyle = '#1b2436';
+  rr(-2.5 + ph*4, -4.6, 5.5, 3.2, 1.5); ctx.fill(); rr(-2.5 - ph*4, 1.4, 5.5, 3.2, 1.5); ctx.fill();
+  // toolbox: carried on the right while walking, set down beside the worker while repairing
+  const tb = rep ? { x:-4, y:10 } : { x:-ph*3 - 1, y:9.5 };
+  rr(tb.x - 4, tb.y - 2.4, 8, 4.8, 1.2); ctx.fillStyle = '#e04050'; ctx.fill(); ctx.fillStyle = '#a82a36'; ctx.fillRect(tb.x - 4, tb.y - 0.4, 8, 0.9);
+  // arms (swing opposite to the feet); while repairing, the left arm works the wrench
+  const sw = rep ? Math.sin(t*14) : 0;
+  ctx.fillStyle = '#2f6fd6';
+  if (rep){ ctx.save(); ctx.translate(1, -6); ctx.rotate(-0.6 + sw*0.5); rr(0, -1.6, 7, 3.2, 1.5); ctx.fill();
+    ctx.fillStyle = '#f1c27d'; ctx.beginPath(); ctx.arc(7.4, 0, 1.6, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#c7d0de'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(7.4, 0); ctx.lineTo(12, -1.5); ctx.stroke();
+    ctx.beginPath(); ctx.arc(12.6, -1.7, 1.4, 0, 7); ctx.stroke(); ctx.restore(); }
+  else { rr(-ph*3 - 2, -8.4, 6, 3, 1.5); ctx.fill(); }
+  ctx.fillStyle = '#2f6fd6'; rr(ph*3 - 2 + (rep ? 2 : 0), 5.4, 6, 3, 1.5); ctx.fill();
+  // body with hi-vis vest
+  ctx.beginPath(); ctx.ellipse(0, 0, 4.4, 7.4, 0, 0, 7); ctx.fillStyle = '#ff8a1f'; ctx.fill();
+  ctx.fillStyle = '#ffe9a8'; ctx.fillRect(-1.2, -7, 1.3, 14);
+  // head: hard hat seen from above
+  ctx.beginPath(); ctx.arc(0.6, 0, 3.6, 0, 7); ctx.fillStyle = '#ffc53d'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.fillRect(-1.8, -0.5, 5, 1);
+  ctx.beginPath(); ctx.arc(3.4, 0, 1.6, -1.2, 1.2); ctx.strokeStyle = '#d6921a'; ctx.lineWidth = 0.9; ctx.stroke();
+  ctx.restore();
+  if (rep){
+    // sparks at the controller and a progress ring above the worker
+    const b = k.at && k.at.badge; if (b && Math.sin(t*14) > 0.3){ for (let i=0; i<3; i++){ const a = t*9 + i*2.1;
+      ctx.fillStyle = i ? '#ffd166' : '#fff'; ctx.beginPath(); ctx.arc(b.x + 8 + Math.cos(a)*5, b.y + 7 + Math.sin(a)*4, 1.2, 0, 7); ctx.fill(); } }
+    const pr = k.at ? k.at.auto.rep : 0;
+    ctx.beginPath(); ctx.arc(k.x, k.y - 19, 6.5, 0, 7); ctx.fillStyle = 'rgba(14,19,29,0.85)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(k.x, k.y - 19, 5, -Math.PI/2, -Math.PI/2 + pr*Math.PI*2); ctx.strokeStyle = '#ffc53d'; ctx.lineWidth = 2.2; ctx.stroke();
+  }
 }
 
 function endShift(failedSat){
@@ -2033,8 +2226,9 @@ function render(t){
   drawWarehouse(t);
   drawLoop(t);
   G.stations.forEach(st => drawSpur(st, t));
-  drawBoard(); drawDispatchBoard(); drawTruck(t);
+  drawBoard(); drawDispatchBoard(); drawTruck(t); drawServiceRoom(t);
   G.stations.forEach(st => drawStation(st, t));
+  (G.workers || []).forEach(k => drawWorker(k, t));
   // transit HUs
   for (const hu of G.hus){
     if (hu.loc !== 'transit') continue;
@@ -2190,7 +2384,11 @@ cv.addEventListener('pointerdown', e => {
   AU.init(); Music.start();
   if (G.mode !== 'play') return;
   const p = toWorld(e); mouse.x = p.x; mouse.y = p.y; mouse.inside = true;
+  // broken automation: clicking its badge (always) or the station (with nothing selected) sends a service worker
+  const bk = G.maint && G.stations.find(s => s.auto && s.auto.state === 'broken' && s.badge && p.x >= s.badge.x-6 && p.x <= s.badge.x+s.badge.w+6 && p.y >= s.badge.y-8 && p.y <= s.badge.y+s.badge.h+8);
+  if (bk){ sendService(bk); return; }
   const hu = hitHU(p);
+  if (!hu && !G.selected && G.maint){ const s = hitStation(p); if (s && s.auto && s.auto.state === 'broken'){ sendService(s); return; } }
   if (hu){ selectHU(hu); drag = { hu, x:p.x, y:p.y, moved:false }; cv.setPointerCapture(e.pointerId); return; }
   const st = hitStation(p);
   if (st && G.selected && (st.def.role !== 'storage' || (G.selected.kind && acceptsKind(st.def, G.selected.kind)))){ dispatch(G.selected, st); return; }
@@ -2354,11 +2552,12 @@ function showShop(){
     const ld = G.lastLoad && G.lastLoad[id] != null && d.role !== 'storage' ? G.lastLoad[id] : null;
     const load = ld == null ? '' : `<div class="load" title="Share of last shift this station was busy"><span style="width:${Math.round(ld*100)}%;background:${ld > 0.8 ? 'var(--bad)' : ld > 0.55 ? 'var(--warn)' : 'var(--good)'}"></span><em>${Math.round(ld*100)}% busy</em></div>`;
     return `<div class="srow"><div class="nm">${ico(d.icon)}<div>${d.name}${load}</div></div>${btns}</div>`; }).join('');
-  const grow = GLOBAL_UPGRADES.map(u => { const lv = G.global[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max;
+  const grow = GLOBAL_UPGRADES.filter(u => !u.needs || u.needs()).map(u => { const lv = G.global[u.id] || 0, cost = u.cost(lv), maxed = lv >= u.max;
     return `<button class="ubtn" data-g="${u.id}" ${maxed || G.money < cost ? 'disabled' : ''}><span class="lv">${lv}/${u.max}</span>${u.label}<br><b>${maxed ? 'MAX' : '$'+cost}</b> · ${u.desc}</button>`; }).join('');
   modal(`<h2>Upgrade the hall</h2><p class="sub">Busy stations (red) are your bottlenecks. Next: Shift ${G.shiftIdx+1} · ${next.name}. Cash available: <span class="cashbig">$${G.money.toLocaleString('en')}</span></p>
     <div class="shop"><div class="srow"><div class="nm">${ico('factory')}Whole hall</div>${grow}</div>${rows}</div>
     ${autoOpen ? '' : `<p style="color:var(--muted);font-size:12.5px;margin:10px 2px 0">More upgrades unlock as new stations open. Station <b style="color:var(--good)">automation</b> becomes available after ${shiftConfig(AUTO.unlockAfter-1).name}.</p>`}
+    ${autoOpen ? `<p style="color:var(--muted);font-size:12.5px;margin:10px 2px 0">${autoBought() >= MAINT.after ? `${ico('wrench')} Your automation needs <b style="color:var(--warn)">maintenance</b>: auto-routers break down now and then, and a service worker has to repair them. More workers: see <b>Whole hall</b>.` : `Heads-up: from ${MAINT.after} automation upgrades on (you own ${autoBought()}), auto-routers start to break down and need a service worker.`}</p>` : ''}
     <div class="btnrow"><button class="btn primary" id="mNext">Continue to Shift ${G.shiftIdx+1} ▸</button></div>`);
   $('mcard').querySelectorAll('.ubtn').forEach(b => b.onclick = () => {
     if (b.dataset.g){ const u = GLOBAL_UPGRADES.find(x => x.id === b.dataset.g), lv = G.global[u.id] || 0; if (G.money < u.cost(lv)) return; G.money -= u.cost(lv); G.global[u.id] = lv+1; }
@@ -2391,7 +2590,7 @@ function showHelp(fromTitle){
       <li><b style="color:var(--bad)">Flags</b>: a failed check, a wrong pick or a failed <b>weight check</b> on the conveyor. Flagged HUs go to <b>Quality Assurance</b>. QA either <b>corrects</b> it (it continues its route, a failed service is redone) or finds the item <b>defective</b>: the red box goes to <b>Retoure</b> and a new item must be commissioned.</li>
       <li>Sending an HU to the wrong station gets it rejected (−$10, −satisfaction). It then circles the belt until you re-route it.</li>
       <li>Full OUT trays <b>block</b> a station. Keep units moving!</li>
-      <li><b style="color:var(--good)">Automation</b> (shop, expensive): an <b>Auto-router</b> makes a station send its finished units on by itself, one every 8 / 4 / 2 s depending on the level. It only handles the normal case. Flagged units, return totes and defective items still need you, until you buy <b>Exception handling</b>.</li>
+      <li><b style="color:var(--good)">Automation</b> (shop, expensive): an <b>Auto-router</b> makes a station send its finished units on by itself, one every 8 / 4 / 2 s depending on the level. It only handles the normal case. Flagged units, return totes and defective items still need you, until you buy <b>Exception handling</b>. Once you own ${MAINT.after} automation upgrades, auto-routers <b>break down</b> now and then: click the station to send a <b>service worker</b>, and route by hand until it is repaired.</li>
       <li>Late orders pay 40% and cost satisfaction. Focus customers (★) pay 50% more.</li>
       <li>Oversize tools (compressors, welders, table saws) are stored on <b>Euro pallets</b> in the <b>High-Bay Warehouse</b>. Click a glowing pallet, then route it like any order: <b>transporters with a driver</b> drive pallets over the hall roads to each station's pallet bay. Rejected pallets are parked in the <b>pallet buffer</b>.</li>
       <li>Later on, <b>Goods-in</b> opens: customers send back blunt drills and milling cutters. They are unloaded automatically; route them to <b>Regrinding</b>, then any services on their card, then Packing. Now and then new stock arrives too: send the cardboard box to the Shuttle Warehouse.</li>
@@ -2447,6 +2646,7 @@ window.addEventListener('pageshow', e => { if (e.persisted) Updater.check(); });
 
 // ---------- test / automation hooks ----------
 window.LT = { get G(){ return G; }, STATIONS, STEPS, SHIFTS, startShift, update, validTargets, dispatch, retrieve, selectable, hasRoom, endShift,
+  sendService,
   simulate(seconds, policy, dt=1/30){ const s = G.silent; G.silent = true; let t = 0; while (t < seconds && G.mode === 'play'){ policy && policy(G, dt); update(dt); t += dt; } G.silent = s; return G; } };
 </script>
 </body>
