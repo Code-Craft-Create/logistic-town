@@ -326,7 +326,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-31';
+const GAME_VERSION = '2026.11.21-32';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -588,13 +588,8 @@ const STATIONS = [
     desc:'Wareneingang. Trucks unload here on their own: new stock (cardboard boxes) goes to the Shuttle Warehouse, cutting tools sent back by customers go to Regrinding, measuring tools sent back go to the Calibration Lab. Keep its OUT tray clear.' },
   { id:'regrind', brief:'Resharpens returned drills and cutters.', name:'Regrinding', icon:'regrind', color:'#9aa8ff', handles:'regrind',
     slots:1, time:8, queue:3, out:3, defect:{ chance:0.10, reason:'Cutting edge chipped', redo:true },
-<<<<<<< Updated upstream
-    desc:'Sharpens customer drills and milling cutters (Bohrer, Fräser). Afterwards they may still need Laser Signing and the focus customer check, then Packing.' },
-  { id:'calib', brief:'Checks and certifies measuring tools.', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
-=======
     desc:'Sharpens customer drills and milling cutters (Bohrer, Fräser). Afterwards they may still need Laser Signing and the focus customer check, then Packing. A tool worn beyond regrinding is NOT OK: it is the customer\'s own, so it goes straight back via Packing, not to QA or Retoure.' },
-  { id:'calib', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
->>>>>>> Stashed changes
+  { id:'calib', brief:'Checks and certifies measuring tools.', name:'Calibration Lab', icon:'gauge', color:'#22c3e6', handles:'calibration',
     slots:1, time:9, queue:3, out:3, defect:{ chance:0.14, reason:'Out of tolerance', redo:true },
     desc:'Checks that measuring tools (calipers, meters, levels…) measure correctly and issues a certificate. Failed tools go to QA, then back here. Measuring tools returned by customers that fail are not repaired: no guarantee, straight back to the customer.' },
   { id:'sign', brief:'Lasers the customer ID onto tools.', name:'Laser Signing', icon:'laser', color:'#b07cff', handles:'signing',
