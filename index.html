@@ -346,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-17';
+const GAME_VERSION = '2026.11.22-18';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2524,13 +2524,17 @@ function resize(){
   // the hall sits top-left, right next to the order column; event messages use the strip that is left over
   const hw = (W+OUTW)*view.s, hh = H*view.s, spareR = r.width - hw - pad*2, spareB = r.height - hh - pad*2;
   view.ox = pad; view.oy = spareR < 140 && spareB >= 70 ? pad : (r.height - hh)/2;
-  placeMsgs(r, spareR >= 140 ? 'right' : spareB >= 70 ? 'bottom' : 'side', hw, hh, spareR, spareB);
+  // ultra-wide / ultra-tall: move the hall towards the middle, keeping a strip for event messages
+  const mode = spareR >= 140 ? 'right' : spareB >= 70 ? 'bottom' : 'side';
+  const shR = mode === 'right' ? Math.max(0, (spareR - 360)/2) : 0, shB = mode === 'bottom' ? Math.max(0, (spareB - 240)/2) : 0;
+  view.ox += shR; view.oy += shB;
+  placeMsgs(r, mode, hw, hh, spareR - shR, spareB - shB);
 }
 function placeMsgs(r, mode, hw, hh, spareR, spareB){
   const m = $('msgs'); if (!m) return;
   m.className = 'm-' + mode; m.style.cssText = '';
-  if (mode === 'right') Object.assign(m.style, { left:(r.left + hw + 16) + 'px', top:(r.top + 8) + 'px', bottom:'auto', width:Math.min(340, spareR) + 'px' });
-  else if (mode === 'bottom') Object.assign(m.style, { left:(r.left + 8) + 'px', top:(r.top + hh + 14) + 'px', bottom:'auto', width:hw + 'px', height:Math.max(0, spareB - 6) + 'px' });
+  if (mode === 'right') Object.assign(m.style, { left:(r.left + view.ox - 8 + hw + 16) + 'px', top:(r.top + 8) + 'px', bottom:'auto', width:Math.min(340, spareR) + 'px' });
+  else if (mode === 'bottom') Object.assign(m.style, { left:(r.left + view.ox) + 'px', top:(r.top + view.oy - 8 + hh + 14) + 'px', bottom:'auto', width:hw + 'px', height:Math.max(0, spareB - 6) + 'px' });
   $('side').style.paddingBottom = '';
   if (mode === 'side'){ const h = m.offsetHeight; $('side').style.paddingBottom = (h > 20 ? h + 8 : 20) + 'px'; }
 }
