@@ -348,7 +348,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-1';
+const GAME_VERSION = '2026.11.22-2';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -987,7 +987,8 @@ function makeOrder(){
 
 // Rack geometry of the shuttle warehouse (shared by drawing, hit-testing and retrieval)
 const RACK = { aisles:2, levels:18, top:WH.y+52 };
-RACK.aw = (WH.w-28)/RACK.aisles; RACK.lh = (WH.h-130)/RACK.levels;
+RACK.shaft = 46;   // free strip on the right for the two lifts (in to Commissioning, out back from it), outside the racks
+RACK.aw = (WH.w-28-RACK.shaft)/RACK.aisles; RACK.lh = (WH.h-130)/RACK.levels;
 function rackPos(sl){ const ax = WH.x+14 + sl.a*RACK.aw, rw = RACK.aw*0.34;
   return { x: ax + sl.side*(RACK.aw*0.62) + 2 + rw/2, y: RACK.top + sl.l*RACK.lh + (RACK.lh-3)/2 }; }
 function freeRackSlot(){
@@ -1016,7 +1017,7 @@ function retrieve(o, li){
   hideTip('release'); sfx('release'); return true;
 }
 // ---- fetch robots: dock row under the racks, drive along the dock and up/down the aisles
-const DOCK_Y = RACK.top + RACK.levels*RACK.lh + 10, LIFT_X = WH.x + WH.w - 24;
+const DOCK_Y = RACK.top + RACK.levels*RACK.lh + 10, LIFT_X = WH.x + WH.w - 46, LIFT_OUT = WH.x + WH.w - 22;   // LIFT_X (inner): up to the feeder belt, LIFT_OUT (outer): down from the lower return belt, so no track crosses another
 function aisleX(a){ return WH.x+14 + a*RACK.aw + RACK.aw*0.49; }
 function robotHome(i){ return { x: WH.x + 22 + i*21, y: DOCK_Y }; }
 function robotCount(){ return ROBOT.base + ((G.upgrades.warehouse||{}).fetchers || 0); }
@@ -1033,7 +1034,7 @@ function updateRobots(dt){
       // a picked tote waits at the bottom of the lift: put it back into its rack slot (fetching new totes goes first unless returns pile up)
       const head = G.back.find(b => b.wait && !b.robot);
       if (head && (!G.jobs.length || G.back.filter(b => !b.robot).length >= 3)){
-        head.robot = r; r.back = head; robotGo(r, [{ x:r.x, y:DOCK_Y }, { x:LIFT_X, y:DOCK_Y }], 'toBack'); continue;
+        head.robot = r; r.back = head; robotGo(r, [{ x:r.x, y:DOCK_Y }, { x:LIFT_OUT, y:DOCK_Y }], 'toBack'); continue;
       }
       if (G.jobs.length){ // take the next job
         const job = G.jobs.shift(); if (job.line.state !== 'queued'){ continue; }
@@ -1086,7 +1087,7 @@ function sendTotesBack(st, li, lines, color){
   const ry = returnBeltY(st), N = lines.length;
   // lowest tote first: it reaches the belt first
   for (let i = N - 1; i >= 0; i--){ const l = lines[i]; if (!l.slot) continue;
-    const p = commTotePos(st, li, i, N), path = mkPath([{ x:p.x, y:p.top }, { x:p.x, y:ry }, { x:LIFT_X, y:ry }, { x:LIFT_X, y:DOCK_Y }], -1);
+    const p = commTotePos(st, li, i, N), path = mkPath([{ x:p.x, y:p.top }, { x:p.x, y:ry }, { x:LIFT_OUT, y:ry }, { x:LIFT_OUT, y:DOCK_Y }], -1);
     path.d = p.y - p.top;
     G.back.push({ slot:{ ...l.slot }, qty:Math.max(0, (l.qty || 1) - 1), color:color || '#5a6680', icon:l.item.icon, path, wait:false, robot:null, carried:false });
     l.qty = Math.max(0, (l.qty || 1) - 1);
@@ -2372,21 +2373,28 @@ function drawWarehouse(t){
   rr(x+10, DOCK_Y-9, w-20, 18, 5); ctx.fillStyle = '#121925'; ctx.fill();
   ctx.fillStyle = '#1e2738'; ctx.fillRect(x+12, DOCK_Y-1, w-24, 2);
   syncRobots(); for (const r of G.robots){ const hm = robotHome(r.i); ctx.fillStyle = r.state === 'idle' ? 'rgba(61,220,132,0.35)' : '#2a3446'; ctx.fillRect(hm.x-6, DOCK_Y+7, 12, 2); }
-  // lift: follows the tote that is riding it
-  const liftX = LIFT_X - 10; let ly = DOCK_Y - 7;
-  let onLift = false;
-  for (const f of G.fetch){ const q = along(f.path, f.path.d); if (Math.abs(q.x - LIFT_X) < 0.5){ ly = q.y - 7; onLift = true; break; } }
-  if (!onLift) for (const b of (G.back || [])){ if (b.carried) continue; const q = along(b.path, b.path.d); if (Math.abs(q.x - LIFT_X) < 0.5 && q.y > (c ? returnBeltY(c) : 0) + 1){ ly = q.y - 7; break; } }
-  if (c) ctx.fillStyle = '#0f141c', ctx.fillRect(liftX+8, Math.min(cy, top), 4, DOCK_Y - Math.min(cy, top));
-  ctx.fillStyle = '#ff8a1f'; ctx.fillRect(liftX, ly, 20, 14); ctx.fillStyle = '#c4620b'; ctx.fillRect(liftX, ly+11, 20, 3);
+  // lift shaft: its own strip right of the racks, with the in-lift (inner, up to the feeder belt) and the out-lift (outer, down from the return belt)
+  const shX = WH.x + WH.w - 60, ry0 = c ? returnBeltY(c) : DOCK_Y;
+  const shTop = (c ? cy : top) - 22, shW = x + w - 8 - shX, shH = DOCK_Y - shTop - 4;
+  rr(shX, shTop, shW, shH, 4); ctx.fillStyle = '#121925'; ctx.fill();
+  ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1; rr(shX, shTop, shW, shH, 4); ctx.stroke();
+  ctx.fillStyle = '#ffc53d'; for (let i = 0; i < shW - 4; i += 8) ctx.fillRect(shX + 2 + i, shTop + 2, 4, 1.4);
+  for (let yy = shTop + 18; yy < DOCK_Y - 8; yy += 18){ ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(shX + 2, yy, shW - 4, 1.2); }
+  const liftCar = (lx, y0, y1, ly) => {
+    ctx.fillStyle = '#0b1018'; ctx.fillRect(lx - 11, y0, 2, y1 - y0); ctx.fillRect(lx + 9, y0, 2, y1 - y0);
+    ctx.fillStyle = '#ff8a1f'; ctx.fillRect(lx - 10, ly, 20, 14); ctx.fillStyle = '#c4620b'; ctx.fillRect(lx - 10, ly + 11, 20, 3); };
+  let ly = DOCK_Y - 7, lyOut = DOCK_Y - 7;
+  for (const f of G.fetch){ const q = along(f.path, f.path.d); if (Math.abs(q.x - LIFT_X) < 0.5){ ly = q.y - 7; break; } }
+  for (const b of (G.back || [])){ if (b.carried) continue; const q = along(b.path, b.path.d); if (Math.abs(q.x - LIFT_OUT) < 0.5 && q.y >= ry0 - 1){ lyOut = q.y - 7; break; } }
+  if (c){ liftCar(LIFT_X, cy - 10, DOCK_Y + 2, ly); liftCar(LIFT_OUT, ry0 - 10, DOCK_Y + 2, lyOut); }
   const busyN = G.robots.filter(r => r.state !== 'idle' && r.state !== 'homing').length;
   ctx.fillStyle = '#8a96ad'; ctx.font = `600 10px ${FONT}`; ctx.fillText(`Shuttles: ${busyN}/${G.robots.length} busy`, x+14, y+h-40);
   if (!G.jobs.length) ctx.fillText('Order totes → Commissioning', x+14, y+h-26);
   else { ctx.fillStyle = '#ffb15c'; ctx.fillText(`${G.jobs.length} tote${G.jobs.length>1?'s':''} waiting for a shuttle`, x+14, y+h-26); }
   // feeder belt to commissioning
-  if (c){ conveyorSeg(x+w-30, cy, c.x, cy, 22, t, 1);
+  if (c){ conveyorSeg(LIFT_X, cy, c.x, cy, 22, t, 1);
     // return belt: picked source totes go back to the lift
-    const ry = returnBeltY(c); conveyorSeg(c.x, ry, x+w-30, ry, 18, t, 1); }
+    const ry = returnBeltY(c); conveyorSeg(c.x, ry, LIFT_OUT, ry, 18, t, 1); }
   // requested totes (clickable)
   const ws = G.st.warehouse;
   let req = 0;
