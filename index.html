@@ -348,7 +348,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-5';
+const GAME_VERSION = '2026.11.22-6';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -615,7 +615,7 @@ const STATIONS = [
     desc:'Takes one tool out of each delivered tote (they hold several pieces) and puts it into an order-specific handling unit (HU). The totes then go back to the Shuttle Warehouse on their own. Every new order gets an empty HU from the buffer right above. Starts once all of the order\'s totes have arrived.' },
   { id:'goodsin', brief:'Customer returns and new stock arrive here.', name:'Goods-in', icon:'goodsin', color:'#c98a4b', handles:'receive', role:'source', noKey:true,
     slots:1, time:3.5, queue:3, out:3,
-    desc:'Wareneingang. Trucks unload here on their own: new stock (cardboard boxes) goes to the Shuttle Warehouse, cutting tools sent back by customers go to Regrinding, measuring tools sent back go to the Calibration Lab. Keep its OUT tray clear.' },
+    desc:'Wareneingang. Trucks unload here on their own. Customer returns are unpacked into an empty HU sent over from the buffer above Commissioning: new stock (cardboard boxes) goes to the Shuttle Warehouse, cutting tools sent back by customers go to Regrinding, measuring tools sent back go to the Calibration Lab. Keep its OUT tray clear.' },
   { id:'regrind', brief:'Resharpens returned drills and cutters.', name:'Regrinding', icon:'regrind', color:'#9aa8ff', handles:'regrind',
     slots:1, time:8, queue:3, out:3, defect:{ chance:0.10, reason:'Cutting edge chipped', redo:true },
     desc:'Sharpens customer drills and milling cutters (Bohrer, Fräser). Afterwards they may still need Laser Signing and the focus customer check, then Packing. A tool worn beyond regrinding is NOT OK: it is the customer\'s own, so it goes straight back via Packing, not to QA or Retoure.' },
@@ -1129,7 +1129,7 @@ const EB = { cols:3, rows:2, per:4, start:12, h:150, gap:6, dur:1.0, drop:0.5 };
 function ebGeo(){
   const c = G && G.st && G.st.commission; if (!c) return null;
   const x = c.x, w = c.w, y = c.y - EB.gap - EB.h, h = EB.h, dockY = y + h - 14;
-  return { x, y, w, h, dockY, inP:{ x:x + w - 20, y:dockY }, outP:{ x:x + 14, y:dockY },
+  return { x, y, w, h, dockY, inP:{ x:x + w - 20, y:dockY }, sendP:{ x:x + w - 56, y:dockY }, outP:{ x:x + 14, y:dockY },
     stack: j => ({ x:x + 58 + (j % EB.cols)*36, y:y + 52 + Math.floor(j/EB.cols)*36 }),
     st:{ id:'empties', dock:{ x:x + w, y:dockY }, port:{ x:LOOP.x0, y:dockY, s:2*LOOP.w + LOOP.h + (LOOP.y1 - dockY) } } };
 }
@@ -1143,13 +1143,16 @@ function emptyBack(st){
 }
 // a new order: the gantry takes an empty HU off a stack and drops it into Commissioning
 function ebTakeFor(hu){ if (!ebGeo() || !G.eb) return; hu.dropping = true; G.eb.outQ.push({ kind:'out', hu }); }
+// a customer return at Goods-in: an empty HU goes out on the conveyor to Goods-in, which unpacks the return into it
+function ebSendTo(hu, st){ if (!ebGeo() || !G.eb || !st.port) return; hu.dropping = true; G.eb.outQ.push({ kind:'send', hu, st }); }
 function ebPts(k, g){ const j = k.j;
-  return k.kind === 'in' ? { a:g.inP, b:g.stack(j) } : { a:g.stack(j), b:g.outP }; }
+  return k.kind === 'in' ? { a:g.inP, b:g.stack(j) } : { a:g.stack(j), b:k.kind === 'send' ? g.sendP : g.outP }; }
 function ebInSlot(c, hu){ const L = cellLayout(c), qsp = Math.min(14, (L.bot - L.top - 10)/Math.max(1, c.queueMax));
   const i = Math.max(0, c.queue.indexOf(hu)); return { x:L.inX + L.inW/2, y:L.top + 8 + i*qsp }; }
 function updateEB(dt){
   const e = G.eb, g = ebGeo(); if (!e || !g) return;
-  for (const m of G.empties){ m.path.d += G.convSpeed*dt; if (m.path.d >= m.path.len){ m.done = true; e.atIn++; e.inQ.push({ kind:'in' }); } }
+  for (const m of G.empties){ m.path.d += G.convSpeed*dt; if (m.path.d >= m.path.len){ m.done = true;
+    if (m.hu){ m.hu.dropping = false; sfx('clunk'); } else { e.atIn++; e.inQ.push({ kind:'in' }); } } }
   G.empties = G.empties.filter(m => !m.done);
   const NS = EB.cols*EB.rows;
   if (!e.cur){ const k = e.outQ.shift() || e.inQ.shift();
@@ -1159,7 +1162,9 @@ function updateEB(dt){
   if (k){
     k.t += dt/EB.dur; const p = k.t;
     if (!k.grab && p >= 0.33){ k.grab = true; if (k.kind === 'in') e.atIn = Math.max(0, e.atIn - 1); else e.n = Math.max(0, e.n - 1); }
-    if (!k.rel && p >= 0.82){ k.rel = true; if (k.kind === 'in') e.n++; else e.drops.push({ hu:k.hu, t:0 }); }
+    if (!k.rel && p >= 0.82){ k.rel = true; if (k.kind === 'in') e.n++;
+      else if (k.kind === 'send'){ const p = buildPath(g.st, 0, k.st); G.empties.push({ hu:k.hu, path:mkPath([{ ...g.sendP }, ...p.pts], -1) }); }
+      else e.drops.push({ hu:k.hu, t:0 }); }
     if (p >= 1){ const { b } = ebPts(k, g); e.gx = b.x; e.gy = b.y; e.cur = null; }
   }
   for (const d of e.drops){ d.t += dt/EB.drop; if (d.t >= 1){ d.done = true; d.hu.dropping = false; } }
@@ -1203,9 +1208,6 @@ function drawEmptyBuffer(t){
   ctx.shadowColor = 'transparent';
   drawEmptyHU(sx + 12, y + 16, 0.42);
   ctx.fillStyle = '#0e131d'; ctx.font = `800 11px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('Empty HUs', sx + 24, y + 20);
-  const cnt = String(e.n); ctx.font = `800 9.5px ${FONT}`; const cw = Math.max(15, ctx.measureText(cnt).width + 8);
-  rr(sx + sw - cw - 3, y + 8.5, cw, 15, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(cnt, sx + sw - 3 - cw/2, y + 19.5);
   // floor: stack pads
   const NS = EB.cols*EB.rows;
   for (let j=0; j<NS; j++){ const p = g.stack(j);
@@ -1478,6 +1480,7 @@ function update(dt){
         tip('stock', `A delivery of <b>new stock</b> (cardboard box) is being unloaded at <b>Goods-in</b>. When it's ready, route it to the <b>Shuttle Warehouse</b> (key <span class="kbd">0</span>) so it can be stored.`); }
       else { hu = { id:++G.huSeq, order:d.o, flag:null, loc:'queue' }; d.o.hu = hu; d.o.released = true; }
       G.hus.push(hu); gi.queue.push(hu);
+      if (!d.stock) ebSendTo(hu, gi);
     }
   }
   // overdue
