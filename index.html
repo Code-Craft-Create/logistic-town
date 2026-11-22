@@ -347,7 +347,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-15';
+const GAME_VERSION = '2026.11.22-16';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -958,7 +958,7 @@ function validTargets(hu){
 }
 const hasRoom = st => st.queue.length + st.incoming < st.queueMax;
 function selectable(hu){
-  if (hu.gone) return false;
+  if (hu.gone || hu.dropping) return false;
   if (hu.loc === 'out' || hu.loc === 'await' || hu.loc === 'bay') return true;
   if (hu.loc === 'carried' && hu.mover) return palletReroutable(hu.mover);
   if (hu.loc === 'transit' && !hu.tr.feed) return hu.tr.to === null || hu.tr.d < hu.tr.portAt;
@@ -1411,7 +1411,8 @@ function complete(st, hu){
       line.state = 'stored'; line.slot = freeRackSlot(); line.qty = stockQty(line.slot); o.steps.pick = 'todo';
       const scrap = { id:++G.huSeq, kind:'scrap', order:o, item:line.item, flag:null, loc:'out' };
       G.hus.push(scrap);
-      if (st.out.length < st.outMax) st.out.push(scrap); else circle(scrap, st.port.s);
+      // the red Retoure box is an empty HU sent over from the buffer; it waits in OUT until it arrives
+      if (st.out.length < st.outMax){ st.out.push(scrap); ebSendTo(scrap, st); } else { circle(scrap, st.port.s); if (G.eb) G.eb.n = Math.max(0, G.eb.n - 1); }
       floatText(st.dock.x, st.y+10, d.issue.reason + '!', '#ff5468'); sfx('flag');
       toast(`${ico('x')} #${o.num}: ${line.item.name} is defective. Send it to Retoure and commission a new one.`, 'bad');
       tip('retoure', `QA couldn't fix it: the <b>${line.item.name}</b> is defective. 1) route the <b>red box</b> to <b>Retoure</b> (next to Packing), 2) click the order's new <b style="color:var(--accent)">glowing tote</b> in the warehouse, 3) send HU <b>#${o.num}</b> back to <b>Commissioning</b>.`);
@@ -3297,7 +3298,7 @@ function drawStation(st, t){
   if (hoverSt === st && sel){ ctx.strokeStyle = !G.hints ? '#ffffff' : isTarget ? '#3ddc84' : '#ff5468'; ctx.lineWidth = 3; rr(x, y, w, h, 5); ctx.stroke(); }
   drawAutoBadge(st, x + 8, y - 8);
   if (sel && full){ rr(x+w/2-24, y-10, 48, 18, 6); ctx.fillStyle = '#ff5468'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('FULL', x+w/2, y+3); }
-  st.out.forEach((hu, i) => { const p = hu.pallet && st.bay ? bayPos(st, i) : outPos(st, i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); });
+  st.out.forEach((hu, i) => { if (hu.dropping) return; const p = hu.pallet && st.bay ? bayPos(st, i) : outPos(st, i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); });
 }
 // deliveries waiting to unload at Goods-in (cardboard = new stock, coloured = customer return): a small queue chip in the name sign
 function drawInboundQueue(st, sx, sw, y){
