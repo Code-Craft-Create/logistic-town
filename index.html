@@ -347,7 +347,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-11';
+const GAME_VERSION = '2026.11.22-12';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -913,7 +913,7 @@ function layoutStations(){
   if (G.roads){
     for (const st of list){ if (st.def.role === 'storage' || st.id === 'commission'){ st.bay = null; continue; }
       const cx = st.x + st.w/2, cy = st.y + st.h/2;
-      st.bay = st.side === 'top' ? { x:cx, y:ROAD.y0 + 36, vert:false } : st.side === 'bottom' ? { x:cx, y:ROAD.y1 - 38, vert:false }
+      st.bay = st.side === 'top' ? { x:cx, y:ROAD.y0 + 36, vert:false } : st.side === 'bottom' ? { x:cx, y:st.y + st.h + 24, vert:false }
         : st.side === 'right' ? { x:ROAD.x1 - 38, y:cy, vert:true } : { x:cx, y:st.y - 25, vert:false };
       const j = ringPos(ROAD, ringS(ROAD, st.bay.x, st.bay.y)), dx = st.bay.x - j.x, dy = st.bay.y - j.y, d = Math.hypot(dx, dy) || 1;
       G.spurs.push({ a:j, b:{ x:st.bay.x - dx/d*12, y:st.bay.y - dy/d*12 }, w:20 });
@@ -3234,6 +3234,7 @@ function drawStation(st, t){
   ctx.fillText(fitText(def.name, sw - 44), sx + 22, y + 20);
   if (st.key){ rr(sx + sw - 18, y + 8.5, 15, 15, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = `800 9.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(st.key, sx + sw - 10.5, y + 19.5); }
+  if (def.role === 'source') drawInboundQueue(st, sx, sw, y);
   // ---- IN lane (left): vertical rollers, units queue top to bottom, flow arrow into the machine
   box(L.inX, L.top, L.inW, L.bot - L.top, 3, '#1b2232');
   for (let yy = L.top + 3; yy < L.bot - 2; yy += 5){ ctx.fillStyle = '#2c3850'; ctx.fillRect(L.inX + 2, yy, L.inW - 4, 1.6); }
@@ -3286,18 +3287,18 @@ function drawStation(st, t){
   if (hoverSt === st && sel){ ctx.strokeStyle = !G.hints ? '#ffffff' : isTarget ? '#3ddc84' : '#ff5468'; ctx.lineWidth = 3; rr(x, y, w, h, 5); ctx.stroke(); }
   drawAutoBadge(st, x + 8, y - 8);
   if (sel && full){ rr(x+w/2-24, y-10, 48, 18, 6); ctx.fillStyle = '#ff5468'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('FULL', x+w/2, y+3); }
-  if (def.role === 'source') drawInboundDock(st, t);
   st.out.forEach((hu, i) => { const p = hu.pallet && st.bay ? bayPos(st, i) : outPos(st, i); hu.px = p.x; hu.py = p.y; drawHU(hu, p.x, p.y); });
 }
-// trucks waiting to unload at Goods-in (cardboard = new stock, coloured = customer return)
-function drawInboundDock(st, t){
-  const bx = st.x, by = st.side === 'bottom' ? st.y + st.h + 8 : st.y - 30, n = G.inbound ? G.inbound.length : 0;
-  rr(bx, by, st.w, 22, 6); ctx.fillStyle = 'rgba(26,34,49,0.85)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1; ctx.stroke();
-  ctx.fillStyle = '#8a96ad'; ctx.font = `700 9px ${FONT}`; ctx.textAlign = 'left';
-  ctx.fillText(n ? 'UNLOADING' : 'DOCK FREE', bx+8, by+14.5);
-  for (let i=0; i<Math.min(n, 6); i++){ const d = G.inbound[i], px = bx + 72 + i*15;
-    ctx.fillStyle = d.stock ? '#c98a4b' : d.o.color; ctx.fillRect(px, by+6, 11, 10); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(px+4.5, by+6, 2, 10); }
-  if (n > 6){ ctx.fillStyle = '#ffb15c'; ctx.fillText('+' + (n-6), bx + 72 + 6*15, by+14.5); }
+// deliveries waiting to unload at Goods-in (cardboard = new stock, coloured = customer return): a small queue chip in the name sign
+function drawInboundQueue(st, sx, sw, y){
+  const n = G.inbound ? G.inbound.length : 0; if (!n) return;
+  const k = Math.min(n, 3), more = n > k ? '+' + (n - k) : '';
+  ctx.font = `800 8.5px ${FONT}`; const mw = more ? ctx.measureText(more).width + 3 : 0, cw = 6 + k*11 + mw + 3, cx = sx + sw - 3 - cw;
+  rr(cx, y + 9, cw, 14, 4); ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill();
+  for (let i=0; i<k; i++){ const d = G.inbound[i], px = cx + 5 + i*11;
+    ctx.fillStyle = d.stock ? '#e3a865' : d.o.color; ctx.fillRect(px, y + 12, 9, 8); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(px + 3.5, y + 12, 2, 8);
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, y + 12.5, 8, 7); }
+  if (more){ ctx.fillStyle = '#ffb15c'; ctx.textAlign = 'left'; ctx.fillText(more, cx + 5 + k*11, y + 19.5); }
 }
 const fitCache = {};
 function fitText(s, maxW){
