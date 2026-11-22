@@ -347,7 +347,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-14';
+const GAME_VERSION = '2026.11.22-15';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -676,14 +676,16 @@ function shiftConfig(i){
 const DEMO = { name:'Demo', title:'Fully automated hall', duration:3600, goal:0, spawn:[0.9,1.2], opening:[8, 0.9], items:[1,3], slack:34 };
 function maxUpgrades(){
   const up = {}, gl = {};
-  for (const d of STATIONS){ const u = {}; for (const x of UPGRADES) if (x.needs(d)) u[x.id] = x.max; up[d.id] = u; }
+  for (const d of STATIONS){ const u = {}; for (const x of UPGRADES) if (x.needs(d)) u[x.id] = upMax(x, d); up[d.id] = u; }
   G.upgrades = up; G.global = gl;
   for (const x of GLOBAL_UPGRADES) gl[x.id] = x.max;
 }
 
 // ---------- 5. DATA: upgrades ----------
+// per-station level cap (e.g. Extra workstation: 2 parallel by default, 3 at Commissioning/Packing)
+const upMax = (u, d) => u.maxFor ? u.maxFor(d) : u.max;
 const UPGRADES = [
-  { id:'slots',   icon:'u_slots', label:'Extra workstation', desc:'+1 parallel slot',  max:2, cost:l => 360 + l*300, needs: d => d.role !== 'storage' },
+  { id:'slots',   icon:'u_slots', label:'Extra workstation', desc:'+1 parallel slot',  max:2, maxFor: d => ['commission','pack'].includes(d.id) ? 2 : 1, cost:l => 360 + l*300, needs: d => d.role !== 'storage' && d.id !== 'retoure' },
   { id:'speed',   icon:'u_speed', label:'Staff training',    desc:'−18% process time', max:3, cost:l => 220 + l*170, needs: d => d.role !== 'storage' },
   { id:'quality', icon:'u_quality', label:'Quality program',   desc:'−40% defects',      max:2, cost:l => 160 + l*140, needs: d => !!d.defect },
   { id:'shuttle', icon:'u_shuttle', label:'Faster shuttles',   desc:'shuttles and lift 40% faster', max:2, cost:l => 200 + l*170, needs: d => d.id === 'warehouse' },
@@ -3871,7 +3873,7 @@ function showShop(){
   const section = (icon, name, right, tiles, autoTiles) => `<section class="sec"><header class="sec-h">${ico(icon)}<span class="sec-n">${name}</span>${right}</header>
     <div class="ugrid">${tiles}${autoTiles || ''}</div></section>`;
   const rows = next.stations.filter(id => played.has(id)).map(id => { const d = DEF[id], up = G.upgrades[id] = G.upgrades[id] || {};
-    const list = UPGRADES.filter(u => (!u.needs || u.needs(d)) && (!u.late || autoOpen));
+    const list = UPGRADES.filter(u => (!u.needs || u.needs(d)) && (!u.late || autoOpen)).map(u => u.maxFor ? { ...u, max:u.maxFor(d) } : u);
     const tile = u => { const lv = up[u.id] || 0;
       return shopTile(u, lv, u.cost(lv), `data-st="${id}" data-up="${u.id}"`, { locked: u.req && !u.req(up), auto: !!u.late, next: u.levelDesc && lv < u.max ? u.levelDesc(lv) : '' }); };
     const ld = G.lastLoad && G.lastLoad[id] != null && d.role !== 'storage' ? G.lastLoad[id] : null;
@@ -3891,7 +3893,7 @@ function showShop(){
   $('mcard').querySelectorAll('.ut').forEach(b => b.onclick = () => {
     if (b.getAttribute('aria-disabled') === 'true') return;
     if (b.dataset.g){ const u = GLOBAL_UPGRADES.find(x => x.id === b.dataset.g), lv = G.global[u.id] || 0; if (lv >= u.max || G.money < u.cost(lv)) return; G.money -= u.cost(lv); G.global[u.id] = lv+1; }
-    else { const u = UPGRADES.find(x => x.id === b.dataset.up), up = G.upgrades[b.dataset.st], lv = up[u.id] || 0; if (lv >= u.max || G.money < u.cost(lv) || (u.req && !u.req(up))) return; G.money -= u.cost(lv); up[u.id] = lv+1; }
+    else { const u = UPGRADES.find(x => x.id === b.dataset.up), up = G.upgrades[b.dataset.st], lv = up[u.id] || 0; if (lv >= upMax(u, DEF[b.dataset.st]) || G.money < u.cost(lv) || (u.req && !u.req(up))) return; G.money -= u.cost(lv); up[u.id] = lv+1; }
     sfx('fix'); saveProfile(); const sc = $('modal').scrollTop; showShop(); $('modal').scrollTop = sc; renderHUD();
   });
   bind('mNext', () => { G.shopBack = null; showIntro(G.shiftIdx); });
