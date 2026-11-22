@@ -346,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-21';
+const GAME_VERSION = '2026.11.22-22';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -3047,9 +3047,11 @@ const BODIES = {
     // arms resting on the desk; one hand holds a magnifier over the item
     const mx = px + 7 + (s.on ? Math.sin(T*1.7)*6 : 4), my = dy + 13 + (s.on ? Math.sin(T*3.4)*2.5 : 2);
     // hand above and to the right, handle angles down and inward to the lens, which sits over the tool
-    const hx = mx + 4, hy = my - 9, lx = mx, ly = my + 3;
-    ctx.lineCap = 'round'; line(px - 10, py + 20, px - 8, dy + 6, '#e8edf5', 5.5); line(px + 10, py + 20, hx, hy, '#e8edf5', 5.5);
-    line(hx, hy, lx + 2.2, ly - 6.1, '#5a3a22', 2.6); ctx.lineCap = 'butt';
+    // shoulder, hand, handle and lens always lie on one line, so the glass continues the forearm
+    const shx = px + 10, shy = py + 20, lx = mx, ly = my + 3, ad = Math.hypot(lx - shx, ly - shy) || 1, ux = (lx - shx)/ad, uy = (ly - shy)/ad;
+    const hx = lx - ux*11, hy = ly - uy*11;
+    ctx.lineCap = 'round'; line(px - 10, py + 20, px - 8, dy + 6, '#e8edf5', 5.5); line(shx, shy, hx, hy, '#e8edf5', 5.5);
+    line(hx, hy, lx - ux*6.3, ly - uy*6.3, '#5a3a22', 2.6); ctx.lineCap = 'butt';
     circ(px - 8, dy + 7, 2.6, skin); circ(hx, hy, 2.6, skin);
     ctx.beginPath(); ctx.arc(lx, ly, 6.5, 0, 7); ctx.fillStyle = 'rgba(160,210,255,0.28)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.8; ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(lx - 2, ly - 2, 2, 0, 7); ctx.fill();
