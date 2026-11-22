@@ -348,7 +348,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-6';
+const GAME_VERSION = '2026.11.22-7';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -1010,7 +1010,7 @@ function retrieve(o, li){
   if (!o.hu){
     if (!hasRoom(c)){ toast('Commissioning is full. Wait for a free spot before starting a new order.', 'bad'); sfx('error'); return false; }
     o.released = true;
-    const hu = { id:++G.huSeq, order:o, flag:null, loc:'queue' }; o.hu = hu; G.hus.push(hu); c.queue.push(hu); ebTakeFor(hu);
+    const hu = { id:++G.huSeq, order:o, flag:null, loc:'queue' }; o.hu = hu; G.hus.push(hu); c.queue.push(hu); hu.fresh = true;
   }
   line.state = 'queued';
   G.jobs.push({ o, line });
@@ -1124,8 +1124,8 @@ function drawBackTotes(){
     drawTote(q.x, q.y, b.color, b.icon, false, false, false, false, b.qty); }
 }
 // ---- empty HU buffer above Commissioning: Packing and Retoure send emptied HUs back over the conveyor loop,
-// a stacking gantry stores them and drops one down the chute into Commissioning's IN lane for every new order
-const EB = { cols:3, rows:2, per:4, start:12, h:150, gap:6, dur:1.0, drop:0.5 };
+// a stacking gantry stores them; right after Commissioning puts a full HU into OUT it drops a fresh empty one into the pick spot
+const EB = { cols:3, rows:2, per:4, start:12, h:150, gap:6, dur:1.0, drop:0.9 };
 function ebGeo(){
   const c = G && G.st && G.st.commission; if (!c) return null;
   const x = c.x, w = c.w, y = c.y - EB.gap - EB.h, h = EB.h, dockY = y + h - 14;
@@ -1134,21 +1134,23 @@ function ebGeo(){
     st:{ id:'empties', dock:{ x:x + w, y:dockY }, port:{ x:LOOP.x0, y:dockY, s:2*LOOP.w + LOOP.h + (LOOP.y1 - dockY) } } };
 }
 function ebInit(){ const g = ebGeo(); G.empties = [];
-  G.eb = { n:EB.start, outQ:[], inQ:[], cur:null, gx:g ? g.inP.x - 40 : 0, gy:g ? g.y + 70 : 0, atIn:0, drops:[] }; }
+  G.eb = { n:EB.start, outQ:[], inQ:[], cur:null, gx:g ? g.inP.x - 40 : 0, gy:g ? g.y + 70 : 0, atIn:0, drops:[], staged:[], pend:[] };
+  const c = G.st.commission; if (c) for (let i=0; i<c.slotCount; i++) G.eb.staged[i] = true; }
 // an emptied HU leaves this station on the conveyor and rides back to the buffer
 function emptyBack(st){
   const g = ebGeo(); if (!g || !st || !st.port || !G.eb) return;
   const p = buildPath(st, 0, g.st);
   G.empties.push({ path:mkPath([...p.pts, { ...g.inP }], -1) });
 }
-// a new order: the gantry takes an empty HU off a stack and drops it into Commissioning
-function ebTakeFor(hu){ if (!ebGeo() || !G.eb) return; hu.dropping = true; G.eb.outQ.push({ kind:'out', hu }); }
+// Commissioning lane li used up its empty HU: the gantry takes one off a stack and drops it into the pick spot
+function ebRefill(li){ const e = G.eb; if (!ebGeo() || !e || e.staged[li] || e.pend[li]) return; e.pend[li] = true; e.outQ.push({ kind:'out', li }); }
+// world position of the HU pick spot in a Commissioning lane (same geometry as BODIES.commission)
+function commHUPos(c, li){ const L = cellLayout(c), nL = Math.max(1, c.slotCount), sc = Math.min(1, 1.48/nL), laneH = L.mh/nL;
+  return { x:L.mx + L.mw - 21*sc, y:L.my + li*laneH + (laneH/sc/2 - 2)*sc, sc, top:L.top }; }
 // a customer return at Goods-in: an empty HU goes out on the conveyor to Goods-in, which unpacks the return into it
 function ebSendTo(hu, st){ if (!ebGeo() || !G.eb || !st.port) return; hu.dropping = true; G.eb.outQ.push({ kind:'send', hu, st }); }
 function ebPts(k, g){ const j = k.j;
   return k.kind === 'in' ? { a:g.inP, b:g.stack(j) } : { a:g.stack(j), b:k.kind === 'send' ? g.sendP : g.outP }; }
-function ebInSlot(c, hu){ const L = cellLayout(c), qsp = Math.min(14, (L.bot - L.top - 10)/Math.max(1, c.queueMax));
-  const i = Math.max(0, c.queue.indexOf(hu)); return { x:L.inX + L.inW/2, y:L.top + 8 + i*qsp }; }
 function updateEB(dt){
   const e = G.eb, g = ebGeo(); if (!e || !g) return;
   for (const m of G.empties){ m.path.d += G.convSpeed*dt; if (m.path.d >= m.path.len){ m.done = true;
@@ -1164,10 +1166,10 @@ function updateEB(dt){
     if (!k.grab && p >= 0.33){ k.grab = true; if (k.kind === 'in') e.atIn = Math.max(0, e.atIn - 1); else e.n = Math.max(0, e.n - 1); }
     if (!k.rel && p >= 0.82){ k.rel = true; if (k.kind === 'in') e.n++;
       else if (k.kind === 'send'){ const p = buildPath(g.st, 0, k.st); G.empties.push({ hu:k.hu, path:mkPath([{ ...g.sendP }, ...p.pts], -1) }); }
-      else e.drops.push({ hu:k.hu, t:0 }); }
+      else e.drops.push({ li:k.li, t:0 }); }
     if (p >= 1){ const { b } = ebPts(k, g); e.gx = b.x; e.gy = b.y; e.cur = null; }
   }
-  for (const d of e.drops){ d.t += dt/EB.drop; if (d.t >= 1){ d.done = true; d.hu.dropping = false; } }
+  for (const d of e.drops){ d.t += dt/EB.drop; if (d.t >= 1){ d.done = true; e.staged[d.li] = true; e.pend[d.li] = false; sfx('clunk'); } }
   e.drops = e.drops.filter(d => !d.done);
 }
 // gantry position + lift (z: 1 = up, 0 = down) for the current task
@@ -1251,10 +1253,11 @@ function drawEmptiesMoving(){
   const g = ebGeo(), e = G.eb; if (!g || !e) return;
   for (const m of G.empties){ const q = along(m.path, m.path.d); drawEmptyHU(q.x, q.y); }
   const c = G.st.commission;
-  for (const d of e.drops){ const s = ebInSlot(c, d.hu), k = ease(clamp(d.t, 0, 1));
-    const px = g.outP.x + (s.x - g.outP.x)*k, py = g.outP.y + (s.y - g.outP.y)*k;
-    if (k < 0.85) drawEmptyHU(px, py, 1 - 0.6*k);
-    else { const o = d.hu.order; rr(px - 5.5, py - 4.5, 11, 9, 2); ctx.fillStyle = o ? o.color : '#5a6884'; ctx.fill(); } }
+  for (const d of e.drops){ const B = commHUPos(c, d.li), ty = c.y + 40;
+    // down the chute, across the top of the cell, down into the pick spot (turning to stand upright like the HU there)
+    const path = d.path || (d.path = mkPath([{ ...g.outP }, { x:g.outP.x, y:ty }, { x:B.x, y:ty }, { x:B.x, y:B.y }], -1));
+    const k = ease(clamp(d.t, 0, 1)), q = along(path, k*path.len), turn = clamp((k*path.len - path.cum[1])/(path.cum[3] - path.cum[1]), 0, 1);
+    ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(turn*Math.PI/2); drawEmptyHU(0, 0, (1 + 0.32*turn)*B.sc, 0.3*(1 - turn)); ctx.restore(); }
 }
 function drawRobot(r, t){
   ctx.save(); ctx.translate(r.x, r.y);
@@ -1540,8 +1543,8 @@ function update(dt){
     for (let i=0; i<st.slotCount; i++){
       let s = st.slots[i];
       if (!s && st.queue.length){
-        const qi = st.queue.findIndex(h => isReady(st, h));
-        if (qi >= 0){ const hu = st.queue.splice(qi, 1)[0]; hu.loc = 'slot';
+        const qi = st.queue.findIndex(h => isReady(st, h) && !(h.fresh && st.id === 'commission' && G.eb && !G.eb.staged[i]));
+        if (qi >= 0){ const hu = st.queue.splice(qi, 1)[0]; hu.loc = 'slot'; if (hu.fresh){ hu.fresh = false; if (G.eb) G.eb.staged[i] = false; }
           let dur = st.def.time*st.speedMul*rand(0.88,1.12);
           if (st.def.needsTotes && !hu.pallet){ const o = hu.order; dur *= 0.45 + 0.55*o.lines.filter(l => l.state==='atPick').length/o.lines.length; }
           s = st.slots[i] = { hu, t:0, dur, done:false, blocked:false };
@@ -1559,7 +1562,7 @@ function update(dt){
         else if (st.def.role === 'sink' && !hu.kind && !hu.flag && !pendingSteps(hu.order).length){ ship(hu); st.slots[i] = null; }
         else if (st.outMax === 0){ st.slots[i] = null; circle(hu, st.port.s); }
         else if (st.out.length < st.outMax){
-          st.out.push(hu); hu.loc = 'out'; st.slots[i] = null; s.blocked = false; st.flash = 0.6; sfx('done'); event('ready', hu);
+          st.out.push(hu); hu.loc = 'out'; st.slots[i] = null; s.blocked = false; if (st.id === 'commission') ebRefill(i); st.flash = 0.6; sfx('done'); event('ready', hu);
         } else s.blocked = true;
       }
     }
@@ -2772,8 +2775,10 @@ const BODIES = {
       drawToteItems(items[i].icon, Math.max(0, have - (taken ? 1 : 0)), t.x, t.y + 1, tW - 6, Math.min(14, tH - 8)); }
     // handling unit: open box in the order colour
     ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
-    box(B.x - bw/2, B.y - bh/2, bw, bh, 4, col); ctx.shadowColor = 'transparent';
-    box(B.x - bw/2 + 3, B.y - bh/2 + 3, bw - 6, bh - 6, 3, shade(col, -0.45));
+    if (sl || (G.eb && G.eb.staged[s.li])){
+      box(B.x - bw/2, B.y - bh/2, bw, bh, 4, col); ctx.shadowColor = 'transparent';
+      box(B.x - bw/2 + 3, B.y - bh/2 + 3, bw - 6, bh - 6, 3, shade(col, -0.45)); }
+    else { ctx.shadowColor = 'transparent'; ctx.strokeStyle = 'rgba(255,197,61,0.35)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); rr(B.x - bw/2, B.y - bh/2, bw, bh, 4); ctx.stroke(); ctx.setLineDash([]); }
     const placed = before.concat(items.filter((_, i) => i < cur || (i === cur && p > 0.82)));
     placed.forEach((it, i) => drawIcon(it.icon, B.x + ((i % 2) - (placed.length > 1 ? 0.5 : 0))*12, B.y - 8 + Math.floor(i/2)*14 + (placed.length === 1 ? 8 : 0), 15));
     if (sl && sl.hu.order){ ctx.fillStyle = '#10141c'; ctx.font = `800 7px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('#' + String(sl.hu.order.num).slice(-3), B.x, B.y + bh/2 - 4); }
@@ -3200,7 +3205,7 @@ function drawStation(st, t){
   CUR_ST = st;
   for (let li=0; li<nL; li++){
     const sl = st.slots[li] || null, on = !!sl && !sl.done && !sl.blocked;
-    const scene = { n:1, slots:[sl], on, k:sl ? clamp(sl.t/sl.dur, 0, 1) : 0, hu:sl ? sl.hu : null, T:Tm + li*0.37, st, state: sl && sl.blocked ? 'blocked' : on ? 'on' : 'idle' };
+    const scene = { li, n:1, slots:[sl], on, k:sl ? clamp(sl.t/sl.dur, 0, 1) : 0, hu:sl ? sl.hu : null, T:Tm + li*0.37, st, state: sl && sl.blocked ? 'blocked' : on ? 'on' : 'idle' };
     const bw = L.mw/sc, bh = laneH/sc;
     ctx.save(); if (nL > 1){ ctx.beginPath(); ctx.rect(L.mx - 6, L.my + li*laneH, L.mw + 12, laneH); ctx.clip(); }
     ctx.translate(L.mx, L.my + li*laneH); ctx.scale(sc, sc);
