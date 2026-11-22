@@ -346,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-18';
+const GAME_VERSION = '2026.11.22-19';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2512,7 +2512,7 @@ function event(name, hu){
 //  RENDERING
 // ===================================================================
 const cv = $('cv'), ctx = cv.getContext('2d'), floorEl = $('floor');
-const view = { s:1, ox:0, oy:0, dpr:1 };
+const view = { s:1, ox:0, oy:0, dpr:1, bs:1, bx:0, by:0, uz:1, ux:0, uy:0 };
 function resize(){
   const r = floorEl.getBoundingClientRect(); view.dpr = Math.min(2.5, window.devicePixelRatio || 1);
   cv.width = Math.max(1, Math.round(r.width*view.dpr)); cv.height = Math.max(1, Math.round(r.height*view.dpr));
@@ -2529,7 +2529,17 @@ function resize(){
   const shR = mode === 'right' ? Math.max(0, (spareR - 360)/2) : 0, shB = mode === 'bottom' ? Math.max(0, (spareB - 240)/2) : 0;
   view.ox += shR; view.oy += shB;
   placeMsgs(r, mode, hw, hh, spareR - shR, spareB - shB);
+  view.bs = view.s; view.bx = view.ox; view.by = view.oy; view.cw = r.width; view.ch = r.height; applyZoom();
 }
+// touch pinch zoom / two-finger pan of the hall (mobile); taps keep working through toWorld()
+function applyZoom(){
+  const z = view.uz = Math.min(4, Math.max(1, view.uz));
+  view.ux = Math.min(0, Math.max(view.cw*(1 - z), view.ux)); view.uy = Math.min(0, Math.max(view.ch*(1 - z), view.uy));
+  if (z === 1) view.ux = view.uy = 0;
+  view.s = view.bs*z; view.ox = view.bx*z + view.ux; view.oy = view.by*z + view.uy;
+}
+const touches = new Map(); let pinch = null;
+function pinchState(){ const [a, b] = [...touches.values()]; return { d:Math.max(10, Math.hypot(a.x-b.x, a.y-b.y)), mx:(a.x+b.x)/2, my:(a.y+b.y)/2 }; }
 function placeMsgs(r, mode, hw, hh, spareR, spareB){
   const m = $('msgs'); if (!m) return;
   m.className = 'm-' + mode; m.style.cssText = '';
@@ -3666,6 +3676,9 @@ function hitStation(p){ return G.stations.find(st => p.x >= st.x-6 && p.x <= st.
 function selectHU(hu){ if (G.selected !== hu){ G.selected = hu; sfx('select'); } }
 cv.addEventListener('pointerdown', e => {
   AU.init(); Music.start();
+  if (e.pointerType === 'touch'){ const r = cv.getBoundingClientRect(); touches.set(e.pointerId, { x:e.clientX - r.left, y:e.clientY - r.top });
+    if (touches.size >= 2){ const q = pinchState(); pinch = { ...q, uz:view.uz, ux:view.ux, uy:view.uy }; drag = null; return; } }
+  if (pinch) return;
   if (G.mode !== 'play') return;
   const p = toWorld(e); mouse.x = p.x; mouse.y = p.y; mouse.inside = true;
   // broken automation: clicking its badge (always) or the station (with nothing selected) sends a service worker
@@ -3682,6 +3695,10 @@ cv.addEventListener('pointerdown', e => {
   G.selected = null;
 });
 cv.addEventListener('pointermove', e => {
+  if (touches.has(e.pointerId)){ const r = cv.getBoundingClientRect(); touches.set(e.pointerId, { x:e.clientX - r.left, y:e.clientY - r.top });
+    if (pinch && touches.size >= 2){ const q = pinchState(), z = Math.min(4, Math.max(1, pinch.uz*q.d/pinch.d));
+      view.uz = z; view.ux = q.mx - (pinch.mx - pinch.ux)*z/pinch.uz; view.uy = q.my - (pinch.my - pinch.uy)*z/pinch.uz; applyZoom(); return; } }
+  if (pinch) return;
   const p = toWorld(e); mouse.x = p.x; mouse.y = p.y; mouse.inside = true;
   if (drag && Math.hypot(p.x-drag.x, p.y-drag.y) > 8) drag.moved = true;
   hoverHU = drag ? null : hitHU(p); hoverSt = hitStation(p);
@@ -3689,7 +3706,10 @@ cv.addEventListener('pointermove', e => {
   cv.style.cursor = hoverHU ? 'grab' : hoverRack ? 'pointer' : (G.selected && hoverSt) ? 'pointer' : drag ? 'grabbing' : 'default';
   showTooltip(hoverHU, p.cx, p.cy, hoverRack);
 });
+const touchEnd = e => { touches.delete(e.pointerId); if (touches.size < 2 && pinch){ if (!touches.size) pinch = null; return true; } return !!pinch; };
+cv.addEventListener('pointercancel', e => { touchEnd(e); drag = null; });
 cv.addEventListener('pointerup', e => {
+  if (touchEnd(e)){ drag = null; return; }
   if (drag && drag.moved){ const st = hitStation(toWorld(e)); if (st && G.selected === drag.hu) dispatch(drag.hu, st); }
   drag = null;
 });
