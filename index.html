@@ -347,7 +347,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-9';
+const GAME_VERSION = '2026.11.22-10';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -759,7 +759,9 @@ function truckAt(s){ const g = truckGeo();
   s -= g.arc; return { x:g.lx, y:g.cy - TRK.R - s, ang:-Math.PI/2 }; }
 const inCross = p => G.roads && p.x > ROAD.x1 - ROAD.half - 6 && p.x < ROAD.x1 + ROAD.half + 6 && p.y > DOCK.y0 - 8 && p.y < DOCK.y1 + 8;
 // a shipped parcel flies onto the docked truck, or waits in the dock bay while no truck is there
-const truckRoom = () => G.truck && G.truck.state === 'parked' ? 4 - G.truck.load - G.flyers.filter(f => !f.done && f.to === 'truck').length : 0;
+// trucks get bigger with Packing's extra workstations: 4, 8 or 12 parcels (2 rows in the trailer)
+const truckCap = () => { const p = G.st && G.st.pack; return p ? Math.min(12, 4 + 4*Math.max(0, p.slotCount - DEF.pack.slots)) : 4; };
+const truckRoom = () => G.truck && G.truck.state === 'parked' ? truckCap() - G.truck.load - G.flyers.filter(f => !f.done && f.to === 'truck').length : 0;
 function stackPos(i){ const k = i % 8; return { x:1116 + (k % 2)*17, y:DOCK.y0 + 12 + Math.floor(k/2)*19 }; }
 function shipParcel(x, y, color){
   if (truckRoom() > 0 && !(G.dockStack || []).length){ const sl = nextTruckSlot(), q = truckSlotPos(sl); G.flyers.push({ x0:x, y0:y, x1:q.x, y1:q.y, t:0, color, to:'truck', slot:sl }); }
@@ -770,9 +772,9 @@ function truckCrossBusy1(tk){ const g = truckGeo();
   return tk.state === 'backing' || (tk.state === 'leaving' && tk.s < ROAD.x1 + ROAD.half - g.park + TRK.L/2 + 4) || (tk.state === 'arriving' && tk.ay < g.cy + 160); }
 // cargo bay slots of the parked truck (2 x 2 at the back of the trailer), in world coordinates
 function truckSlotPos(i){ const tk = G.truck, hw = TRK.Wd/2, bx = -TRK.L/2 + 3, by = -hw + 5, bh = TRK.Wd - 10;
-  return { x:tk.x + bx + 2 + (i % 2)*16 + 7, y:tk.y + by + 2 + Math.floor(i/2)*(bh/2 - 1) + (bh/2 - 3)/2 }; }
+  return { x:tk.x + bx + 2 + (i % (truckCap()/2))*16 + 7, y:tk.y + by + 2 + Math.floor(i/(truckCap()/2))*(bh/2 - 1) + (bh/2 - 3)/2 }; }
 function nextTruckSlot(){ const tk = G.truck, taken = new Set(G.flyers.filter(f => !f.done && f.to === 'truck').map(f => f.slot));
-  for (let i=0; i<4; i++) if (!(tk.cargo && tk.cargo[i]) && !taken.has(i)) return i; return Math.min(3, tk.load); }
+  const n = truckCap(); for (let i=0; i<n; i++) if (!(tk.cargo && tk.cargo[i]) && !taken.has(i)) return i; return Math.min(n - 1, tk.load); }
 const newTruck = () => ({ x:0, y:DOCK.cy, ang:0, s:0, load:0, state:'parked', t:0, gate:0 });
 const LOOP = { x0:440, y0:300, x1:1060, y1:500 };
 LOOP.w = LOOP.x1-LOOP.x0; LOOP.h = LOOP.y1-LOOP.y0; LOOP.L = 2*(LOOP.w+LOOP.h);
@@ -1162,26 +1164,30 @@ function commHUPos(c, li){ const L = cellLayout(c), nL = Math.max(1, c.slotCount
 // a customer return at Goods-in: an empty HU goes out on the conveyor to Goods-in, which unpacks the return into it
 function ebSendTo(hu, st){ if (!ebGeo() || !G.eb || !st.port) return; hu.dropping = true; G.eb.outQ.push({ kind:'send', hu, st }); }
 function ebPts(k, g){ const j = k.j;
-  return k.kind === 'in' ? { a:g.inP, b:g.stack(j) } : { a:g.stack(j), b:k.kind === 'send' ? g.sendP : g.outP }; }
+  return k.kind === 'in' ? { a:g.inP, b:g.stack(j) } : { a:k.direct ? g.inP : g.stack(j), b:k.kind === 'send' ? g.sendP : g.outP }; }
+// the gantry gets faster with Commissioning's upgrades (staff training and extra workstations), so it keeps up in a busy hall
+const ebSpeed = () => { const c = G.st.commission; return c ? (1 + 0.3*Math.max(0, c.slotCount - DEF.commission.slots)) / c.speedMul : 1; };
 function updateEB(dt){
   const e = G.eb, g = ebGeo(); if (!e || !g) return;
   for (const m of G.empties){ m.path.d += G.convSpeed*dt; if (m.path.d >= m.path.len){ m.done = true;
     if (m.hu){ m.hu.dropping = false; sfx('clunk'); } else { e.atIn++; e.inQ.push({ kind:'in' }); } } }
   G.empties = G.empties.filter(m => !m.done);
   const NS = EB.cols*EB.rows;
-  if (!e.cur){ const k = e.outQ.shift() || e.inQ.shift();
+  if (!e.cur){ let k = e.outQ.shift();
+    // cross-docking: an empty HU waiting on the infeed is taken straight to where it is needed, skipping the stack
+    if (k && e.inQ.length){ e.inQ.shift(); k.direct = true; } else if (!k) k = e.inQ.shift();
     if (k){ k.t = 0; k.fx = e.gx; k.fy = e.gy; k.grab = false; k.rel = false;
       k.j = k.kind === 'in' ? Math.min(NS - 1, Math.floor(e.n/EB.per)) : clamp(Math.floor((e.n - 1)/EB.per), 0, NS - 1); e.cur = k; } }
   const k = e.cur;
   if (k){
-    k.t += dt/EB.dur; const p = k.t;
-    if (!k.grab && p >= 0.33){ k.grab = true; if (k.kind === 'in') e.atIn = Math.max(0, e.atIn - 1); else e.n = Math.max(0, e.n - 1); }
+    k.t += dt*ebSpeed()/EB.dur; const p = k.t;
+    if (!k.grab && p >= 0.33){ k.grab = true; if (k.kind === 'in' || k.direct) e.atIn = Math.max(0, e.atIn - 1); else e.n = Math.max(0, e.n - 1); }
     if (!k.rel && p >= 0.82){ k.rel = true; if (k.kind === 'in') e.n++;
       else if (k.kind === 'send'){ const p = buildPath(g.st, 0, k.st); G.empties.push({ hu:k.hu, path:mkPath([{ ...g.sendP }, ...p.pts], -1) }); }
       else e.drops.push({ li:k.li, t:0 }); }
     if (p >= 1){ const { b } = ebPts(k, g); e.gx = b.x; e.gy = b.y; e.cur = null; }
   }
-  for (const d of e.drops){ d.t += dt/EB.drop; if (d.t >= 1){ d.done = true; e.staged[d.li] = true; e.pend[d.li] = false; sfx('clunk'); } }
+  for (const d of e.drops){ d.t += dt*ebSpeed()/EB.drop; if (d.t >= 1){ d.done = true; e.staged[d.li] = true; e.pend[d.li] = false; sfx('clunk'); } }
   e.drops = e.drops.filter(d => !d.done);
 }
 // gantry position + lift (z: 1 = up, 0 = down) for the current task
@@ -1609,7 +1615,7 @@ function update(dt){
   for (const f of G.flyers){ f.t += dt*1.6; if (f.t >= 1 && !f.done){ f.done = true;
     if (f.to === 'stack'){ G.dockStack.push(f.color); continue; }
     const T = G.truck; T.load++; T.cargo = T.cargo || []; T.cargo[f.slot != null ? f.slot : T.cargo.length] = f.color;
-    if (T.load >= 4 && T.state === 'parked'){ T.state = 'leaving'; sfx('truck'); G.truckOut = T;
+    if (T.load >= truckCap() && T.state === 'parked'){ T.state = 'leaving'; sfx('truck'); G.truckOut = T;
       G.truck = { ...newTruck(), state:'arriving', ay:H + TRK.L + 60, gate:T.gate, cargo:[] }; } } }
   // parcels waiting in the dock bay go onto the next truck once it has backed in
   G.dockT = Math.max(0, (G.dockT || 0) - dt);
@@ -3406,15 +3412,15 @@ function drawTruckTop(tk, t){
   ctx.fillStyle = 'rgba(26,34,49,0.08)'; for (let x = tx0 + 9; x < tx1 - 4; x += 10) ctx.fillRect(x, -hw + 2, 1, TRK.Wd - 4);
   ctx.fillStyle = '#ff8a1f'; ctx.fillRect(tx0, -hw, tx1 - tx0, 3.5); ctx.fillRect(tx0, hw - 3.5, tx1 - tx0, 3.5);
   // cargo bay at the back: open while docked, the parcels sit inside in their order colours; the roof slides shut to drive off
-  const bx = tx0 + 3, bw = 34, by = -hw + 5, bh = TRK.Wd - 10, cargo = tk.cargo || [];
+  const cols = truckCap()/2, bx = tx0 + 3, bw = 2 + cols*16, by = -hw + 5, bh = TRK.Wd - 10, cargo = tk.cargo || [];
   ctx.fillStyle = '#2a3243'; rr(bx, by, bw, bh, 2); ctx.fill();
   ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(bx, by, bw, 2.5);
-  for (let i=0; i<4; i++){ const cx = bx + 2 + (i % 2)*16, cy = by + 2 + Math.floor(i/2)*(bh/2 - 1), bwid = 14, bht = bh/2 - 3;
+  for (let i=0; i<2*cols; i++){ const cx = bx + 2 + (i % cols)*16, cy = by + 2 + Math.floor(i/cols)*(bh/2 - 1), bwid = 14, bht = bh/2 - 3;
     if (cargo[i]){ ctx.fillStyle = '#c99a5b'; rr(cx, cy, bwid, bht, 1.5); ctx.fill(); ctx.fillStyle = '#a87c43'; ctx.fillRect(cx + bwid/2 - 0.6, cy, 1.2, bht);
       ctx.fillStyle = cargo[i] || '#ff8a1f'; ctx.fillRect(cx, cy + bht/2 - 1.5, bwid, 3); }
     else { ctx.strokeStyle = 'rgba(232,237,245,0.12)'; ctx.lineWidth = 1; ctx.setLineDash([2, 2]); rr(cx + 0.5, cy + 0.5, bwid - 1, bht - 1, 1.5); ctx.stroke(); ctx.setLineDash([]); } }
   if (moving){ ctx.fillStyle = '#d8dee9'; rr(bx - 1, by - 1, bw + 2, bh + 2, 2); ctx.fill(); ctx.fillStyle = 'rgba(26,34,49,0.08)'; for (let x = bx + 6; x < bx + bw; x += 10) ctx.fillRect(x, by, 1, bh); }
-  ctx.fillStyle = '#1a2231'; ctx.font = `900 7.5px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('LOGISTIC TOWN', (bx + bw + tx1)/2 + 1, 1); ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#1a2231'; ctx.font = `900 7.5px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; if (moving || cols <= 2) ctx.fillText('LOGISTIC TOWN', moving && cols > 2 ? (tx0 + tx1)/2 : (bx + bw + tx1)/2 + 1, 1); ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#10141c'; ctx.fillRect(tx1, -8, 7, 16);                            // coupling
   ctx.fillStyle = '#ff8a1f'; rr(tx1 + 6, -hw + 2, L/2 - tx1 - 6, TRK.Wd - 4, 6); ctx.fill(); // cab
   ctx.fillStyle = '#ffa54a'; rr(tx1 + 10, -hw + 7, 16, TRK.Wd - 14, 4); ctx.fill();
