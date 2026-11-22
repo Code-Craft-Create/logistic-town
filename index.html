@@ -346,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-20';
+const GAME_VERSION = '2026.11.22-21';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -3011,6 +3011,8 @@ const BODIES = {
     for (let i=0; i<Math.floor((w - 10)/6); i++) box(5 + i*6, 3.5, 4.5, 7, 1, bc[i % bc.length]);
     // inspector (front view, behind the desk)
     const px = w*0.38, py = 34, tilt = s.on ? Math.sin(T*1.3)*0.08 : Math.sin(T*0.4)*0.03;
+    // a second workstation gets a second inspector: a woman with a shoulder-length bob
+    const fem = s.li % 2 === 1, skin = fem ? '#e2ad84' : '#f1c27d', skinD = fem ? '#cf9468' : '#e0a878', hair = fem ? '#2e1d16' : '#5a3a22';
     ctx.save(); ctx.translate(px, py);
     // body: white lab coat with collar and badge
     ctx.fillStyle = '#e8edf5'; ctx.beginPath(); ctx.moveTo(-14, 26); ctx.quadraticCurveTo(-15, 8, -6, 6); ctx.lineTo(6, 6); ctx.quadraticCurveTo(15, 8, 14, 26); ctx.closePath(); ctx.fill();
@@ -3018,11 +3020,17 @@ const BODIES = {
     ctx.strokeStyle = '#b9c2d3'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-5, 6); ctx.lineTo(-1, 16); ctx.moveTo(5, 6); ctx.lineTo(1, 16); ctx.stroke();
     box(5, 14, 5, 6, 1, '#ff5468'); ctx.fillStyle = '#fff'; ctx.fillRect(6, 15.5, 3, 1);                                      // badge
     // neck + head
-    ctx.fillStyle = '#e0a878'; ctx.fillRect(-2.5, 2, 5, 5);
+    ctx.fillStyle = skinD; ctx.fillRect(-2.5, 2, 5, 5);
     ctx.save(); ctx.rotate(tilt);
-    ell(0, -5, 7.5, 8.5, '#f1c27d');
-    ctx.fillStyle = '#5a3a22'; ctx.beginPath(); ctx.ellipse(0, -9, 8.2, 6.2, 0, Math.PI, 0); ctx.fill(); ctx.beginPath(); ctx.ellipse(-6.5, -5, 2, 5, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(6.5, -5, 2, 5, 0, 0, 7); ctx.fill();
-    ell(-7.6, -4, 1.5, 2, '#e0a878'); ell(7.6, -4, 1.5, 2, '#e0a878');                        // ears
+    if (fem){ ctx.fillStyle = hair; ctx.beginPath(); ctx.moveTo(-9, 4); ctx.quadraticCurveTo(-10.5, -14, 0, -14.5); ctx.quadraticCurveTo(10.5, -14, 9, 4);   // bob behind the head
+      ctx.quadraticCurveTo(4.5, 5.5, 2, 3); ctx.lineTo(-2, 3); ctx.quadraticCurveTo(-4.5, 5.5, -9, 4); ctx.fill(); }
+    ell(0, -5, 7.5, 8.5, skin);
+    ctx.fillStyle = hair; ctx.beginPath(); ctx.ellipse(0, -9, 8.2, 6.2, 0, Math.PI, 0); ctx.fill();
+    if (fem){ ctx.beginPath(); ctx.moveTo(-8.2, -9); ctx.quadraticCurveTo(-3, -5.8, 4, -8.2); ctx.quadraticCurveTo(6.5, -9, 8.2, -9); ctx.fill();   // side-swept fringe
+      ctx.beginPath(); ctx.ellipse(-7, -3, 1.8, 6, 0.08, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(7, -3, 1.8, 6, -0.08, 0, 7); ctx.fill();
+      circ(-7.4, 1.6, 0.7, '#ffd23f'); circ(7.4, 1.6, 0.7, '#ffd23f'); }                          // small stud earrings below the hair
+    else { ctx.beginPath(); ctx.ellipse(-6.5, -5, 2, 5, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(6.5, -5, 2, 5, 0, 0, 7); ctx.fill();
+      ell(-7.6, -4, 1.5, 2, skinD); ell(7.6, -4, 1.5, 2, skinD); }                        // ears
     // safety glasses
     ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.1; rr(-6, -6, 5, 3.6, 1.2); ctx.stroke(); rr(1, -6, 5, 3.6, 1.2); ctx.stroke(); line(-1, -4.5, 1, -4.5, '#2c3850', 1);
     ctx.fillStyle = 'rgba(160,210,255,0.35)'; ctx.fillRect(-5.5, -5.5, 4, 2.6); ctx.fillRect(1.5, -5.5, 4, 2.6);
@@ -3038,11 +3046,11 @@ const BODIES = {
     if (s.on){ const sy = dy + 4 + tri(T*1.2)*(h - dy - 14); ctx.fillStyle = 'rgba(255,84,104,0.6)'; ctx.fillRect(5, sy, w - 10, 1.2); }
     // arms resting on the desk; one hand holds a magnifier over the item
     const mx = px + 7 + (s.on ? Math.sin(T*1.7)*6 : 4), my = dy + 13 + (s.on ? Math.sin(T*3.4)*2.5 : 2);
-    // hand above, handle points down to the lens, which sits over the tool
-    const hx = mx - 3, hy = my - 9, lx = mx + 1, ly = my + 3;
+    // hand above and to the right, handle angles down and inward to the lens, which sits over the tool
+    const hx = mx + 4, hy = my - 9, lx = mx, ly = my + 3;
     ctx.lineCap = 'round'; line(px - 10, py + 20, px - 8, dy + 6, '#e8edf5', 5.5); line(px + 10, py + 20, hx, hy, '#e8edf5', 5.5);
-    line(hx, hy, lx - 1.6, ly - 6.6, '#5a3a22', 2.6); ctx.lineCap = 'butt';
-    circ(px - 8, dy + 7, 2.6, '#f1c27d'); circ(hx, hy, 2.6, '#f1c27d');
+    line(hx, hy, lx + 2.2, ly - 6.1, '#5a3a22', 2.6); ctx.lineCap = 'butt';
+    circ(px - 8, dy + 7, 2.6, skin); circ(hx, hy, 2.6, skin);
     ctx.beginPath(); ctx.arc(lx, ly, 6.5, 0, 7); ctx.fillStyle = 'rgba(160,210,255,0.28)'; ctx.fill(); ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1.8; ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(lx - 2, ly - 2, 2, 0, 7); ctx.fill();
     };
