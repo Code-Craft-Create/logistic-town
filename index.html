@@ -347,7 +347,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-13';
+const GAME_VERSION = '2026.11.22-14';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -3589,7 +3589,7 @@ function syncButtons(){
   $('bSfx').classList.toggle('on', G.sfxOn); $('bSfx').classList.toggle('off', !G.sfxOn);
   $('bSfx').innerHTML = ico(G.sfxOn ? 'speaker' : 'mute');
   $('bMusic').innerHTML = ico('music'); $('bHints').innerHTML = ico('bulb') + ' Hints'; $('bHelp').innerHTML = ico('help');
-  $('bSpeed').textContent = (G.speed||1) + '×'; $('bSpeed').classList.toggle('on', G.speed === 2);
+  $('bSpeed').textContent = (G.speed||1) + '×'; $('bSpeed').classList.toggle('on', (G.speed||1) > 1);
   $('bPause').innerHTML = ico(G.mode === 'paused' ? 'play' : 'pause');
 }
 
@@ -3686,7 +3686,7 @@ window.addEventListener('keydown', e => {
   if (k === 'h'){ toggleHints(); return; }
   if (k === 'm'){ toggleMusic(); return; }
   if (k === 's'){ toggleSfx(); return; }
-  if (k === 'f'){ toggleSpeed(); return; }
+  if (k === 'f'){ toggleSpeed(e); return; }
   if (G.mode !== 'play') return;
   if (k === 'tab'){ e.preventDefault(); cycleSelect(e.shiftKey ? -1 : 1); return; }
   const n = parseInt(k, 10);
@@ -3706,7 +3706,11 @@ function togglePause(){
 function toggleHints(){ G.hints = !G.hints; toast(G.hints ? ico('bulb') + ' Route hints on' : ico('grad') + ' Expert mode: hints off, +25% pay', ''); syncButtons(); saveProfile(); }
 function toggleMusic(){ AU.init(); Music.start(); G.musicOn = !G.musicOn; Music.setOn(G.musicOn); syncButtons(); saveProfile(); }
 function toggleSfx(){ AU.init(); G.sfxOn = !G.sfxOn; if (AU.sfxBus) AU.sfxBus.gain.value = G.sfxOn ? 0.75 : 0; syncButtons(); saveProfile(); }
-function toggleSpeed(){ G.speed = G.speed === 2 ? 1 : 2; syncButtons(); }
+function toggleSpeed(e){
+  if (e && e.shiftKey){ const s = G.speed || 1; G.speed = s >= 8 ? 1 : s*2; } // dev: Shift cycles 1-2-4-8
+  else G.speed = (G.speed||1) > 1 ? 1 : 2;
+  syncButtons();
+}
 $('bHints').onclick = toggleHints; $('bMusic').onclick = toggleMusic; $('bSfx').onclick = toggleSfx; $('bSpeed').onclick = toggleSpeed;
 $('bPause').onclick = () => { AU.init(); togglePause(); };
 $('bHelp').onclick = () => { AU.init(); if (G.mode === 'play'){ G.mode = 'paused'; syncButtons(); } showHelp(); };
@@ -3965,7 +3969,12 @@ function frame(now){
   requestAnimationFrame(frame);
   const realDt = Math.min(0.05, (now - last)/1000); last = now;
   const dt = realDt * (G.speed || 1);
-  if (G.mode === 'play'){ update(dt); Music.P = clamp(G.time/G.cfg.duration, 0, 1); Music.left = G.cfg.duration - G.time; Music.W = clamp(G.orders.length*0.07, 0, 1); }
+  if (G.mode === 'play'){
+    // above 2x the sim runs in sub-steps no bigger than a 2x frame, so belts and timers stay stable
+    const step = realDt * Math.min(2, G.speed || 1);
+    let rem = dt;
+    while (rem > 1e-6 && G.mode === 'play'){ const h = Math.min(step, rem); update(h); rem -= h; }
+    Music.P = clamp(G.time/G.cfg.duration, 0, 1); Music.left = G.cfg.duration - G.time; Music.W = clamp(G.orders.length*0.07, 0, 1); }
   else if (G.mode !== 'paused'){ Music.P = 0; Music.W = 0; Music.left = 999; }
   try { render(now/1000); } catch(e){ console.error(e); }
   sideTimer -= realDt;
