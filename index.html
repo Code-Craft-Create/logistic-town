@@ -348,7 +348,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-4';
+const GAME_VERSION = '2026.11.22-5';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -612,7 +612,7 @@ const STATIONS = [
     desc:'Hochregallager for Euro pallets with oversize tools (compressors, welders, table saws). Click a glowing pallet: the stacker crane brings it to the pallet I/O. Pallets skip Commissioning and go straight to their first service or to Packing. Transporters with a driver move pallets over the hall roads to every station\'s pallet bay. New pallets from Goods-in are stored here.' },
   { id:'commission', brief:'Picks each order into its handling unit.', name:'Commissioning', icon:'box', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
     slots:1, time:5, queue:4, out:3, defect:{ chance:0.07, reason:'Wrong item picked', redo:true, returnTote:true },
-    desc:'Takes one tool out of each delivered tote (they hold several pieces) and puts it into an order-specific handling unit (HU). The totes then go back to the Shuttle Warehouse on their own. Starts once all of the order\'s totes have arrived.' },
+    desc:'Takes one tool out of each delivered tote (they hold several pieces) and puts it into an order-specific handling unit (HU). The totes then go back to the Shuttle Warehouse on their own. Every new order gets an empty HU from the buffer right above. Starts once all of the order\'s totes have arrived.' },
   { id:'goodsin', brief:'Customer returns and new stock arrive here.', name:'Goods-in', icon:'goodsin', color:'#c98a4b', handles:'receive', role:'source', noKey:true,
     slots:1, time:3.5, queue:3, out:3,
     desc:'Wareneingang. Trucks unload here on their own: new stock (cardboard boxes) goes to the Shuttle Warehouse, cutting tools sent back by customers go to Regrinding, measuring tools sent back go to the Calibration Lab. Keep its OUT tray clear.' },
@@ -636,10 +636,10 @@ const STATIONS = [
     desc:'Checks everything flagged with a warning. Either it can be corrected and continues its route (a failed service is redone), or the item is defective: it goes to Retoure and a new one must be commissioned.' },
   { id:'retoure', brief:'Takes defective items. The order needs a new pick.', name:'Retoure', icon:'retoure', color:'#a07cff', role:'returns', accepts:'scrap', place:'right',
     slots:1, time:3, queue:4, out:0,
-    desc:'Takes back defective items found by QA (red boxes), separate from Packing. The order needs a freshly commissioned replacement.' },
+    desc:'Takes back defective items found by QA (red boxes), separate from Packing. The order needs a freshly commissioned replacement. The emptied box goes back to the empty HU buffer.' },
   { id:'pack', brief:'Last stop: packs and loads the truck.', name:'Packing & Shipping', icon:'truck', color:'#3ddc84', handles:'pack', role:'sink', place:'right',
     slots:1, time:5, queue:4, out:0,
-    desc:'Packs the order and loads it on the truck. Last stop: only when every step is done and nothing is flagged.' },
+    desc:'Packs the order and loads it on the truck. The emptied HU rides the conveyor back to the empty HU buffer above Commissioning. Last stop: only when every step is done and nothing is flagged.' },
 ];
 // Random weight check on every conveyor trip (scanner at each station entrance)
 const RETRIEVE_SPEED = 300; // px/s for totes on the lift + feeder belt to Commissioning
@@ -897,7 +897,7 @@ function layoutStations(){
   W = G.roads ? 1384 : 1320; H = G.roads ? 1012 : 800;
   G.spurs = [];
   if (G.roads){
-    for (const st of list){ if (st.def.role === 'storage') continue;
+    for (const st of list){ if (st.def.role === 'storage' || st.id === 'commission'){ st.bay = null; continue; }
       const cx = st.x + st.w/2, cy = st.y + st.h/2;
       st.bay = st.side === 'top' ? { x:cx, y:ROAD.y0 + 36, vert:false } : st.side === 'bottom' ? { x:cx, y:ROAD.y1 - 38, vert:false }
         : st.side === 'right' ? { x:ROAD.x1 - 38, y:cy, vert:true } : { x:cx, y:st.y - 25, vert:false };
@@ -920,7 +920,7 @@ function startShift(idx){
     seq: 0, huSeq:0, nextSpawn:2, spawned:0, bays:BAYS.map(() => ({ units:[], incoming:0 })), crane:null, autoRouted:0, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
     truck:newTruck(), truckOut:null });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
-  resetPallets();
+  resetPallets(); ebInit();
   G.maint = autoBought() >= MAINT.after; G.serviceQ = []; G.breakdowns = 0; G.repairs = 0;
   G.workers = G.maint ? Array.from({ length:1 + (G.global.service || 0) }, (_, i) => { const h = workerHome(i); return { i, x:h.x, y:h.y, ang:-Math.PI/2, state:'idle', path:null, job:null, t:0, step:0 }; }) : [];
   G.mode = 'play';
@@ -1010,7 +1010,7 @@ function retrieve(o, li){
   if (!o.hu){
     if (!hasRoom(c)){ toast('Commissioning is full. Wait for a free spot before starting a new order.', 'bad'); sfx('error'); return false; }
     o.released = true;
-    const hu = { id:++G.huSeq, order:o, flag:null, loc:'queue' }; o.hu = hu; G.hus.push(hu); c.queue.push(hu);
+    const hu = { id:++G.huSeq, order:o, flag:null, loc:'queue' }; o.hu = hu; G.hus.push(hu); c.queue.push(hu); ebTakeFor(hu);
   }
   line.state = 'queued';
   G.jobs.push({ o, line });
@@ -1122,6 +1122,137 @@ function updateBack(step){
 function drawBackTotes(){
   for (const b of (G.back || [])){ if (b.carried) continue; const q = along(b.path, b.path.d);
     drawTote(q.x, q.y, b.color, b.icon, false, false, false, false, b.qty); }
+}
+// ---- empty HU buffer above Commissioning: Packing and Retoure send emptied HUs back over the conveyor loop,
+// a stacking gantry stores them and drops one down the chute into Commissioning's IN lane for every new order
+const EB = { cols:3, rows:2, per:4, start:12, h:150, gap:6, dur:1.0, drop:0.5 };
+function ebGeo(){
+  const c = G && G.st && G.st.commission; if (!c) return null;
+  const x = c.x, w = c.w, y = c.y - EB.gap - EB.h, h = EB.h, dockY = y + h - 14;
+  return { x, y, w, h, dockY, inP:{ x:x + w - 20, y:dockY }, outP:{ x:x + 14, y:dockY },
+    stack: j => ({ x:x + 58 + (j % EB.cols)*36, y:y + 52 + Math.floor(j/EB.cols)*36 }),
+    st:{ id:'empties', dock:{ x:x + w, y:dockY }, port:{ x:LOOP.x0, y:dockY, s:2*LOOP.w + LOOP.h + (LOOP.y1 - dockY) } } };
+}
+function ebInit(){ const g = ebGeo(); G.empties = [];
+  G.eb = { n:EB.start, outQ:[], inQ:[], cur:null, gx:g ? g.inP.x - 40 : 0, gy:g ? g.y + 70 : 0, atIn:0, drops:[] }; }
+// an emptied HU leaves this station on the conveyor and rides back to the buffer
+function emptyBack(st){
+  const g = ebGeo(); if (!g || !st || !st.port || !G.eb) return;
+  const p = buildPath(st, 0, g.st);
+  G.empties.push({ path:mkPath([...p.pts, { ...g.inP }], -1) });
+}
+// a new order: the gantry takes an empty HU off a stack and drops it into Commissioning
+function ebTakeFor(hu){ if (!ebGeo() || !G.eb) return; hu.dropping = true; G.eb.outQ.push({ kind:'out', hu }); }
+function ebPts(k, g){ const j = k.j;
+  return k.kind === 'in' ? { a:g.inP, b:g.stack(j) } : { a:g.stack(j), b:g.outP }; }
+function ebInSlot(c, hu){ const L = cellLayout(c), qsp = Math.min(14, (L.bot - L.top - 10)/Math.max(1, c.queueMax));
+  const i = Math.max(0, c.queue.indexOf(hu)); return { x:L.inX + L.inW/2, y:L.top + 8 + i*qsp }; }
+function updateEB(dt){
+  const e = G.eb, g = ebGeo(); if (!e || !g) return;
+  for (const m of G.empties){ m.path.d += G.convSpeed*dt; if (m.path.d >= m.path.len){ m.done = true; e.atIn++; e.inQ.push({ kind:'in' }); } }
+  G.empties = G.empties.filter(m => !m.done);
+  const NS = EB.cols*EB.rows;
+  if (!e.cur){ const k = e.outQ.shift() || e.inQ.shift();
+    if (k){ k.t = 0; k.fx = e.gx; k.fy = e.gy; k.grab = false; k.rel = false;
+      k.j = k.kind === 'in' ? Math.min(NS - 1, Math.floor(e.n/EB.per)) : clamp(Math.floor((e.n - 1)/EB.per), 0, NS - 1); e.cur = k; } }
+  const k = e.cur;
+  if (k){
+    k.t += dt/EB.dur; const p = k.t;
+    if (!k.grab && p >= 0.33){ k.grab = true; if (k.kind === 'in') e.atIn = Math.max(0, e.atIn - 1); else e.n = Math.max(0, e.n - 1); }
+    if (!k.rel && p >= 0.82){ k.rel = true; if (k.kind === 'in') e.n++; else e.drops.push({ hu:k.hu, t:0 }); }
+    if (p >= 1){ const { b } = ebPts(k, g); e.gx = b.x; e.gy = b.y; e.cur = null; }
+  }
+  for (const d of e.drops){ d.t += dt/EB.drop; if (d.t >= 1){ d.done = true; d.hu.dropping = false; } }
+  e.drops = e.drops.filter(d => !d.done);
+}
+// gantry position + lift (z: 1 = up, 0 = down) for the current task
+function ebGantry(g){
+  const e = G.eb, k = e.cur; if (!k) return { x:e.gx, y:e.gy, z:1, carry:false };
+  const { a, b } = ebPts(k, g), p = k.t, q = v => ease(clamp(v, 0, 1));
+  if (p < 0.25){ const s = q(p/0.25); return { x:k.fx + (a.x - k.fx)*s, y:k.fy + (a.y - k.fy)*s, z:1, carry:false }; }
+  if (p < 0.4) return { x:a.x, y:a.y, z:1 - Math.sin(((p - 0.25)/0.15)*Math.PI), carry:p >= 0.33 };
+  if (p < 0.75){ const s = q((p - 0.4)/0.35); return { x:a.x + (b.x - a.x)*s, y:a.y + (b.y - a.y)*s, z:1, carry:true }; }
+  if (p < 0.9) return { x:b.x, y:b.y, z:1 - Math.sin(((p - 0.75)/0.15)*Math.PI), carry:p < 0.82 };
+  return { x:b.x, y:b.y, z:1, carry:false };
+}
+// an empty handling unit seen from above: open crate, nothing inside
+function drawEmptyHU(x, y, sc=1, lift=0){
+  ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc);
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4 + lift*7; ctx.shadowOffsetY = 1.5 + lift*4;
+  rr(-15, -11, 30, 22, 4); ctx.fillStyle = '#5a6884'; ctx.fill(); ctx.shadowColor = 'transparent';
+  rr(-12, -8, 24, 16, 2.5); ctx.fillStyle = '#232c3e'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(-11, -7, 22, 3);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; for (let i=-6; i<=6; i+=6) ctx.fillRect(i - 0.6, -3, 1.2, 9);   // floor ribs
+  ctx.fillStyle = '#1b2232'; ctx.fillRect(-14.2, -3, 1.6, 6); ctx.fillRect(12.6, -3, 1.6, 6);       // grip holes
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(-15, -11, 30, 1.2);
+  ctx.restore();
+}
+function drawEmptyBuffer(t){
+  const g = ebGeo(), e = G.eb; if (!g || !e) return;
+  const { x, y, w, h } = g;
+  // spur from the conveyor loop into the buffer
+  conveyorSeg(x + w, g.dockY, g.st.port.x, g.dockY, 20, t, 0);
+  ctx.save();
+  rr(x, y, w, h, 5); ctx.fillStyle = 'rgba(20,26,38,0.92)'; ctx.fill();
+  ctx.setLineDash([7, 5]); ctx.strokeStyle = 'rgba(138,150,173,0.5)'; ctx.lineWidth = 1.5; rr(x + 2, y + 2, w - 4, h - 4, 4); ctx.stroke(); ctx.setLineDash([]);
+  zoneCorners(x + 1, y + 1, w - 2, h - 2, 'rgba(255,197,61,0.85)');
+  // sign
+  const sx = x + 8, sw = w - 16;
+  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  rr(sx, y + 6, sw, 20, 5); const grd = ctx.createLinearGradient(sx, 0, sx + sw, 0); grd.addColorStop(0, '#8a96ad'); grd.addColorStop(1, '#55627c'); ctx.fillStyle = grd; ctx.fill();
+  ctx.shadowColor = 'transparent';
+  drawEmptyHU(sx + 12, y + 16, 0.42);
+  ctx.fillStyle = '#0e131d'; ctx.font = `800 11px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('Empty HUs', sx + 24, y + 20);
+  const cnt = String(e.n); ctx.font = `800 9.5px ${FONT}`; const cw = Math.max(15, ctx.measureText(cnt).width + 8);
+  rr(sx + sw - cw - 3, y + 8.5, cw, 15, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(cnt, sx + sw - 3 - cw/2, y + 19.5);
+  // floor: stack pads
+  const NS = EB.cols*EB.rows;
+  for (let j=0; j<NS; j++){ const p = g.stack(j);
+    ctx.fillStyle = 'rgba(255,255,255,0.025)'; ctx.fillRect(p.x - 17, p.y - 13, 34, 26);
+    ctx.strokeStyle = 'rgba(255,197,61,0.28)'; ctx.lineWidth = 1; ctx.strokeRect(p.x - 16.5, p.y - 12.5, 33, 25); }
+  // infeed belt (right) and drop hatch to Commissioning (left)
+  conveyorSeg(x + 40, g.dockY, x + w, g.dockY, 24, t, -1);
+  const hx = g.outP.x;
+  box(hx - 13, g.dockY - 12, 26, 24, 3, '#0b0f17');
+  ctx.fillStyle = '#ffc53d'; for (let i=0; i<26; i+=6){ ctx.fillRect(hx - 13 + i, g.dockY - 12, 3, 1.6); ctx.fillRect(hx - 13 + i, g.dockY + 10.4, 3, 1.6); }
+  ctx.fillStyle = 'rgba(255,197,61,0.55)'; ctx.beginPath(); ctx.moveTo(hx - 4, g.dockY + 3); ctx.lineTo(hx + 4, g.dockY + 3); ctx.lineTo(hx, g.dockY + 8); ctx.fill();
+  // chute down into Commissioning's IN lane
+  const c = G.st.commission; box(c.x + 6, y + h - 2, 16, c.y + 8 - (y + h - 2), 2, '#1b2232');
+  ctx.fillStyle = '#2c3850'; for (let yy = y + h; yy < c.y + 6; yy += 4) ctx.fillRect(c.x + 8, yy, 12, 1.4);
+  // stacks: lower layers peek out under the top crate
+  for (let j=0; j<NS; j++){ const n = clamp(e.n - j*EB.per, 0, EB.per), p = g.stack(j);
+    for (let i=0; i<n; i++) drawEmptyHU(p.x + (i - (n - 1)/2)*2.2, p.y - (i - (n - 1)/2)*2.2, 1, i === n - 1 ? 0.15 : 0);
+    if (n > 1){ const bx = p.x + 13, by = p.y + 9; circ(bx, by, 5.5, '#0e131d'); ctx.fillStyle = '#c7d0de'; ctx.font = `800 7.5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(n, bx, by + 2.7); } }
+  if (e.n > NS*EB.per){ ctx.fillStyle = '#8a96ad'; ctx.font = `700 8px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(`+${e.n - NS*EB.per}`, g.stack(NS - 1).x + 13, g.stack(NS - 1).y + 18); }
+  // waiting at the infeed (the one on the gantry is not counted any more)
+  for (let i=0; i<Math.min(2, e.atIn); i++) drawEmptyHU(g.inP.x + i*32 - 0, g.dockY);
+  // ---- over: gantry rails, travelling bridge, carriage with the crate it carries
+  const top = y + 30, bot = y + h - 2, gp = ebGantry(g);
+  ctx.fillStyle = '#3a4560'; ctx.fillRect(x + 2, top - 2, w - 4, 4); ctx.fillRect(x + 2, bot - 2, w - 4, 3);
+  ctx.fillStyle = '#ffc53d'; for (let i = x + 2; i < x + w - 2; i += 8){ ctx.fillRect(i, top - 2, 4, 1.2); }
+  box(gp.x - 3.5, top - 3, 7, bot - top + 4, 2, '#ff8a1f'); ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(gp.x - 2.5, top - 2, 1.4, bot - top + 2);
+  const sc = 0.75 + gp.z*0.35;
+  if (gp.carry) drawEmptyHU(gp.x, gp.y, 0.9 + gp.z*0.12, gp.z);
+  ctx.save(); ctx.translate(gp.x, gp.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(2 + gp.z*3, 3 + gp.z*3, 7*sc, 5*sc, 0, 0, 7); ctx.fill();
+  ctx.scale(sc, sc);
+  box(-8, -7, 16, 14, 3, 'rgba(44,56,80,0.92)');
+  const open = gp.carry ? 13 : 16; ctx.fillStyle = '#c7d0de'; ctx.fillRect(-open - 1, -3, 2, 6); ctx.fillRect(open - 1, -3, 2, 6);
+  ctx.fillRect(-open, -0.8, open*2, 1.6);
+  circ(0, -1, 3, '#c7d0de'); circ(0, -1, 1.3, '#ff8a1f');
+  ctx.restore();
+  ctx.restore();
+}
+// moving empties: on the loop and down the chute (drawn above the station cells)
+function drawEmptiesMoving(){
+  const g = ebGeo(), e = G.eb; if (!g || !e) return;
+  for (const m of G.empties){ const q = along(m.path, m.path.d); drawEmptyHU(q.x, q.y); }
+  const c = G.st.commission;
+  for (const d of e.drops){ const s = ebInSlot(c, d.hu), k = ease(clamp(d.t, 0, 1));
+    const px = g.outP.x + (s.x - g.outP.x)*k, py = g.outP.y + (s.y - g.outP.y)*k;
+    if (k < 0.85) drawEmptyHU(px, py, 1 - 0.6*k);
+    else { const o = d.hu.order; rr(px - 5.5, py - 4.5, 11, 9, 2); ctx.fillStyle = o ? o.color : '#5a6884'; ctx.fill(); } }
 }
 function drawRobot(r, t){
   ctx.save(); ctx.translate(r.x, r.y);
@@ -1290,7 +1421,7 @@ function complete(st, hu){
 }
 
 function ship(hu){
-  const o = hu.order; o.shipped = true; hu.gone = true;
+  const o = hu.order; o.shipped = true; hu.gone = true; if (!hu.pallet) emptyBack(G.st.pack);
   G.hus.splice(G.hus.indexOf(hu), 1); G.orders.splice(G.orders.indexOf(o), 1);
   if (G.selected === hu) G.selected = null;
   const services = Object.keys(o.steps).filter(k => k !== 'pick' && k !== 'pack' && k !== 'receive' && o.steps[k] === 'done').length;
@@ -1309,6 +1440,7 @@ function ship(hu){
 }
 
 function isReady(st, hu){
+  if (hu.dropping) return false;
   if (!st.def.needsTotes || hu.kind || hu.pallet) return true;
   const o = hu.order; return o.lines.every(l => l.state === 'atPick' || l.state === 'picked') && o.lines.some(l => l.state === 'atPick');
 }
@@ -1393,7 +1525,7 @@ function update(dt){
         const sel = G.selected, s0 = G.silent; G.silent = true; dispatch(hu, t[0]); G.silent = s0; if (sel && sel !== hu) G.selected = sel; break; }
     }
   }
-  updateRobots(dt); updateCrane(dt); updateMovers(dt);
+  updateRobots(dt); updateCrane(dt); updateMovers(dt); updateEB(dt);
   updateBack(RETRIEVE_SPEED*(1 + 0.4*(wu.shuttle||0))*dt);
   for (const f of G.fetch){ f.path.d += RETRIEVE_SPEED*(1 + 0.4*(wu.shuttle||0))*dt; if (f.path.d >= f.path.len){ f.line.state = 'atPick'; f.done = true; } }
   G.fetch = G.fetch.filter(f => !f.done);
@@ -1416,7 +1548,7 @@ function update(dt){
       if (!s.done){ s.t += dt; if (s.t >= s.dur){ s.done = true; complete(st, s.hu); if (s.lines) sendTotesBack(st, i, s.lines, s.hu.order.color); } }
       if (s.done){
         const hu = s.hu;
-        if (st.def.accepts){ removeObj(hu); st.slots[i] = null;
+        if (st.def.accepts){ removeObj(hu); st.slots[i] = null; if (st.id === 'retoure') emptyBack(st);
           const fx = st.dock.x + (st.side === 'right' ? 60 : 20);
           if (hu.kind === 'stock' || hu.kind === 'pstock'){ G.stocked++; G.money += INBOUND.stockPay; G.earned += INBOUND.stockPay; floatText(fx, st.dock.y-16, `Restocked +$${INBOUND.stockPay}`, '#3ddc84'); }
           else floatText(fx, st.dock.y-16, st.def.role === 'storage' ? 'Stored ✓' : 'Returned ✓', '#3ddc84');
@@ -1825,6 +1957,7 @@ const palletReroutable = m => m.state === 'load' || m.state === 'toHold' || (m.s
 function dispatchPallet(hu, st){
   if (hu.loc === 'carried'){
     if (st.def.id === 'warehouse'){ toast('The Shuttle Warehouse only takes totes. Pallets are stored in the High-Bay Warehouse.', 'bad'); sfx('error'); return false; }
+    if (!st.bay && st.def.place !== 'hbw'){ toast('Pallets skip Commissioning.', 'bad'); sfx('error'); return false; }
     if (hu.dest === st){ G.selected = null; return true; }
     if (!hasRoom(st)){ toast(`${st.def.name} is full. Wait or choose another route.`, 'bad'); sfx('error'); return false; }
     if (hu.dest) hu.dest.incoming--;
@@ -1834,6 +1967,7 @@ function dispatchPallet(hu, st){
     return true;
   }
   if (st.def.id === 'warehouse'){ toast('The Shuttle Warehouse only takes totes. Pallets are stored in the High-Bay Warehouse.', 'bad'); sfx('error'); return false; }
+  if (!st.bay && st.def.place !== 'hbw'){ toast('Pallets skip Commissioning.', 'bad'); sfx('error'); return false; }
   if (hu.loc === 'await' && hu.dest === st){ G.selected = null; return true; }
   if (!hasRoom(st)){ toast(`${st.def.name} is full. Wait or choose another route.`, 'bad'); sfx('error'); return false; }
   if (hu.loc === 'await' && hu.dest) hu.dest.incoming--;
@@ -3048,7 +3182,8 @@ function drawStation(st, t){
   const qsp = Math.min(14, (L.bot - L.top - 10)/Math.max(1, st.queueMax));
   for (let i=0; i<st.queueMax; i++){
     const px = L.inX + L.inW/2, py = L.top + 8 + i*qsp;
-    if (i < st.queue.length){ const q = st.queue[i], c = q.kind === 'stock' || q.kind === 'pstock' ? '#c98a4b' : q.kind === 'scrap' ? '#8a3a46' : q.order.color;
+    if (i < st.queue.length && st.queue[i].dropping){ rr(px - 5.5, py - 4.5, 11, 9, 2); ctx.strokeStyle = '#8a96ad'; ctx.lineWidth = 1.3; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]); }
+    else if (i < st.queue.length){ const q = st.queue[i], c = q.kind === 'stock' || q.kind === 'pstock' ? '#c98a4b' : q.kind === 'scrap' ? '#8a3a46' : q.order.color;
       rr(px - 5.5, py - 4.5, 11, 9, 2);
       if (isReady(st, q)){ ctx.fillStyle = c; ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(px - 5.5, py + 1, 11, 3.5); } else { ctx.strokeStyle = c; ctx.lineWidth = 1.6; ctx.stroke(); } }
     else if (i < st.queue.length + st.incoming){ rr(px - 5.5, py - 4.5, 11, 9, 2); ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 1.3; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]); }
@@ -3274,11 +3409,12 @@ function render(t){
   drawWarehouse(t);
   drawLoop(t); drawBays(t);
   G.stations.forEach(st => drawSpur(st, t));
+  drawEmptyBuffer(t);
   drawBoard(); drawDispatchBoard(); drawTruck(t); drawServiceRoom(t);
   // transporters near the truck crossing are drawn again on top of the crossing paint
   if (G.roads) (G.movers||[]).forEach(m => { if (m.x > ROAD.x1 - ROAD.half - 40 && m.y > DOCK.y0 - 40 && m.y < DOCK.y1 + 40) drawMover(m, t); });
   G.stations.forEach(st => drawStation(st, t));
-  drawBackTotes();
+  drawBackTotes(); drawEmptiesMoving();
   (G.workers || []).forEach(k => drawWorker(k, t));
   // transit HUs
   for (const hu of G.hus){
