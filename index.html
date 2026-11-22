@@ -61,6 +61,7 @@ button{font:inherit;color:inherit}
 .oc.inbox.blocked{opacity:.6}
 .oc{border-left-width:5px}
 .oc.late{box-shadow:0 0 0 2px var(--bad)}
+.oc.spot{box-shadow:0 0 0 2px var(--accent),0 0 12px rgba(255,138,31,.5)}
 .oc.shake{animation:shake .35s}
 @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 .oc-h{display:flex;align-items:center;gap:6px;font-size:12.5px}
@@ -329,10 +330,8 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
     </div>
   </header>
   <aside id="side">
-    <h3>Incoming orders <span id="inCount">0</span></h3>
-    <div id="inbox"></div>
-    <h3>In process <span id="actCount">0</span></h3>
-    <div id="active"></div>
+    <h3>Orders <span id="ordCount">0</span></h3>
+    <div id="orders"></div>
   </aside>
   <main id="floor">
     <canvas id="cv"></canvas>
@@ -347,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-16';
+const GAME_VERSION = '2026.11.22-17';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -938,7 +937,7 @@ function startShift(idx){
   G.st = Object.fromEntries(G.stations.map(s => [s.id, s]));
   layoutStations();
   Object.assign(G, { time:0, shipped:0, onTime:0, lateShip:0, wrong:0, defects:0, sat:100, orders:[], hus:[], floats:[], flyers:[], dockStack:[], dockT:0,
-    seq: 0, huSeq:0, nextSpawn:2, spawned:0, bays:BAYS.map(() => ({ units:[], incoming:0 })), crane:null, autoRouted:0, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
+    seq: 0, huSeq:0, nextSpawn:2, spawned:0, bays:BAYS.map(() => ({ units:[], incoming:0 })), crane:null, autoRouted:0, fetch:[], jobs:[], robots:[], inbound:[], stockT:INBOUND.firstStock, stocked:0, hoverOrder:null, spotOrder:null, selected:null, startMoney:G.money, earned:0, shippedLog:[], goalToast:false,
     truck:newTruck(), truckOut:null });
   G.convSpeed = 210 * (1 + 0.15*G.global.conveyor);
   resetPallets(); ebInit();
@@ -1659,9 +1658,10 @@ function autoRoute(st, dt){
 }
 function drawAutoBadge(st, x, y){
   const a = st.auto; if (!a || !a.level) return;
-  st.badge = { x, y, w:54, h:15 };
+  const w = a.exceptions ? 64 : 56;
+  st.badge = { x, y, w, h:15 };
   if (a.state !== 'ok') return drawBrokenBadge(st, x, y);
-  const w = 54, pulse = a.pulse > 0 ? a.pulse/0.7 : 0;
+  const pulse = a.pulse > 0 ? a.pulse/0.7 : 0;
   ctx.save();
   if (pulse){ ctx.shadowColor = '#3ddc84'; ctx.shadowBlur = 12*pulse; }
   rr(x, y, w, 15, 5); ctx.fillStyle = a.state === 'ok' ? '#10251b' : '#2a1414'; ctx.fill(); ctx.shadowColor = 'transparent';
@@ -1671,7 +1671,7 @@ function drawAutoBadge(st, x, y){
   ctx.save(); rr(x, y, w, 15, 5); ctx.clip(); ctx.fillStyle = 'rgba(61,220,132,0.18)'; ctx.fillRect(x, y, w*k, 15); ctx.restore();
   ctx.fillStyle = a.exceptions ? '#ffc53d' : '#3ddc84'; ctx.font = `800 8.5px ${FONT}`; ctx.textAlign = 'left';
   ctx.fillText(a.exceptions ? 'AUTO+' : 'AUTO', x+6, y+10.5);
-  for (let i=0; i<3; i++){ ctx.beginPath(); ctx.arc(x + w - 20 + i*6, y+7.5, 2, 0, 7); ctx.fillStyle = i < a.level ? (a.exceptions ? '#ffc53d' : '#3ddc84') : '#2c3850'; ctx.fill(); }
+  for (let i=0; i<3; i++){ ctx.beginPath(); ctx.arc(x + w - 19 + i*6, y+7.5, 2, 0, 7); ctx.fillStyle = i < a.level ? (a.exceptions ? '#ffc53d' : '#3ddc84') : '#2c3850'; ctx.fill(); }
   ctx.restore();
 }
 
@@ -2263,7 +2263,7 @@ function drawHBW(t){
   for (const o of G.orders){ if (!o.pallet) continue; o.lines.forEach((l, li) => {
     const q = hbSlotPos(l.slot);
     if (l.state === 'stored'){
-      const hot = G.hoverOrder === o.id || (o.flashT && o.flashT > G.time) || (hoverRack && hoverRack.o === o), pulse = 0.5 + 0.5*Math.sin(t*5 + o.id);
+      const hot = G.hoverOrder === o.id || G.spotOrder === o.id || (o.flashT && o.flashT > G.time) || (hoverRack && hoverRack.o === o), pulse = 0.5 + 0.5*Math.sin(t*5 + o.id);
       ctx.save(); ctx.shadowColor = o.color; ctx.shadowBlur = hot ? 26 : 12 + pulse*10; rr(q.x-15, q.y-12, 30, 24, 5); ctx.fillStyle = hexA(o.color, 0.35); ctx.fill(); ctx.restore();
       ctx.strokeStyle = o.color; ctx.lineWidth = hot ? 3 : 2 + pulse; rr(q.x-15, q.y-12, 30, 24, 5); ctx.stroke();
       hbPallet(o, l, q.x, q.y, 0.8); hbTag(o, l, q);
@@ -2605,7 +2605,7 @@ function drawWarehouse(t){
   let req = 0;
   for (const o of G.orders) if (!o.pallet) o.lines.forEach((l, li) => {
     if (l.state !== 'stored') return; req++;
-    const q = rackPos(l.slot), hot = G.hoverOrder === o.id || (o.flashT && o.flashT > G.time) || (hoverRack && hoverRack.o === o);
+    const q = rackPos(l.slot), hot = G.hoverOrder === o.id || G.spotOrder === o.id || (o.flashT && o.flashT > G.time) || (hoverRack && hoverRack.o === o);
     const pulse = 0.5 + 0.5*Math.sin(t*5 + o.id);
     const sc = hot ? 1.25 : 1.1 + pulse*0.06;
     ctx.save(); ctx.shadowColor = o.color; ctx.shadowBlur = hot ? 26 : 12 + pulse*10;
@@ -3468,6 +3468,26 @@ function drawTruck(t){
 }
 
 let perfT = 0;
+// clicked order card: pulsing ring + marker on wherever the order's unit(s) are now
+function drawSpot(t){
+  if (G.spotOrder == null) return;
+  const o = G.orders.find(o => o.id === G.spotOrder); if (!o) return;
+  const pts = [];
+  for (const hu of G.hus){ if (hu.order !== o) continue;
+    const st = (hu.loc === 'queue' || hu.loc === 'slot') && G.stations.find(s => s.queue.includes(hu) || s.slots.some(x => x && x.hu === hu));
+    if (st) pts.push({ x:st.x, y:st.y, w:st.w, h:st.h });
+    else if (hu.px != null) pts.push({ x:hu.px, y:hu.py }); }
+  if (!pts.length && o.type !== 'new' && G.st.goodsin){ const s = G.st.goodsin; pts.push({ x:s.x, y:s.y, w:s.w, h:s.h }); }
+  const k = 0.5 + 0.5*Math.sin(t*6);
+  ctx.save(); ctx.strokeStyle = '#ff8a1f'; ctx.shadowColor = '#ff8a1f'; ctx.shadowBlur = 10 + 8*k; ctx.lineWidth = 3;
+  for (const p of pts){
+    let mx = p.x, my;
+    if (p.w){ rr(p.x - 4 - 3*k, p.y - 4 - 3*k, p.w + 8 + 6*k, p.h + 8 + 6*k, 12); ctx.stroke(); mx = p.x + p.w/2; my = p.y - 10 - 3*k; }
+    else { ctx.beginPath(); ctx.arc(p.x, p.y, 22 + 4*k, 0, 7); ctx.stroke(); my = p.y - 30 - 4*k; }
+    ctx.fillStyle = '#ff8a1f'; ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx - 8, my - 11); ctx.lineTo(mx + 8, my - 11); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
 function render(t){
   perfT = t;
   const d = view.dpr;
@@ -3509,6 +3529,7 @@ function render(t){
     ctx.strokeStyle = col; ctx.lineWidth = col.startsWith('#') ? 3 : 2; ctx.setLineDash([6,5]); ctx.lineDashOffset = -t*30;
     ctx.beginPath(); ctx.moveTo(s.px, s.py); ctx.lineTo(mouse.x, mouse.y); ctx.stroke(); ctx.setLineDash([]);
   }
+  drawSpot(t);
   // floats
   for (const f of G.floats){ ctx.globalAlpha = 1 - f.t/1.4; ctx.fillStyle = f.color; ctx.font = `900 15px ${FONT}`; ctx.textAlign = 'center';
     ctx.fillText(f.text, f.x, f.y - f.t*30); ctx.globalAlpha = 1; }
@@ -3542,17 +3563,17 @@ function orderParts(o, inbox){
 }
 // Cards are kept as persistent DOM nodes and patched in place (no flicker, hover stays stable)
 const cardEls = new Map();
-function syncList(container, orders, inbox, emptyText){
+function syncList(container, orders, emptyText){
   const keep = new Set();
   const els = orders.map(o => {
-    const key = (inbox ? 'i' : 'a') + o.id; keep.add(key);
+    const inbox = !o.hu, key = o.id; keep.add(key);
     let el = cardEls.get(key);
     if (!el){ el = document.createElement('div'); el.dataset.oid = o.id; cardEls.set(key, el);
       // card takes the colour of the order's handling unit
       el.style.background = `linear-gradient(100deg, ${hexA(o.color, 0.34)}, ${hexA(o.color, 0.12)} 70%), #1b2433`;
       el.style.borderColor = hexA(o.color, 0.55); el.style.borderLeftColor = o.color; }
     const p = orderParts(o, inbox);
-    const cls = p.cls + (el.classList.contains('shake') ? ' shake' : '');
+    const cls = p.cls + (el.classList.contains('shake') ? ' shake' : '') + (G.spotOrder === o.id ? ' spot' : '');
     if (el.className !== cls) el.className = cls;
     if (el._html !== p.html){ el.innerHTML = p.html; el._html = p.html; el._due = el.querySelector('.due'); el._bar = el.querySelector('.tbar div'); }
     if (el._due.textContent !== p.due) el._due.textContent = p.due;
@@ -3567,14 +3588,13 @@ function syncList(container, orders, inbox, emptyText){
     els.forEach((el, i) => { if (container.children[i] !== el) container.insertBefore(el, container.children[i] || null); });
     while (container.children.length > els.length) container.lastChild.remove();
   }
-  for (const [k, el] of cardEls) if (k[0] === (inbox ? 'i' : 'a') && !keep.has(k)){ el.remove(); cardEls.delete(k); }
+  for (const [k, el] of cardEls) if (!keep.has(k)){ el.remove(); cardEls.delete(k); }
 }
 function renderSide(){
-  const inbox = G.orders.filter(o => !o.hu).sort((a,b) => a.due-b.due);
-  const act = G.orders.filter(o => o.hu).sort((a,b) => a.due-b.due);
-  $('inCount').textContent = inbox.length; $('actCount').textContent = act.length;
-  syncList($('inbox'), inbox, true, 'Waiting for orders…');
-  syncList($('active'), act, false, 'Nothing in process.');
+  const all = G.orders.slice().sort((a,b) => a.due-b.due);
+  if (G.spotOrder != null && !G.orders.some(o => o.id === G.spotOrder)) G.spotOrder = null;
+  $('ordCount').textContent = all.length;
+  syncList($('orders'), all, 'Waiting for orders…');
 }
 function renderHUD(){
   const cfg = G.cfg; if (!cfg) return;
@@ -3675,6 +3695,7 @@ $('side').addEventListener('pointerdown', e => {
   AU.init(); Music.start();
   const card = e.target.closest('.oc'); if (!card) return;
   const o = G.orders.find(o => o.id === +card.dataset.oid); if (!o) return;
+  G.spotOrder = G.spotOrder === o.id ? null : o.id;
   if (o.lines.some(l => l.state === 'stored')){ o.flashT = G.time + 2; sfx('select');
     if (o.pallet){ if (!G.seenTips.findPallet){ G.seenTips.findPallet = true; toast('Click the order\'s glowing pallet in the High-Bay Warehouse.', ''); } }
     else if (!G.seenTips.findTotes){ G.seenTips.findTotes = true; toast('Click the order\'s glowing totes in the Shuttle Warehouse.', ''); } }
