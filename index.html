@@ -346,7 +346,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-19';
+const GAME_VERSION = '2026.11.22-20';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -2533,12 +2533,22 @@ function resize(){
 }
 // touch pinch zoom / two-finger pan of the hall (mobile); taps keep working through toWorld()
 function applyZoom(){
-  const z = view.uz = Math.min(4, Math.max(1, view.uz));
+  const z = view.uz = Math.min(ZMAX, Math.max(1, view.uz));
   view.ux = Math.min(0, Math.max(view.cw*(1 - z), view.ux)); view.uy = Math.min(0, Math.max(view.ch*(1 - z), view.uy));
   if (z === 1) view.ux = view.uy = 0;
   view.s = view.bs*z; view.ox = view.bx*z + view.ux; view.oy = view.by*z + view.uy;
 }
-const touches = new Map(); let pinch = null;
+const touches = new Map(); let pinch = null, pan = null, lastTap = null; const ZMAX = 8;
+function zoomAt(mx, my, z){ z = Math.min(ZMAX, Math.max(1, z)); view.ux = mx - (mx - view.ux)*z/view.uz; view.uy = my - (my - view.uy)*z/view.uz; view.uz = z; applyZoom(); }
+// tap on empty floor: double tap zooms in 2x around that spot (at max zoom it resets); when zoomed, dragging the floor pans
+function emptyTap(p){
+  const now = performance.now();
+  if (lastTap && now - lastTap.t < 380 && Math.hypot(p.cx - lastTap.x, p.cy - lastTap.y) < 40){ lastTap = null; pan = null;
+    if (view.uz >= ZMAX - 0.01) zoomAt(p.cx, p.cy, 1); else zoomAt(p.cx, p.cy, view.uz*2); return; }
+  lastTap = { t:now, x:p.cx, y:p.cy };
+  if (view.uz > 1) pan = { x:p.cx, y:p.cy, ux:view.ux, uy:view.uy };
+}
+cv.addEventListener('wheel', e => { e.preventDefault(); const r = cv.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, view.uz*Math.exp(-e.deltaY*0.002)); }, { passive:false });
 function pinchState(){ const [a, b] = [...touches.values()]; return { d:Math.max(10, Math.hypot(a.x-b.x, a.y-b.y)), mx:(a.x+b.x)/2, my:(a.y+b.y)/2 }; }
 function placeMsgs(r, mode, hw, hh, spareR, spareB){
   const m = $('msgs'); if (!m) return;
@@ -3677,7 +3687,7 @@ function selectHU(hu){ if (G.selected !== hu){ G.selected = hu; sfx('select'); }
 cv.addEventListener('pointerdown', e => {
   AU.init(); Music.start();
   if (e.pointerType === 'touch'){ const r = cv.getBoundingClientRect(); touches.set(e.pointerId, { x:e.clientX - r.left, y:e.clientY - r.top });
-    if (touches.size >= 2){ const q = pinchState(); pinch = { ...q, uz:view.uz, ux:view.ux, uy:view.uy }; drag = null; return; } }
+    if (touches.size >= 2){ const q = pinchState(); pinch = { ...q, uz:view.uz, ux:view.ux, uy:view.uy }; drag = null; pan = null; lastTap = null; return; } }
   if (pinch) return;
   if (G.mode !== 'play') return;
   const p = toWorld(e); mouse.x = p.x; mouse.y = p.y; mouse.inside = true;
@@ -3693,12 +3703,15 @@ cv.addEventListener('pointerdown', e => {
   if (rk){ if (!retrieve(rk.o, rk.li)) G.selected = null; return; }
   if (st && G.selected){ dispatch(G.selected, st); return; }
   G.selected = null;
+  emptyTap(p); if (pan) cv.setPointerCapture(e.pointerId);
 });
 cv.addEventListener('pointermove', e => {
   if (touches.has(e.pointerId)){ const r = cv.getBoundingClientRect(); touches.set(e.pointerId, { x:e.clientX - r.left, y:e.clientY - r.top });
-    if (pinch && touches.size >= 2){ const q = pinchState(), z = Math.min(4, Math.max(1, pinch.uz*q.d/pinch.d));
+    if (pinch && touches.size >= 2){ const q = pinchState(), z = Math.min(ZMAX, Math.max(1, pinch.uz*q.d/pinch.d));
       view.uz = z; view.ux = q.mx - (pinch.mx - pinch.ux)*z/pinch.uz; view.uy = q.my - (pinch.my - pinch.uy)*z/pinch.uz; applyZoom(); return; } }
   if (pinch) return;
+  if (pan && e.buttons){ const r = cv.getBoundingClientRect(); view.ux = pan.ux + e.clientX - r.left - pan.x; view.uy = pan.uy + e.clientY - r.top - pan.y; applyZoom();
+    if (Math.hypot(e.clientX - r.left - pan.x, e.clientY - r.top - pan.y) > 12) lastTap = null; return; }
   const p = toWorld(e); mouse.x = p.x; mouse.y = p.y; mouse.inside = true;
   if (drag && Math.hypot(p.x-drag.x, p.y-drag.y) > 8) drag.moved = true;
   hoverHU = drag ? null : hitHU(p); hoverSt = hitStation(p);
@@ -3707,8 +3720,9 @@ cv.addEventListener('pointermove', e => {
   showTooltip(hoverHU, p.cx, p.cy, hoverRack);
 });
 const touchEnd = e => { touches.delete(e.pointerId); if (touches.size < 2 && pinch){ if (!touches.size) pinch = null; return true; } return !!pinch; };
-cv.addEventListener('pointercancel', e => { touchEnd(e); drag = null; });
+cv.addEventListener('pointercancel', e => { touchEnd(e); drag = null; pan = null; });
 cv.addEventListener('pointerup', e => {
+  pan = null;
   if (touchEnd(e)){ drag = null; return; }
   if (drag && drag.moved){ const st = hitStation(toWorld(e)); if (st && G.selected === drag.hu) dispatch(drag.hu, st); }
   drag = null;
