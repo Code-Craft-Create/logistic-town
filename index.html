@@ -348,7 +348,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.21-50';
+const GAME_VERSION = '2026.11.22-1';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -612,7 +612,7 @@ const STATIONS = [
     desc:'Hochregallager for Euro pallets with oversize tools (compressors, welders, table saws). Click a glowing pallet: the stacker crane brings it to the pallet I/O. Pallets skip Commissioning and go straight to their first service or to Packing. Transporters with a driver move pallets over the hall roads to every station\'s pallet bay. New pallets from Goods-in are stored here.' },
   { id:'commission', brief:'Picks each order into its handling unit.', name:'Commissioning', icon:'box', color:'#4f8cff', handles:'pick', place:'left', needsTotes:true,
     slots:1, time:5, queue:4, out:3, defect:{ chance:0.07, reason:'Wrong item picked', redo:true, returnTote:true },
-    desc:'Picks the tools from the delivered totes into an order-specific handling unit (HU). Starts once all of the order\'s totes have arrived.' },
+    desc:'Takes one tool out of each delivered tote (they hold several pieces) and puts it into an order-specific handling unit (HU). The totes then go back to the Shuttle Warehouse on their own. Starts once all of the order\'s totes have arrived.' },
   { id:'goodsin', brief:'Customer returns and new stock arrive here.', name:'Goods-in', icon:'goodsin', color:'#c98a4b', handles:'receive', role:'source', noKey:true,
     slots:1, time:3.5, queue:3, out:3,
     desc:'Wareneingang. Trucks unload here on their own: new stock (cardboard boxes) goes to the Shuttle Warehouse, cutting tools sent back by customers go to Regrinding, measuring tools sent back go to the Calibration Lab. Keep its OUT tray clear.' },
@@ -967,6 +967,7 @@ function makeOrder(){
   o.focus = activeHas('care') && Math.random() < 0.28;
   // returned tools travel in the customer's parcel (already 'picked' into the HU); new orders wait in the rack
   o.lines = items.map(item => returns ? { item, state:'picked', slot:null } : { item, state:'stored', slot:pallet ? hbwSlot() : freeRackSlot() });
+  if (!pallet && !returns) o.lines.forEach(l => l.qty = stockQty(l.slot));
   let allow = cfg.slack;
   for (const [sid, s] of Object.entries(STEPS)){
     const stId = STEP_STATION[sid]; if (!stId || !activeHas(stId)) continue;
@@ -991,9 +992,14 @@ function rackPos(sl){ const ax = WH.x+14 + sl.a*RACK.aw, rw = RACK.aw*0.34;
   return { x: ax + sl.side*(RACK.aw*0.62) + 2 + rw/2, y: RACK.top + sl.l*RACK.lh + (RACK.lh-3)/2 }; }
 function freeRackSlot(){
   const used = new Set(); (G.orders||[]).forEach(o => (o.lines||[]).forEach(l => !o.pallet && l.state==='stored' && l.slot && used.add(l.slot.a+'-'+l.slot.l+'-'+l.slot.side)));
+  (G.back||[]).forEach(b => used.add(rackKey(b.slot)));
   for (let i=0; i<60; i++){ const sl = { a:randInt(0,RACK.aisles-1), l:randInt(0,RACK.levels-1), side:randInt(0,1) }; if (!used.has(sl.a+'-'+sl.l+'-'+sl.side)) return sl; }
   return { a:0, l:0, side:0 };
 }
+// Source totes hold several pieces of the same tool (2-4, mostly 3). Commissioning takes one out; the rest goes back into the rack.
+// The count is kept per rack slot, so a tote that is requested again has one piece less. An emptied tote is refilled from stock.
+function rackKey(sl){ return sl.a+'-'+sl.l+'-'+sl.side; }
+function stockQty(sl){ G.rackQty = G.rackQty || {}; const k = rackKey(sl); if (!G.rackQty[k]) G.rackQty[k] = pick([2,3,3,3,3,4]); return G.rackQty[k]; }
 function linesDone(o){ return o.lines.filter(l => l.state==='atPick' || l.state==='picked').length; }
 // Click on a glowing tote: the shuttle brings it to Commissioning. The first tote opens the order's HU there.
 function retrieve(o, li){
@@ -1024,6 +1030,11 @@ function updateRobots(dt){
   const sp = ROBOT.speed * (1 + 0.4*((G.upgrades.warehouse||{}).shuttle || 0)), c = G.st.commission;
   for (const r of G.robots){
     if (r.state === 'idle' || r.state === 'homing'){
+      // a picked tote waits at the bottom of the lift: put it back into its rack slot (fetching new totes goes first unless returns pile up)
+      const head = G.back.find(b => b.wait && !b.robot);
+      if (head && (!G.jobs.length || G.back.filter(b => !b.robot).length >= 3)){
+        head.robot = r; r.back = head; robotGo(r, [{ x:r.x, y:DOCK_Y }, { x:LIFT_X, y:DOCK_Y }], 'toBack'); continue;
+      }
       if (G.jobs.length){ // take the next job
         const job = G.jobs.shift(); if (job.line.state !== 'queued'){ continue; }
         job.line.state = 'retrieving'; r.job = job;
@@ -1040,8 +1051,18 @@ function updateRobots(dt){
       if (r.state === 'toSlot'){ r.state = 'grab'; r.t = ROBOT.grab; }
       else if (r.state === 'toLift'){ r.state = 'drop'; r.t = ROBOT.drop; }
       else if (r.state === 'homing'){ r.state = 'idle'; }
+      else if (r.state === 'toBack'){ r.state = 'grabBack'; r.t = ROBOT.drop; }
+      else if (r.state === 'toStow'){ r.state = 'stow'; r.t = ROBOT.grab; }
       continue;
     }
+    if (r.state === 'grabBack'){ r.t -= dt; if (r.t <= 0){
+      const b = r.back; b.carried = true; r.carry = true; const ax = aisleX(b.slot.a), q = rackPos(b.slot);
+      robotGo(r, [{ x:ax, y:DOCK_Y }, { x:ax, y:q.y }], 'toStow'); } continue; }
+    if (r.state === 'stow'){ r.t -= dt; if (r.t <= 0){
+      const b = r.back, k = rackKey(b.slot); G.rackQty = G.rackQty || {};
+      if (b.qty > 0) G.rackQty[k] = b.qty; else delete G.rackQty[k];
+      G.back.splice(G.back.indexOf(b), 1); r.back = null; r.carry = false;
+      robotGo(r, [{ x:r.x, y:DOCK_Y }, robotHome(r.i)], 'homing'); } continue; }
     if (r.state === 'grab'){ r.t -= dt; if (r.t <= 0){ r.carry = true; robotGo(r, [{ x:r.x, y:DOCK_Y }, { x:LIFT_X, y:DOCK_Y }], 'toLift'); } }
     else if (r.state === 'drop'){ r.t -= dt; if (r.t <= 0){
       r.carry = false; const job = r.job; r.job = null;
@@ -1051,11 +1072,53 @@ function updateRobots(dt){
     } }
   }
 }
+// ---- picked source totes go back: out of the pick port, along the return belt, down the lift; a shuttle stows them
+const BACK_GAP = 22;
+function returnBeltY(c){ return c.y + c.h - 16; }
+// where the source totes stand in a Commissioning lane (same geometry as BODIES.commission)
+function commTotePos(st, li, i, N){
+  const L = cellLayout(st), nL = Math.max(1, st.slotCount), sc = Math.min(1, 1.48/nL), laneH = L.mh/nL, bh = laneH/sc;
+  const tH = Math.min(30, (bh - 18)/Math.max(N, 2) - 4);
+  return { x:L.mx + 18*sc, y:L.my + li*laneH + (10 + tH/2 + i*(tH + 4))*sc, top:L.my + li*laneH, sc };
+}
+function sendTotesBack(st, li, lines, color){
+  G.back = G.back || [];
+  const ry = returnBeltY(st), N = lines.length;
+  // lowest tote first: it reaches the belt first
+  for (let i = N - 1; i >= 0; i--){ const l = lines[i]; if (!l.slot) continue;
+    const p = commTotePos(st, li, i, N), path = mkPath([{ x:p.x, y:p.top }, { x:p.x, y:ry }, { x:LIFT_X, y:ry }, { x:LIFT_X, y:DOCK_Y }], -1);
+    path.d = p.y - p.top;
+    G.back.push({ slot:{ ...l.slot }, qty:Math.max(0, (l.qty || 1) - 1), color:color || '#5a6680', icon:l.item.icon, path, wait:false, robot:null, carried:false });
+    l.qty = Math.max(0, (l.qty || 1) - 1);
+  }
+}
+function updateBack(step){
+  G.back = G.back || [];
+  let prevRem = -Infinity;   // remaining belt distance of the tote ahead (totes share the last part of the path)
+  for (const b of G.back){
+    if (b.carried) continue;
+    // the lift carries one tote at a time: while it is busy, the next tote waits at the top of the shaft
+    const lift = b.path.len - b.path.cum[b.path.cum.length - 2], rem = b.path.len - b.path.d;
+    const minRem = prevRem === -Infinity ? 0 : Math.max(prevRem + BACK_GAP, prevRem < lift ? lift : 0);
+    if (rem > minRem) b.path.d = Math.min(b.path.len - minRem, b.path.d + step);
+    b.wait = b.path.d >= b.path.len - 0.01;
+    prevRem = b.path.len - b.path.d;
+  }
+}
+function drawBackTotes(){
+  for (const b of (G.back || [])){ if (b.carried) continue; const q = along(b.path, b.path.d);
+    drawTote(q.x, q.y, b.color, b.icon, false, false, false, false, b.qty); }
+}
 function drawRobot(r, t){
   ctx.save(); ctx.translate(r.x, r.y);
   const busy = r.state !== 'idle', bob = busy ? Math.sin(t*22 + r.i)*0.6 : 0;
   // grab arm reaching into the rack
   if (r.state === 'grab' && r.job){ const k = 1 - r.t/ROBOT.grab, side = r.job.line.slot.side ? 1 : -1, reach = 13*Math.sin(Math.min(1,k)*Math.PI);
+    ctx.fillStyle = '#9aa6bb'; ctx.fillRect(side > 0 ? 0 : -reach, -1.5, reach, 3); }
+  // stowing a picked tote: the arm pushes it from the robot's deck into its rack slot
+  let stowK = -1, stowQ = null;
+  if (r.state === 'stow' && r.back){ stowK = ease(clamp(1 - r.t/ROBOT.grab, 0, 1)); const q = rackPos(r.back.slot); stowQ = { x:q.x - r.x, y:q.y - r.y };
+    const reach = Math.abs(stowQ.x)*Math.min(1, stowK*1.15), side = stowQ.x > 0 ? 1 : -1;
     ctx.fillStyle = '#9aa6bb'; ctx.fillRect(side > 0 ? 0 : -reach, -1.5, reach, 3); }
   ctx.translate(0, bob);
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1.5;
@@ -1067,7 +1130,10 @@ function drawRobot(r, t){
   const lamp = r.state === 'idle' ? '#3ddc84' : (Math.floor(t*6 + r.i) % 2 ? '#ffc53d' : '#fff3c4');
   ctx.fillStyle = lamp; ctx.beginPath(); ctx.arc(r.dir*2.5, -1.5, 1.3, 0, 7); ctx.fill();
   ctx.fillStyle = '#ffd9b0'; ctx.fillRect(-1, -9, 2, 3); ctx.fillStyle = lamp; ctx.fillRect(-1.5, -10, 3, 1.5);
-  if (r.carry && r.job){ ctx.save(); ctx.translate(0, -12); ctx.scale(0.72, 0.72); drawTote(0, 0, r.job.o.color, r.job.line.item.icon, false, false, false); ctx.restore(); }
+  if (r.carry && r.job){ ctx.save(); ctx.translate(0, -12); ctx.scale(0.72, 0.72); drawTote(0, 0, r.job.o.color, r.job.line.item.icon, false, false, false, false, r.job.line.qty); ctx.restore(); }
+  if (r.carry && r.back){ const b = r.back, k = Math.max(0, stowK); ctx.save();
+    if (stowQ) ctx.translate(stowQ.x*k, -12 + (stowQ.y - bob + 12)*k); else ctx.translate(0, -12);
+    ctx.scale(0.72 + 0.28*k, 0.72 + 0.28*k); drawTote(0, 0, b.color, b.icon, false, false, false, false, b.qty); ctx.restore(); }
   ctx.restore();
 }
 function rackHit(p){
@@ -1151,7 +1217,7 @@ function complete(st, hu){
     const f = hu.flag; hu.flag = null;
     if (f && f.line != null){
       // wrong item: send the wrong tote back to storage, the order needs a fresh tote + a re-pick
-      const line = o.lines[f.line]; line.state = 'stored'; line.slot = freeRackSlot();
+      const line = o.lines[f.line]; line.state = 'stored'; line.slot = freeRackSlot(); line.qty = stockQty(line.slot);
       const tote = { id:++G.huSeq, kind:'tote', order:o, item:line.item, flag:null, loc:'out' };
       G.hus.push(tote);
       if (st.out.length < st.outMax){ st.out.push(tote); } else circle(tote, st.port.s);
@@ -1167,7 +1233,7 @@ function complete(st, hu){
     if (f && d.issue && o.type === 'new' && !o.pallet && Math.random() < d.issue.chance){
       // not fixable: the item is defective -> goes to Retoure, a replacement must be commissioned
       const li = Math.floor(Math.random()*o.lines.length), line = o.lines[li];
-      line.state = 'stored'; line.slot = freeRackSlot(); o.steps.pick = 'todo';
+      line.state = 'stored'; line.slot = freeRackSlot(); line.qty = stockQty(line.slot); o.steps.pick = 'todo';
       const scrap = { id:++G.huSeq, kind:'scrap', order:o, item:line.item, flag:null, loc:'out' };
       G.hus.push(scrap);
       if (st.out.length < st.outMax) st.out.push(scrap); else circle(scrap, st.port.s);
@@ -1314,6 +1380,7 @@ function update(dt){
     }
   }
   updateRobots(dt); updateCrane(dt); updateMovers(dt);
+  updateBack(RETRIEVE_SPEED*(1 + 0.4*(wu.shuttle||0))*dt);
   for (const f of G.fetch){ f.path.d += RETRIEVE_SPEED*(1 + 0.4*(wu.shuttle||0))*dt; if (f.path.d >= f.path.len){ f.line.state = 'atPick'; f.done = true; } }
   G.fetch = G.fetch.filter(f => !f.done);
   // stations
@@ -1328,10 +1395,11 @@ function update(dt){
         if (qi >= 0){ const hu = st.queue.splice(qi, 1)[0]; hu.loc = 'slot';
           let dur = st.def.time*st.speedMul*rand(0.88,1.12);
           if (st.def.needsTotes && !hu.pallet){ const o = hu.order; dur *= 0.45 + 0.55*o.lines.filter(l => l.state==='atPick').length/o.lines.length; }
-          s = st.slots[i] = { hu, t:0, dur, done:false, blocked:false }; }
+          s = st.slots[i] = { hu, t:0, dur, done:false, blocked:false };
+          if (st.def.needsTotes && !hu.pallet && hu.order) s.lines = hu.order.lines.filter(l => l.state === 'atPick'); }
       }
       if (!s) continue;
-      if (!s.done){ s.t += dt; if (s.t >= s.dur){ s.done = true; complete(st, s.hu); } }
+      if (!s.done){ s.t += dt; if (s.t >= s.dur){ s.done = true; complete(st, s.hu); if (s.lines) sendTotesBack(st, i, s.lines, s.hu.order.color); } }
       if (s.done){
         const hu = s.hu;
         if (st.def.accepts){ removeObj(hu); st.slots[i] = null;
@@ -2306,7 +2374,9 @@ function drawWarehouse(t){
   syncRobots(); for (const r of G.robots){ const hm = robotHome(r.i); ctx.fillStyle = r.state === 'idle' ? 'rgba(61,220,132,0.35)' : '#2a3446'; ctx.fillRect(hm.x-6, DOCK_Y+7, 12, 2); }
   // lift: follows the tote that is riding it
   const liftX = LIFT_X - 10; let ly = DOCK_Y - 7;
-  for (const f of G.fetch){ const q = along(f.path, f.path.d); if (Math.abs(q.x - LIFT_X) < 0.5){ ly = q.y - 7; break; } }
+  let onLift = false;
+  for (const f of G.fetch){ const q = along(f.path, f.path.d); if (Math.abs(q.x - LIFT_X) < 0.5){ ly = q.y - 7; onLift = true; break; } }
+  if (!onLift) for (const b of (G.back || [])){ if (b.carried) continue; const q = along(b.path, b.path.d); if (Math.abs(q.x - LIFT_X) < 0.5 && q.y > (c ? returnBeltY(c) : 0) + 1){ ly = q.y - 7; break; } }
   if (c) ctx.fillStyle = '#0f141c', ctx.fillRect(liftX+8, Math.min(cy, top), 4, DOCK_Y - Math.min(cy, top));
   ctx.fillStyle = '#ff8a1f'; ctx.fillRect(liftX, ly, 20, 14); ctx.fillStyle = '#c4620b'; ctx.fillRect(liftX, ly+11, 20, 3);
   const busyN = G.robots.filter(r => r.state !== 'idle' && r.state !== 'homing').length;
@@ -2314,7 +2384,9 @@ function drawWarehouse(t){
   if (!G.jobs.length) ctx.fillText('Order totes → Commissioning', x+14, y+h-26);
   else { ctx.fillStyle = '#ffb15c'; ctx.fillText(`${G.jobs.length} tote${G.jobs.length>1?'s':''} waiting for a shuttle`, x+14, y+h-26); }
   // feeder belt to commissioning
-  if (c){ conveyorSeg(x+w-30, cy, c.x, cy, 22, t, 1); }
+  if (c){ conveyorSeg(x+w-30, cy, c.x, cy, 22, t, 1);
+    // return belt: picked source totes go back to the lift
+    const ry = returnBeltY(c); conveyorSeg(c.x, ry, x+w-30, ry, 18, t, 1); }
   // requested totes (clickable)
   const ws = G.st.warehouse;
   let req = 0;
@@ -2326,7 +2398,7 @@ function drawWarehouse(t){
     ctx.save(); ctx.shadowColor = o.color; ctx.shadowBlur = hot ? 26 : 12 + pulse*10;
     rr(q.x-19*sc, q.y-14*sc, 38*sc, 28*sc, 6); ctx.fillStyle = hexA(o.color, 0.35); ctx.fill(); ctx.restore();
     ctx.strokeStyle = o.color; ctx.lineWidth = hot ? 3 : 2 + pulse; rr(q.x-19*sc, q.y-14*sc, 38*sc, 28*sc, 6); ctx.stroke();
-    ctx.save(); ctx.translate(q.x, q.y); ctx.scale(sc, sc); drawTote(0, 0, o.color, l.item.icon, false, hoverRack && hoverRack.o === o && hoverRack.li === li, false); ctx.restore();
+    ctx.save(); ctx.translate(q.x, q.y); ctx.scale(sc, sc); drawTote(0, 0, o.color, l.item.icon, false, hoverRack && hoverRack.o === o && hoverRack.li === li, false, false, l.qty); ctx.restore();
     rr(q.x+8*sc, q.y-17*sc, 22, 11, 3); ctx.fillStyle = o.color; ctx.fill();
     ctx.fillStyle = '#10141c'; ctx.font = `800 8px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(o.num).slice(-3), q.x+8*sc+11, q.y-17*sc+8.5); ctx.textAlign = 'left';
   });
@@ -2334,12 +2406,12 @@ function drawWarehouse(t){
     // placeholder in the rack only until a shuttle has grabbed the tote (not while it rides the lift / feeder belt)
     if (l.state !== 'queued' && !(l.state === 'retrieving' && G.robots.some(r => r.job && r.job.line === l && !r.carry))) return;
     const q = rackPos(l.slot);
-    ctx.save(); ctx.globalAlpha = 0.85; drawTote(q.x, q.y, o.color, l.item.icon, false, false, false); ctx.restore();
+    ctx.save(); ctx.globalAlpha = 0.85; drawTote(q.x, q.y, o.color, l.item.icon, false, false, false, false, l.qty); ctx.restore();
     ctx.strokeStyle = o.color; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]); rr(q.x-17, q.y-12, 34, 24, 5); ctx.stroke(); ctx.setLineDash([]);
     if (l.state === 'queued') drawIcon('clock', q.x+14, q.y-11, 10, '#ffc53d', 2.6);
   });
   for (const r of G.robots) drawRobot(r, t);
-  for (const f of G.fetch){ const q = along(f.path, f.path.d); drawTote(q.x, q.y, f.o.color, f.line.item.icon, false, false, false); }
+  for (const f of G.fetch){ const q = along(f.path, f.path.d); drawTote(q.x, q.y, f.o.color, f.line.item.icon, false, false, false, false, f.line.qty); }
   if (ws){
     // key badge + target glow
     rr(x+w-30, y+9, 17, 17, 4); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
@@ -2412,12 +2484,19 @@ function drawSpur(st, t){
 }
 
 function huRect(hu){ return { w:30, h:22 }; }
-function drawTote(x, y, color, icon, sel, hov, ret, scrap){
+// n pieces of the same tool side by side inside a tote (n = 0: empty tote)
+function drawToteItems(icon, n, cx, cy, w, h, col){
+  if (n <= 0) return;
+  const s = Math.min(h*0.95, (w/n)*1.4, 15), xs = n === 1 ? [cx] : spread(n, cx - (w - s)/2, cx + (w - s)/2);
+  xs.forEach((x, i) => drawIcon(icon, x, cy + (n > 2 ? (i % 2 ? 0.9 : -0.9) : 0), s, col || '#f2f5fa', 2.2));
+}
+function drawTote(x, y, color, icon, sel, hov, ret, scrap, n){
   ctx.save(); ctx.translate(x, y);
   if (sel){ ctx.shadowColor = '#ff8a1f'; ctx.shadowBlur = 16; } else { ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2; }
   rr(-14, -10, 28, 20, 3); ctx.fillStyle = scrap ? '#8a3a46' : ret ? '#7d8799' : '#5d6b85'; ctx.fill(); ctx.shadowColor = 'transparent';
   ctx.fillStyle = color; ctx.fillRect(-14, -10, 28, 4);
-  drawIcon(icon, ret ? 3 : 0, 1.5, 15, '#f2f5fa', 2.2);
+  if (n != null && !ret){ ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-12, -5, 24, 13); drawToteItems(icon, n, 0, 1.5, 25, 12); }
+  else drawIcon(icon, ret ? 3 : 0, 1.5, 15, '#f2f5fa', 2.2);
   if (ret){ drawIcon(scrap ? 'x' : 'retoure', -8, 2, 9, scrap ? '#ff8a96' : '#ffc53d', 3); }
   if (sel || hov){ ctx.strokeStyle = sel ? '#fff' : 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; rr(-15.5, -11.5, 31, 23, 4); ctx.stroke(); }
   ctx.restore();
@@ -2526,7 +2605,10 @@ function drawLogoStitch(x, y, r, k){
 const BODIES = {
   // goods-to-person pick port: the gantry picks every tool out of its tote and packs it into the order's handling unit
   commission(w, h, s){
-    const sl = s.slots.find(x => x && !x.done) || s.slots.find(Boolean), items = sl ? stationItems(s.st, sl.hu) : [], N = Math.max(1, items.length);
+    const sl = s.slots.find(x => x && !x.done) || s.slots.find(Boolean);
+    // this pick's source totes (a re-pick after QA only brings the missing tool); tools picked earlier are already in the HU
+    const lines = sl ? (sl.lines || (sl.hu.order && sl.hu.order.lines) || []) : [], items = lines.length ? lines.map(l => l.item) : sl ? stationItems(s.st, sl.hu) : [], N = Math.max(1, items.length);
+    const before = sl && sl.lines && sl.hu.order ? sl.hu.order.lines.filter(l => !sl.lines.includes(l) && l.state === 'picked').map(l => l.item) : [];
     const k = sl ? clamp(sl.t/sl.dur, 0, 1) : 0, col = sl && sl.hu.order ? sl.hu.order.color : '#5a6680';
     // pick sequence: per item move to tote, lower and grab, carry, lower and release
     const ki = k*N, cur = Math.min(N - 1, Math.floor(ki)), p = sl ? ki - cur : 0.95;
@@ -2534,15 +2616,17 @@ const BODIES = {
     const B = { x:w - 21, y:h/2 - 2 }, bw = 34, bh = 42;
     // ---- under: totes with the tools inside, the handling unit filling up
     box(2, 4, 34, h - 8, 4, '#1b2232'); for (let y = 6; y < h - 6; y += 5){ ctx.fillStyle = '#273145'; ctx.fillRect(4, y, 30, 1.4); }
-    for (let i=0; i<Math.max(1, items.length); i++){ const t = tote(i);
+    // source totes from the shuttle: several pieces each, the gripper takes one; when the pick is done they leave on the return belt
+    if (!(sl && sl.done)) for (let i=0; i<Math.max(1, items.length); i++){ const t = tote(i);
       box(t.x - tW/2, t.y - tH/2, tW, tH, 3, '#5d6b85'); box(t.x - tW/2 + 2.5, t.y - tH/2 + 3.5, tW - 5, tH - 6, 2, '#3a4560'); ctx.fillStyle = col; ctx.fillRect(t.x - tW/2, t.y - tH/2, tW, 3);
-      const inTote = items[i] && (i > cur || (i === cur && p < 0.33));
-      if (inTote) drawIcon(items[i].icon, t.x, t.y + 1, Math.min(18, tH - 6)); }
+      if (!items[i]) continue;
+      const taken = sl && (i < cur || (i === cur && p >= 0.33)), have = lines[i] && lines[i].qty != null ? lines[i].qty : 1;
+      drawToteItems(items[i].icon, Math.max(0, have - (taken ? 1 : 0)), t.x, t.y + 1, tW - 6, Math.min(14, tH - 8)); }
     // handling unit: open box in the order colour
     ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
     box(B.x - bw/2, B.y - bh/2, bw, bh, 4, col); ctx.shadowColor = 'transparent';
     box(B.x - bw/2 + 3, B.y - bh/2 + 3, bw - 6, bh - 6, 3, shade(col, -0.45));
-    const placed = items.filter((_, i) => i < cur || (i === cur && p > 0.82));
+    const placed = before.concat(items.filter((_, i) => i < cur || (i === cur && p > 0.82)));
     placed.forEach((it, i) => drawIcon(it.icon, B.x + ((i % 2) - (placed.length > 1 ? 0.5 : 0))*12, B.y - 8 + Math.floor(i/2)*14 + (placed.length === 1 ? 8 : 0), 15));
     if (sl && sl.hu.order){ ctx.fillStyle = '#10141c'; ctx.font = `800 7px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('#' + String(sl.hu.order.num).slice(-3), B.x, B.y + bh/2 - 4); }
     // other workstations: their HU waits below
@@ -3183,6 +3267,7 @@ function render(t){
   // transporters near the truck crossing are drawn again on top of the crossing paint
   if (G.roads) (G.movers||[]).forEach(m => { if (m.x > ROAD.x1 - ROAD.half - 40 && m.y > DOCK.y0 - 40 && m.y < DOCK.y1 + 40) drawMover(m, t); });
   G.stations.forEach(st => drawStation(st, t));
+  drawBackTotes();
   (G.workers || []).forEach(k => drawWorker(k, t));
   // transit HUs
   for (const hu of G.hus){
@@ -3495,7 +3580,7 @@ function showIntro(idx){
   const cfg = shiftConfig(idx), prev = idx > 0 ? shiftConfig(idx-1).stations : [];
   // preview stations for flow
   G.cfg = cfg; G.stations = cfg.stations.map(id => makeStation(DEF[id])); G.st = Object.fromEntries(G.stations.map(s => [s.id, s])); layoutStations();
-  G.orders = []; G.hus = []; G.fetch = []; G.jobs = []; G.robots = []; G.inbound = []; resetPallets(); G.shippedLog = []; G.time = 0; G.truck = newTruck(); G.truckOut = null; G.shipped = 0; G.sat = 100;
+  G.orders = []; G.hus = []; G.fetch = []; G.jobs = []; G.back = []; G.rackQty = {}; G.robots = []; G.inbound = []; resetPallets(); G.shippedLog = []; G.time = 0; G.truck = newTruck(); G.truckOut = null; G.shipped = 0; G.sat = 100;
   const newOnes = cfg.stations.filter(id => !prev.includes(id));
   saveProfile();
   const stTip = id => `<span class="tipc"><b>${DEF[id].name}</b><br>${DEF[id].desc}</span>`;
