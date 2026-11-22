@@ -348,7 +348,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-2';
+const GAME_VERSION = '2026.11.22-3';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -987,10 +987,10 @@ function makeOrder(){
 
 // Rack geometry of the shuttle warehouse (shared by drawing, hit-testing and retrieval)
 const RACK = { aisles:2, levels:18, top:WH.y+52 };
-RACK.shaft = 46;   // free strip on the right for the two lifts (in to Commissioning, out back from it), outside the racks
+RACK.shaft = 0;
 RACK.aw = (WH.w-28-RACK.shaft)/RACK.aisles; RACK.lh = (WH.h-130)/RACK.levels;
 function rackPos(sl){ const ax = WH.x+14 + sl.a*RACK.aw, rw = RACK.aw*0.34;
-  return { x: ax + sl.side*(RACK.aw*0.62) + 2 + rw/2, y: RACK.top + sl.l*RACK.lh + (RACK.lh-3)/2 }; }
+  return { x: ax + sl.side*(RACK.aw*0.62) + 2 + rw/2, y: rackLevelY(sl.l) + (RACK.lh-3)/2 }; }
 function freeRackSlot(){
   const used = new Set(); (G.orders||[]).forEach(o => (o.lines||[]).forEach(l => !o.pallet && l.state==='stored' && l.slot && used.add(l.slot.a+'-'+l.slot.l+'-'+l.slot.side)));
   (G.back||[]).forEach(b => used.add(rackKey(b.slot)));
@@ -1017,7 +1017,21 @@ function retrieve(o, li){
   hideTip('release'); sfx('release'); return true;
 }
 // ---- fetch robots: dock row under the racks, drive along the dock and up/down the aisles
-const DOCK_Y = RACK.top + RACK.levels*RACK.lh + 10, LIFT_X = WH.x + WH.w - 46, LIFT_OUT = WH.x + WH.w - 22;   // LIFT_X (inner): up to the feeder belt, LIFT_OUT (outer): down from the lower return belt, so no track crosses another
+// The shuttles' cross aisle runs through the middle of the racks, level with Commissioning: the feeder belt leaves
+// it straight to the pick port and the return belt comes straight back, no lifts. Racks sit above and below the aisle.
+const RACK_SPAN = RACK.levels*RACK.lh + 20, HAND_X = WH.x + WH.w - 26;
+let DOCK_Y = RACK.top + RACK.levels*RACK.lh + 10, FEED_Y = DOCK_Y, RET_Y = DOCK_Y;
+RACK.split = RACK.levels; RACK.gap = 0;
+function rackLevelY(l){ return RACK.top + l*RACK.lh + (l >= RACK.split ? RACK.gap : 0); }
+function whSync(){
+  const c = G && G.st && G.st.commission; if (!c) return;
+  const fy = c.y + c.h/2, ry = returnBeltY(c); if (RACK.fy === fy && RACK.ry === ry) return;
+  RACK.fy = fy; RACK.ry = ry; FEED_Y = fy; RET_Y = ry; DOCK_Y = (fy + ry)/2;
+  const g0 = fy - 20, g1 = ry + 20;
+  RACK.lh = (RACK_SPAN - (g1 - g0))/RACK.levels;
+  RACK.split = clamp(Math.round((g0 - RACK.top)/RACK.lh), 0, RACK.levels);
+  RACK.gap = g1 - RACK.top - RACK.split*RACK.lh;
+}
 function aisleX(a){ return WH.x+14 + a*RACK.aw + RACK.aw*0.49; }
 function robotHome(i){ return { x: WH.x + 22 + i*21, y: DOCK_Y }; }
 function robotCount(){ return ROBOT.base + ((G.upgrades.warehouse||{}).fetchers || 0); }
@@ -1027,14 +1041,14 @@ function syncRobots(){
 }
 function robotGo(r, pts, next){ r.path = mkPath([{ x:r.x, y:r.y }, ...pts], -1); r.state = next; }
 function updateRobots(dt){
-  syncRobots();
+  whSync(); syncRobots();
   const sp = ROBOT.speed * (1 + 0.4*((G.upgrades.warehouse||{}).shuttle || 0)), c = G.st.commission;
   for (const r of G.robots){
     if (r.state === 'idle' || r.state === 'homing'){
       // a picked tote waits at the bottom of the lift: put it back into its rack slot (fetching new totes goes first unless returns pile up)
-      const head = G.back.find(b => b.wait && !b.robot);
+      G.back = G.back || []; const head = G.back.find(b => b.wait && !b.robot);
       if (head && (!G.jobs.length || G.back.filter(b => !b.robot).length >= 3)){
-        head.robot = r; r.back = head; robotGo(r, [{ x:r.x, y:DOCK_Y }, { x:LIFT_OUT, y:DOCK_Y }], 'toBack'); continue;
+        head.robot = r; r.back = head; robotGo(r, [{ x:r.x, y:DOCK_Y }, { x:HAND_X, y:DOCK_Y }], 'toBack'); continue;
       }
       if (G.jobs.length){ // take the next job
         const job = G.jobs.shift(); if (job.line.state !== 'queued'){ continue; }
@@ -1064,10 +1078,10 @@ function updateRobots(dt){
       if (b.qty > 0) G.rackQty[k] = b.qty; else delete G.rackQty[k];
       G.back.splice(G.back.indexOf(b), 1); r.back = null; r.carry = false;
       robotGo(r, [{ x:r.x, y:DOCK_Y }, robotHome(r.i)], 'homing'); } continue; }
-    if (r.state === 'grab'){ r.t -= dt; if (r.t <= 0){ r.carry = true; robotGo(r, [{ x:r.x, y:DOCK_Y }, { x:LIFT_X, y:DOCK_Y }], 'toLift'); } }
+    if (r.state === 'grab'){ r.t -= dt; if (r.t <= 0){ r.carry = true; robotGo(r, [{ x:r.x, y:DOCK_Y }, { x:HAND_X, y:DOCK_Y }], 'toLift'); } }
     else if (r.state === 'drop'){ r.t -= dt; if (r.t <= 0){
       r.carry = false; const job = r.job; r.job = null;
-      if (c){ const cy = c.y + c.h/2; G.fetch.push({ o:job.o, line:job.line, path: mkPath([{ x:LIFT_X, y:DOCK_Y }, { x:LIFT_X, y:cy }, { x:c.x+6, y:cy }], -1) }); }
+      if (c){ const cy = c.y + c.h/2; G.fetch.push({ o:job.o, line:job.line, path: mkPath([{ x:HAND_X, y:DOCK_Y - 6 }, { x:HAND_X, y:cy }, { x:c.x+6, y:cy }], -1) }); }
       else job.line.state = 'atPick';
       const h = robotHome(r.i); robotGo(r, [h], 'homing');
     } }
@@ -1087,7 +1101,7 @@ function sendTotesBack(st, li, lines, color){
   const ry = returnBeltY(st), N = lines.length;
   // lowest tote first: it reaches the belt first
   for (let i = N - 1; i >= 0; i--){ const l = lines[i]; if (!l.slot) continue;
-    const p = commTotePos(st, li, i, N), path = mkPath([{ x:p.x, y:p.top }, { x:p.x, y:ry }, { x:LIFT_OUT, y:ry }, { x:LIFT_OUT, y:DOCK_Y }], -1);
+    const p = commTotePos(st, li, i, N), path = mkPath([{ x:p.x, y:p.top }, { x:p.x, y:ry }, { x:HAND_X, y:ry }, { x:HAND_X, y:DOCK_Y + 6 }], -1);
     path.d = p.y - p.top;
     G.back.push({ slot:{ ...l.slot }, qty:Math.max(0, (l.qty || 1) - 1), color:color || '#5a6680', icon:l.item.icon, path, wait:false, robot:null, carried:false });
     l.qty = Math.max(0, (l.qty || 1) - 1);
@@ -1098,9 +1112,7 @@ function updateBack(step){
   let prevRem = -Infinity;   // remaining belt distance of the tote ahead (totes share the last part of the path)
   for (const b of G.back){
     if (b.carried) continue;
-    // the lift carries one tote at a time: while it is busy, the next tote waits at the top of the shaft
-    const lift = b.path.len - b.path.cum[b.path.cum.length - 2], rem = b.path.len - b.path.d;
-    const minRem = prevRem === -Infinity ? 0 : Math.max(prevRem + BACK_GAP, prevRem < lift ? lift : 0);
+    const rem = b.path.len - b.path.d, minRem = prevRem === -Infinity ? 0 : prevRem + BACK_GAP;
     if (rem > minRem) b.path.d = Math.min(b.path.len - minRem, b.path.d + step);
     b.wait = b.path.d >= b.path.len - 0.01;
     prevRem = b.path.len - b.path.d;
@@ -2341,6 +2353,7 @@ function drawFloor(t){
   ctx.fillText('HALL 3', (LOOP.x0+LOOP.x1)/2, (LOOP.y0+LOOP.y1)/2 + 18);
 }
 function drawWarehouse(t){
+  whSync();
   const {x,y,w,h} = WH;
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
@@ -2354,7 +2367,7 @@ function drawWarehouse(t){
   for (let a=0; a<aisles; a++){
     const ax = x+14 + a*aw;
     for (let l=0; l<levels; l++){
-      const ly = top + l*lh;
+      const ly = rackLevelY(l);
       for (let side=0; side<2; side++){
         const rx = ax + side*(aw*0.62) + 2, rw = aw*0.34;
         ctx.fillStyle = '#222c3e'; ctx.fillRect(rx, ly, rw, lh-3);
@@ -2368,33 +2381,22 @@ function drawWarehouse(t){
   }
   // lift & output
   const c = G.st.commission, cy = c ? c.y + c.h/2 : 400;
-  // aisle rails (robots drive here) and the dock row
-  for (let a=0; a<aisles; a++){ ctx.fillStyle = '#10161f'; ctx.fillRect(aisleX(a)-1.5, top, 3, DOCK_Y-top); }
-  rr(x+10, DOCK_Y-9, w-20, 18, 5); ctx.fillStyle = '#121925'; ctx.fill();
+  // aisle rails (robots drive here) and the cross aisle through the middle, level with Commissioning
+  const rBot = rackLevelY(levels - 1) + lh;
+  for (let a=0; a<aisles; a++){ ctx.fillStyle = '#10161f'; ctx.fillRect(aisleX(a)-1.5, top, 3, rBot-top); }
+  const bandT = FEED_Y - 17, bandB = RET_Y + 17;
+  rr(x+10, bandT, w-20, bandB - bandT, 5); ctx.fillStyle = '#121925'; ctx.fill();
+  ctx.fillStyle = '#ffc53d'; for (let i = x + 14; i < x + w - 14; i += 10){ ctx.fillRect(i, bandT + 1.5, 5, 1.2); ctx.fillRect(i, bandB - 2.7, 5, 1.2); }
   ctx.fillStyle = '#1e2738'; ctx.fillRect(x+12, DOCK_Y-1, w-24, 2);
   syncRobots(); for (const r of G.robots){ const hm = robotHome(r.i); ctx.fillStyle = r.state === 'idle' ? 'rgba(61,220,132,0.35)' : '#2a3446'; ctx.fillRect(hm.x-6, DOCK_Y+7, 12, 2); }
-  // lift shaft: its own strip right of the racks, with the in-lift (inner, up to the feeder belt) and the out-lift (outer, down from the return belt)
-  const shX = WH.x + WH.w - 60, ry0 = c ? returnBeltY(c) : DOCK_Y;
-  const shTop = (c ? cy : top) - 22, shW = x + w - 8 - shX, shH = DOCK_Y - shTop - 4;
-  rr(shX, shTop, shW, shH, 4); ctx.fillStyle = '#121925'; ctx.fill();
-  ctx.strokeStyle = '#2c3850'; ctx.lineWidth = 1; rr(shX, shTop, shW, shH, 4); ctx.stroke();
-  ctx.fillStyle = '#ffc53d'; for (let i = 0; i < shW - 4; i += 8) ctx.fillRect(shX + 2 + i, shTop + 2, 4, 1.4);
-  for (let yy = shTop + 18; yy < DOCK_Y - 8; yy += 18){ ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(shX + 2, yy, shW - 4, 1.2); }
-  const liftCar = (lx, y0, y1, ly) => {
-    ctx.fillStyle = '#0b1018'; ctx.fillRect(lx - 11, y0, 2, y1 - y0); ctx.fillRect(lx + 9, y0, 2, y1 - y0);
-    ctx.fillStyle = '#ff8a1f'; ctx.fillRect(lx - 10, ly, 20, 14); ctx.fillStyle = '#c4620b'; ctx.fillRect(lx - 10, ly + 11, 20, 3); };
-  let ly = DOCK_Y - 7, lyOut = DOCK_Y - 7;
-  for (const f of G.fetch){ const q = along(f.path, f.path.d); if (Math.abs(q.x - LIFT_X) < 0.5){ ly = q.y - 7; break; } }
-  for (const b of (G.back || [])){ if (b.carried) continue; const q = along(b.path, b.path.d); if (Math.abs(q.x - LIFT_OUT) < 0.5 && q.y >= ry0 - 1){ lyOut = q.y - 7; break; } }
-  if (c){ liftCar(LIFT_X, cy - 10, DOCK_Y + 2, ly); liftCar(LIFT_OUT, ry0 - 10, DOCK_Y + 2, lyOut); }
   const busyN = G.robots.filter(r => r.state !== 'idle' && r.state !== 'homing').length;
   ctx.fillStyle = '#8a96ad'; ctx.font = `600 10px ${FONT}`; ctx.fillText(`Shuttles: ${busyN}/${G.robots.length} busy`, x+14, y+h-40);
   if (!G.jobs.length) ctx.fillText('Order totes → Commissioning', x+14, y+h-26);
   else { ctx.fillStyle = '#ffb15c'; ctx.fillText(`${G.jobs.length} tote${G.jobs.length>1?'s':''} waiting for a shuttle`, x+14, y+h-26); }
   // feeder belt to commissioning
-  if (c){ conveyorSeg(LIFT_X, cy, c.x, cy, 22, t, 1);
+  if (c){ conveyorSeg(HAND_X - 12, cy, c.x, cy, 22, t, 1);
     // return belt: picked source totes go back to the lift
-    const ry = returnBeltY(c); conveyorSeg(c.x, ry, LIFT_OUT, ry, 18, t, 1); }
+    const ry = returnBeltY(c); conveyorSeg(c.x, ry, HAND_X - 12, ry, 18, t, 1); }
   // requested totes (clickable)
   const ws = G.st.warehouse;
   let req = 0;
