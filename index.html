@@ -347,7 +347,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-8';
+const GAME_VERSION = '2026.11.22-9';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -663,9 +663,22 @@ const SHIFTS = [
 ];
 function shiftConfig(i){
   if (i < SHIFTS.length) return SHIFTS[i];
+  // Overtime k: the goal grows faster each shift (18 + 3k + k^2/8) and the order flow always grows with it
+  // (about 1.4 orders spawned per order in the goal), so there is never a shift that can't be won on paper.
+  // Shifts get a little longer too. The real limit is the hall's capacity, so a fully upgraded hall keeps filling up.
   const k = i - SHIFTS.length + 1, b = SHIFTS[SHIFTS.length-1];
-  return { ...b, name:'Overtime '+k, title:'Demand keeps growing', goal:b.goal + 3*k,
-    spawn:[Math.max(2.4, b.spawn[0]-0.6*k), Math.max(3.2, b.spawn[1]-0.7*k)], slack:Math.max(16, b.slack-k) };
+  const goal = b.goal + 3*k + Math.floor(k*k/8), duration = b.duration + Math.min(60, 6*k);
+  const gap = Math.max(0.5, (duration - 20) / Math.round(goal * 1.4));
+  return { ...b, name:'Overtime '+k, title:'Demand keeps growing', goal, duration, opening:[4, 2],
+    spawn:[+(gap*0.85).toFixed(2), +(gap*1.15).toFixed(2)], slack:Math.max(16, b.slack-k) };
+}
+// Demo mode: every station, every upgrade, every automation. A long day with a steady stream of orders.
+const DEMO = { name:'Demo', title:'Fully automated hall', duration:3600, goal:0, spawn:[0.9,1.2], opening:[8, 0.9], items:[1,3], slack:34 };
+function maxUpgrades(){
+  const up = {}, gl = {};
+  for (const d of STATIONS){ const u = {}; for (const x of UPGRADES) if (x.needs(d)) u[x.id] = x.max; up[d.id] = u; }
+  G.upgrades = up; G.global = gl;
+  for (const x of GLOBAL_UPGRADES) gl[x.id] = x.max;
 }
 
 // ---------- 5. DATA: upgrades ----------
@@ -841,7 +854,7 @@ function newProfile(){ return { shiftIdx:0, money:0, upgrades:{}, global:{ conve
 function loadProfile(){ try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && typeof s.shiftIdx === 'number') return { ...newProfile(), ...s }; } catch(e){} return null; }
 function profileData(){ const { shiftIdx, money, upgrades, global, hints, seenTips, musicOn, sfxOn, best, shopUpto } = G;
   return { shiftIdx, money, upgrades, global, hints, seenTips, musicOn, sfxOn, best, shopUpto }; }
-function saveProfile(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(profileData())); } catch(e){} }
+function saveProfile(){ if (G.demo) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(profileData())); } catch(e){} }
 // save codes: the profile as base64 JSON with a prefix, so it can be copied and pasted on a phone
 function exportCode(){ return 'LT1:' + btoa(unescape(encodeURIComponent(JSON.stringify(profileData())))); }
 function importCode(txt){
@@ -911,7 +924,7 @@ function layoutStations(){
 }
 
 function startShift(idx){
-  G.shiftIdx = idx; G.cfg = shiftConfig(idx);
+  G.shiftIdx = idx; G.cfg = G.demo ? { ...DEMO, stations:SHIFTS[SHIFTS.length-1].stations } : shiftConfig(idx);
   G.stations = G.cfg.stations.filter(id => DEF[id]).map(id => makeStation(DEF[id]));
   G.st = Object.fromEntries(G.stations.map(s => [s.id, s]));
   layoutStations();
@@ -1450,7 +1463,7 @@ function isReady(st, hu){
 }
 function removeObj(hu){ hu.gone = true; const i = G.hus.indexOf(hu); if (i >= 0) G.hus.splice(i, 1); if (G.selected === hu) G.selected = null; }
 function changeSat(d){
-  G.sat = clamp(G.sat + d, 0, 100);
+  G.sat = clamp(G.sat + d, G.demo ? 25 : 0, 100);
   if (G.sat <= 0 && G.mode === 'play') endShift(true);
 }
 
@@ -1509,7 +1522,7 @@ function update(dt){
   if (wu.auto && G.st.warehouse){
     G.autoT = (G.autoT || 0) - dt;
     if (G.autoT <= 0 && !G.jobs.length){
-      G.autoT = 1.4;
+      G.autoT = 1.4 / (1 + 0.45*(wu.fetchers || 0)); // more shuttles: the auto-retrieval keeps them all busy
       const c = G.st.commission;
       const o = G.orders.filter(o => !o.pallet && o.lines.some(l => l.state === 'stored') && (o.hu || hasRoom(c))).sort((a,b) => (b.hu?1:0)-(a.hu?1:0) || a.due-b.due)[0];
       if (o){ const s0 = G.silent; G.silent = true; retrieve(o, o.lines.findIndex(l => l.state === 'stored')); G.silent = s0; }
@@ -1522,6 +1535,7 @@ function update(dt){
       const o = G.orders.filter(o => o.pallet && o.lines.some(l => l.state === 'stored')).sort((a, b) => a.due - b.due)[0];
       if (o){ const s0 = G.silent; G.silent = true; retrieve(o, o.lines.findIndex(l => l.state === 'stored')); G.silent = s0; } }
   }
+  if (G.demo) demoAssist(dt);
   if (G.global.autobays && G.bays){
     G.bayT = (G.bayT || 0) - dt;
     if (G.bayT <= 0){ G.bayT = 1.5;
@@ -1828,8 +1842,39 @@ function drawWorker(k, t){
   }
 }
 
+// ---------- demo mode ----------
+// The auto-routers do most of the work. This helper is the "night shift supervisor": now and then it sends on a
+// unit that has waited in an OUT tray a while (e.g. while an auto-router is broken), fetches pallets and totes when
+// the automation is idle and keeps the hall moving, so the demo never jams.
+function demoAssist(dt){
+  G.demoT = (G.demoT || 0) - dt; if (G.demoT > 0) return; G.demoT = 0.5;
+  for (const hu of G.hus){
+    if (!selectable(hu) || hu === G.selected || hu.loc === 'carried' || hu.loc === 'transit') continue;
+    hu.demoWait = (hu.demoWait || 0) + 0.5; if (hu.demoWait < 2.5) continue;
+    const t = validTargets(hu).filter(hasRoom); if (!t.length) continue;
+    t.sort((p, q) => (p.queue.length + p.incoming - p.slotCount) - (q.queue.length + q.incoming - q.slotCount));
+    const s0 = G.silent; G.silent = true; dispatch(hu, t[0]); G.silent = s0; hu.demoWait = 0;
+  }
+  // keep the shuttles busy: start the most urgent order whose totes still wait in the rack
+  const c = G.st.commission, idle = G.robots.filter(r => r.state === 'idle').length - G.jobs.length;
+  if (idle > 1){ const o = G.orders.filter(o => !o.pallet && o.lines.some(l => l.state === 'stored') && (o.hu || hasRoom(c))).sort((a,b) => (b.hu?1:0)-(a.hu?1:0) || a.due-b.due)[0];
+    if (o){ const s0 = G.silent; G.silent = true; retrieve(o, o.lines.findIndex(l => l.state === 'stored')); G.silent = s0; } }
+}
+function startDemo(){
+  G.demoBackup = { ...profileData(), shiftIdx:G.shiftIdx, money:G.money };
+  G.demo = true; maxUpgrades(); G.money = 0;
+  hideModal(); tipQueue.length = 0; hideTip(null);
+  startShift(SHIFTS.length - 1); syncButtons(); renderSide(); renderHUD();
+  toast(ico('u_router') + ' Demo: every station, every upgrade, full automation. Press Space (or pause) to leave.', 'good', true);
+}
+function exitDemo(){
+  G.demo = false; G.mode = 'title'; G.selected = null;
+  if (G.demoBackup){ Object.assign(G, G.demoBackup); G.demoBackup = null; }
+  hideModal(); showTitle();
+}
 function endShift(failedSat){
   if (G.mode !== 'play') return;
+  if (G.demo){ startShift(G.shiftIdx); toast(ico('sun') + ' A new day in the demo hall.', 'good', true); return; }   // the demo just starts over
   G.mode = 'result'; G.selected = null;
   const cfg = G.cfg, passed = !failedSat && G.shipped >= cfg.goal;
   const ratio = G.shipped ? G.onTime / G.shipped : 0;
@@ -2409,8 +2454,8 @@ const Music = {
 // ===================================================================
 //  UI helpers: toasts, tips, floats, events
 // ===================================================================
-function toast(msg, kind=''){
-  if (G.silent) return;
+function toast(msg, kind='', force){
+  if (G.silent || (G.demo && !force)) return;   // the demo runs quietly, apart from its own messages
   const box = $('toasts'); const el = document.createElement('div'); el.className = 'toast ' + kind; el.innerHTML = msg;
   box.appendChild(el); while (box.children.length > 4) box.firstChild.remove();
   setTimeout(() => el.classList.add('out'), 3600); setTimeout(() => el.remove(), 4100);
@@ -2421,7 +2466,7 @@ function floatText(x, y, text, color){ G.floats.push({ x, y, text, color, t:0 })
 let tipKey = null;
 const tipQueue = [];
 function tip(key, html){
-  if (G.silent || G.seenTips[key]) return;
+  if (G.silent || G.demo || G.seenTips[key]) return;
   G.seenTips[key] = true; saveProfile();
   if ($('tip').classList.contains('show')){ tipQueue.push([key, html]); return; } // don't cover a tip that is still open
   tipKey = key; $('tipText').innerHTML = html; $('tip').classList.add('show');
@@ -3514,9 +3559,9 @@ function renderSide(){
 }
 function renderHUD(){
   const cfg = G.cfg; if (!cfg) return;
-  $('shiftName').textContent = `Shift ${G.shiftIdx+1} · ${cfg.name} · ${clockStr()}`;
+  $('shiftName').textContent = G.demo ? `Demo · ${cfg.title} · ${clockStr()}` : `Shift ${G.shiftIdx+1} · ${cfg.name} · ${clockStr()}`;
   $('clockFill').style.width = clamp(G.time/cfg.duration*100, 0, 100) + '%';
-  $('shippedTxt').innerHTML = `${G.shipped} / ${cfg.goal}` + (G.shipped >= cfg.goal ? ' <span style="color:var(--good)">✓</span>' : '');
+  $('shippedTxt').innerHTML = G.demo ? `${G.shipped} <span style="color:var(--accent)">DEMO</span>` : `${G.shipped} / ${cfg.goal}` + (G.shipped >= cfg.goal ? ' <span style="color:var(--good)">✓</span>' : '');
   $('cashTxt').textContent = '$' + G.money.toLocaleString('en');
   $('satFill').style.width = G.sat + '%';
   $('satFill').style.background = G.sat > 60 ? 'var(--good)' : G.sat > 30 ? 'var(--warn)' : 'var(--bad)';
@@ -3721,13 +3766,15 @@ function showTitle(){
     </ul>
     <div class="btnrow">${sv && sv.shiftIdx > 0 ? `<button class="btn primary" id="mContinue">Continue: Shift ${sv.shiftIdx+1}</button><button class="btn" id="mShopT">Upgrades</button><button class="btn" id="mNew">New game</button>` : `<button class="btn primary" id="mNew">Start the first shift</button>`}
     <button class="btn" id="mSave">Save / load</button>
-    <button class="btn" id="mHelp">How to play</button></div>
+    <button class="btn" id="mHelp">How to play</button>
+    <button class="btn" id="mDemo" title="Watch a fully upgraded, fully automated hall. Your game is not changed.">Watch demo</button></div>
     <p style="color:var(--muted);font-size:12px;margin-top:16px"><span class="verTap">Version ${GAME_VERSION}</span> · Sound on recommended · Keys: <span class="kbd">1</span>–<span class="kbd">9</span> route · <span class="kbd">Tab</span> next unit · <span class="kbd">0</span> warehouse · <span class="kbd">Space</span> pause</p>`);
   bind('mNew', () => { const keepTips = G.seenTips, mo = G.musicOn, so = G.sfxOn; Object.assign(G, newProfile(), { seenTips:keepTips, musicOn:mo, sfxOn:so }); showIntro(0); });
   bind('mContinue', () => { Object.assign(G, sv); showIntro(sv.shiftIdx); });
   bind('mShopT', () => { Object.assign(G, sv); G.shopBack = showTitle; showShop(); });
   bind('mSave', () => { if (sv) Object.assign(G, sv); showSaveIO(showTitle); });
   bind('mHelp', () => showHelp(true));
+  bind('mDemo', startDemo);
 }
 function showIntro(idx){
   G.mode = 'intro'; G.shiftIdx = idx;
@@ -3748,7 +3795,7 @@ function showIntro(idx){
   const fresh = idx > 0 ? newOnes : [];
   modal(`<p class="kicker">Shift ${idx+1} · ${cfg.name}</p>
     <h2>${cfg.title}</h2>
-    <div class="stats"><span>${ico('target')}Ship <b>${cfg.goal}</b> orders</span><span>${ico('clock')}<b>${Math.round(cfg.duration/60*10)/10}</b> min</span><span>${ico('tote')}New order every <b>~${Math.round((cfg.spawn[0]+cfg.spawn[1])/2)} s</b></span></div>
+    <div class="stats"><span>${ico('target')}Ship <b>${cfg.goal}</b> orders</span><span>${ico('clock')}<b>${Math.round(cfg.duration/60*10)/10}</b> min</span><span>${ico('tote')}New order every <b>~${(a => a < 3 ? a.toFixed(1) : Math.round(a))((cfg.spawn[0]+cfg.spawn[1])/2)} s</b></span></div>
     ${fresh.length ? `<div class="newbox">${fresh.map(id => `<div class="nw" data-tip><span class="tag">NEW</span>${ico(DEF[id].icon)}<b>${DEF[id].name}</b><span class="br">${DEF[id].brief}</span>${stTip(id)}</div>`).join('')}</div>` : ''}
     <div class="flow route">${route}</div>
     <div class="flow route sub2"><span class="hint" style="margin:0 2px 0 0">Off the route:</span>${side}${returns}<span class="hint">Flagged units go to QA first. ${'ontouchstart' in window ? 'Tap' : 'Hover'} a station for details.</span></div>
@@ -3854,6 +3901,10 @@ function showSaveIO(back){
   bind('ioBack', () => back());
 }
 function showPause(){
+  if (G.demo){ modal(`<h2>Demo paused</h2><p class="sub">${G.shipped} orders shipped · ${clockStr()} · <span class="verTap">v${GAME_VERSION}</span></p>
+    <p style="color:var(--muted);font-size:13px">Your own game and upgrades are untouched. Nothing from the demo is saved.</p>
+    <div class="btnrow"><button class="btn primary" id="mResume">Resume ▸</button><button class="btn" id="mExitDemo">Exit demo</button></div>`);
+    bind('mResume', () => togglePause()); bind('mExitDemo', exitDemo); return; }
   modal(`<h2>Paused</h2><p class="sub">Shift ${G.shiftIdx+1} · ${G.cfg.name} · ${clockStr()} · <span class="verTap">v${GAME_VERSION}</span></p>
     <div class="btnrow"><button class="btn primary" id="mResume">Resume ▸</button><button class="btn" id="mHelp2">How to play</button><button class="btn" id="mRestart">Restart shift</button><button class="btn" id="mShopP">Upgrades (restarts shift)</button><button class="btn" id="mSave2">Save / load</button><button class="btn" id="mMenu2">Main menu</button></div>`);
   bind('mShopP', () => { G.money = G.startMoney; G.shopBack = showPause; showShop(); });
