@@ -348,7 +348,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-3';
+const GAME_VERSION = '2026.11.22-4';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -1027,7 +1027,7 @@ function whSync(){
   const c = G && G.st && G.st.commission; if (!c) return;
   const fy = c.y + c.h/2, ry = returnBeltY(c); if (RACK.fy === fy && RACK.ry === ry) return;
   RACK.fy = fy; RACK.ry = ry; FEED_Y = fy; RET_Y = ry; DOCK_Y = (fy + ry)/2;
-  const g0 = fy - 20, g1 = ry + 20;
+  const g0 = fy - 17, g1 = ry + 14;
   RACK.lh = (RACK_SPAN - (g1 - g0))/RACK.levels;
   RACK.split = clamp(Math.round((g0 - RACK.top)/RACK.lh), 0, RACK.levels);
   RACK.gap = g1 - RACK.top - RACK.split*RACK.lh;
@@ -1089,7 +1089,7 @@ function updateRobots(dt){
 }
 // ---- picked source totes go back: out of the pick port, along the return belt, down the lift; a shuttle stows them
 const BACK_GAP = 22;
-function returnBeltY(c){ return c.y + c.h - 16; }
+function returnBeltY(c){ return c.y + c.h/2 + 22; }   // right below the feeder belt, so the shuttle aisle stays narrow
 // where the source totes stand in a Commissioning lane (same geometry as BODIES.commission)
 function commTotePos(st, li, i, N){
   const L = cellLayout(st), nL = Math.max(1, st.slotCount), sc = Math.min(1, 1.48/nL), laneH = L.mh/nL, bh = laneH/sc;
@@ -1099,13 +1099,14 @@ function commTotePos(st, li, i, N){
 function sendTotesBack(st, li, lines, color){
   G.back = G.back || [];
   const ry = returnBeltY(st), N = lines.length;
-  // lowest tote first: it reaches the belt first
-  for (let i = N - 1; i >= 0; i--){ const l = lines[i]; if (!l.slot) continue;
-    const p = commTotePos(st, li, i, N), path = mkPath([{ x:p.x, y:p.top }, { x:p.x, y:ry }, { x:HAND_X, y:ry }, { x:HAND_X, y:DOCK_Y + 6 }], -1);
-    path.d = p.y - p.top;
-    G.back.push({ slot:{ ...l.slot }, qty:Math.max(0, (l.qty || 1) - 1), color:color || '#5a6680', icon:l.item.icon, path, wait:false, robot:null, carried:false });
+  // each tote slides up or down the pick-port column to the return belt; queue them by distance left (they share the belt)
+  const add = [];
+  for (let i = 0; i < N; i++){ const l = lines[i]; if (!l.slot) continue;
+    const p = commTotePos(st, li, i, N), path = mkPath([{ x:p.x, y:p.y }, { x:p.x, y:ry }, { x:HAND_X, y:ry }, { x:HAND_X, y:DOCK_Y + 6 }], -1);
+    add.push({ slot:{ ...l.slot }, qty:Math.max(0, (l.qty || 1) - 1), color:color || '#5a6680', icon:l.item.icon, path, wait:false, robot:null, carried:false });
     l.qty = Math.max(0, (l.qty || 1) - 1);
   }
+  add.sort((a, b) => a.path.len - b.path.len); G.back.push(...add);
 }
 function updateBack(step){
   G.back = G.back || [];
@@ -2384,7 +2385,7 @@ function drawWarehouse(t){
   // aisle rails (robots drive here) and the cross aisle through the middle, level with Commissioning
   const rBot = rackLevelY(levels - 1) + lh;
   for (let a=0; a<aisles; a++){ ctx.fillStyle = '#10161f'; ctx.fillRect(aisleX(a)-1.5, top, 3, rBot-top); }
-  const bandT = FEED_Y - 17, bandB = RET_Y + 17;
+  const bandT = FEED_Y - 15, bandB = RET_Y + 12;
   rr(x+10, bandT, w-20, bandB - bandT, 5); ctx.fillStyle = '#121925'; ctx.fill();
   ctx.fillStyle = '#ffc53d'; for (let i = x + 14; i < x + w - 14; i += 10){ ctx.fillRect(i, bandT + 1.5, 5, 1.2); ctx.fillRect(i, bandB - 2.7, 5, 1.2); }
   ctx.fillStyle = '#1e2738'; ctx.fillRect(x+12, DOCK_Y-1, w-24, 2);
