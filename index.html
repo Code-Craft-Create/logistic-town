@@ -156,12 +156,11 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .load{position:relative;display:block;height:6px;width:90px;background:#0b1018;border-radius:3px;overflow:hidden}
 .load span{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
 .mcard.wide{width:min(960px,100%)}
-.ugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));grid-auto-rows:1fr;gap:8px}
-.ut{display:flex;flex-direction:column;text-align:left;user-select:none;-webkit-user-select:none;border-radius:11px;padding:9px 10px;border:1px solid var(--line);background:#121925;cursor:pointer;font-size:12px;line-height:1.3;min-height:104px;transition:border-color .15s,transform .1s}
-/* inner wrapper does the column layout: Safari does not size a flex <button> to its content, so the footer overflowed */
+/* rows: minmax(min,auto), not 1fr and no min-height on the tile: WebKit (Safari) sized 1fr/auto rows one text line too short when the tile had a min-height, so the footer hung over the border */
+.ugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));grid-auto-rows:minmax(104px,auto);gap:8px}
+.ut{display:flex;flex-direction:column;text-align:left;user-select:none;-webkit-user-select:none;border-radius:11px;padding:9px 10px;border:1px solid var(--line);background:#121925;cursor:pointer;font-size:12px;line-height:1.3;transition:border-color .15s,transform .1s}
 .ut-in{display:flex;flex-direction:column;gap:5px;flex:1 0 auto}
 .ut-in > *{flex-shrink:0}
-/* tiles are divs, not <button>: Safari sizes a button by a fixed intrinsic height, which let long text push the footer out */
 .ut[aria-disabled=false]:hover{border-color:var(--accent)}
 .ut[aria-disabled=false]:active{transform:scale(.98)}
 .ut[aria-disabled=true]{cursor:default}
@@ -290,8 +289,8 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
   .mcard{padding:14px 16px}
   .mcard h1{font-size:22px}
   .mcard h2{font-size:18px}
-  .ugrid{grid-template-columns:repeat(auto-fill,minmax(134px,1fr));gap:6px}
-  .ut{min-height:96px;padding:7px 8px}
+  .ugrid{grid-template-columns:repeat(auto-fill,minmax(134px,1fr));grid-auto-rows:minmax(96px,auto);gap:6px}
+  .ut{padding:7px 8px}
   .stickyrow .btn{padding:9px 16px;font-size:14px}
   .stickyrow{padding-top:8px}
   .shop-h{margin-bottom:10px}
@@ -348,7 +347,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-7';
+const GAME_VERSION = '2026.11.22-8';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
