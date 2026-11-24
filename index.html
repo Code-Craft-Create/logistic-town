@@ -4055,7 +4055,10 @@ function frame(now){
 }
 ['touchend','click','keydown'].forEach(ev => document.addEventListener(ev, () => { AU.init(); if (AU.ctx && AU.ctx.state !== 'running') AU.ctx.resume(); }, { passive:true }));
 if (window.ResizeObserver) new ResizeObserver(resize).observe(floorEl);
-resize(); syncButtons(); showTitle(); requestAnimationFrame(frame);
+resize(); syncButtons(); showTitle(); 
+// ?demo (or #demo) in the URL skips the title screen and starts the demo right away
+if (new URLSearchParams(location.search).has('demo') || location.hash === '#demo') startDemo();
+requestAnimationFrame(frame);
 
 // ---------- update check: fetch the published page uncached and compare versions ----------
 const Updater = {
