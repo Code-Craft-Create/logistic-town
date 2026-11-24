@@ -3176,9 +3176,9 @@ const BODIES = {
     if (label > 0){ ctx.globalAlpha = label; box(C.x - 4, C.y + 5, 18, 11, 1.5, '#f4f6fa'); ctx.fillStyle = col; ctx.fillRect(C.x - 2.5, C.y + 6.5, 4, 8);
       ctx.fillStyle = '#1b2232'; for (let i=0; i<6; i++) ctx.fillRect(C.x + 3 + i*1.6, C.y + 6.5, 0.8, 8); ctx.globalAlpha = 1; }
     // step lights
-    const steps = [['FILL', xfer > 0 && close === 0], ['CLOSE', close > 0 && tape === 0], ['TAPE', tape > 0 && label === 0], ['LABEL', label > 0]];
-    steps.forEach(([lbl, on], i) => { const x = w*0.38 + i*(w*0.62 - 4)/4, y = h - 12;
-      box(x, y, (w*0.62 - 8)/4, 10, 2.5, on && s.on ? '#3ddc84' : '#2a3346'); ctx.fillStyle = on && s.on ? '#0e131d' : '#8a96ad'; ctx.font = `800 6px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(lbl, x + (w*0.62 - 8)/8, y + 7.2); });
+    //const steps = [['FILL', xfer > 0 && close === 0], ['CLOSE', close > 0 && tape === 0], ['TAPE', tape > 0 && label === 0], ['LABEL', label > 0]];
+    //steps.forEach(([lbl, on], i) => { const x = w*0.38 + i*(w*0.62 - 4)/4, y = h - 12;
+    //  box(x, y, (w*0.62 - 8)/4, 10, 2.5, on && s.on ? '#3ddc84' : '#2a3346'); ctx.fillStyle = on && s.on ? '#0e131d' : '#8a96ad'; ctx.font = `800 6px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(lbl, x + (w*0.62 - 8)/8, y + 7.2); });
     const pos = s.slots.map(x => x === sl ? { x:C.x, y:C.y + ch/2 - 12, bar:true } : { x:H.x, y:h - 12 });
     // over: gantry with gripper moving tool by tool, tape gun, label arm
     const over = () => {
