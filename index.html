@@ -194,6 +194,8 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 .ut.auto .pips i.on{background:var(--good)}
 .ut.auto .ut-price{background:var(--good)}
 .ut.auto.poor .ut-price{background:none}
+.ut.rec{border-color:var(--accent);background:linear-gradient(160deg,rgba(255,138,31,.14),#121925 60%);box-shadow:0 0 0 1px rgba(255,138,31,.35),0 0 14px rgba(255,138,31,.22)}
+.ut-rec{align-self:flex-start;font-weight:800;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#1a1208;background:linear-gradient(135deg,var(--accent2),var(--accent));border-radius:6px;padding:1px 6px}
 .shop-note{color:var(--muted);font-size:12.5px;margin:10px 2px 0}
 .stickyrow{position:sticky;bottom:0;margin:12px 0 0;padding:12px 0 2px;background:linear-gradient(180deg,rgba(20,27,39,0),rgba(20,27,39,.97) 40%);z-index:1}
 .kicker{margin:0;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:12px}
@@ -346,7 +348,7 @@ ul.clean{padding-left:18px;margin:8px 0;line-height:1.6;font-size:14px}
 'use strict';
 // Bump on every release. The running game compares it with the published file and offers a reload when they differ
 // (home-screen apps on iOS resume from memory and otherwise keep an old copy).
-const GAME_VERSION = '2026.11.22-22';
+const GAME_VERSION = '2026.11.24-1';
 /* =====================================================================
    LOGISTIC TOWN — a warehouse routing game
    ---------------------------------------------------------------------
@@ -689,7 +691,7 @@ const UPGRADES = [
   { id:'quality', icon:'u_quality', label:'Quality program',   desc:'−40% defects',      max:2, cost:l => 160 + l*140, needs: d => !!d.defect },
   { id:'shuttle', icon:'u_shuttle', label:'Faster shuttles',   desc:'shuttles and lift 40% faster', max:2, cost:l => 200 + l*170, needs: d => d.id === 'warehouse' },
   { id:'fetchers',icon:'u_fetchers', label:'Extra shuttle',     desc:'+1 shuttle fetching totes at the same time', max:3, cost:l => 240 + l*220, needs: d => d.id === 'warehouse' },
-  { id:'auto',    icon:'u_auto', label:'Auto-retrieval',    desc:'shuttles fetch totes of the most urgent order on their own', max:1, cost:() => 650, needs: d => d.id === 'warehouse' },
+  { id:'auto',    icon:'u_auto', label:'Auto-retrieval',    desc:'shuttles fetch totes of the most urgent order on their own', max:1, cost:() => 650, needs: d => d.id === 'warehouse', recommend:true },
   { id:'movers',  icon:'u_movers', label:'Extra transporter', desc:'+1 pallet transporter with driver', max:4, cost:l => 280 + l*240, needs: d => d.id === 'hbw' },
   { id:'drive',   icon:'u_drive', label:'Driver training',   desc:'transporters 20% faster', max:2, cost:l => 200 + l*170, needs: d => d.id === 'hbw' },
   // automation: the station routes finished units by itself. Happy path only, until the (very pricey) exception tier.
@@ -3925,8 +3927,9 @@ function shopTile(u, lv, cost, attrs, extra){
     : `<span class="ut-price">$${cost.toLocaleString('en')}</span>`;
   const desc = locked ? u.reqText : u.desc;
   const nxt = extra.next && !maxed && !locked ? `<span class="ut-next">Next: ${extra.next}</span>` : '';
-  return `<div class="ut ${state}${extra.auto ? ' auto' : ''}" role="button" tabindex="${state === 'buy' ? 0 : -1}" ${attrs} aria-disabled="${state !== 'buy'}" aria-label="${u.label}, level ${lv} of ${u.max}"><span class="ut-in">
-    <span class="ut-top"><span class="ut-ic">${ico(u.icon)}</span><span class="ut-name">${u.label}</span></span>
+  const rec = extra.rec && !maxed && !locked;
+  return `<div class="ut ${state}${extra.auto ? ' auto' : ''}${rec ? ' rec' : ''}" role="button" tabindex="${state === 'buy' ? 0 : -1}" ${attrs} aria-disabled="${state !== 'buy'}" aria-label="${u.label}${rec ? ' (recommended)' : ''}, level ${lv} of ${u.max}"><span class="ut-in">
+    ${rec ? '<span class="ut-rec">★ Recommended</span>' : ''}<span class="ut-top"><span class="ut-ic">${ico(u.icon)}</span><span class="ut-name">${u.label}</span></span>
     <span class="ut-desc">${desc}</span>${nxt}
     <span class="ut-foot"><span class="pips" title="Level ${lv} of ${u.max}">${pips}</span>${foot}</span></span></div>`;
 }
@@ -3942,9 +3945,10 @@ function showShop(){
   const section = (icon, name, right, tiles, autoTiles) => `<section class="sec"><header class="sec-h">${ico(icon)}<span class="sec-n">${name}</span>${right}</header>
     <div class="ugrid">${tiles}${autoTiles || ''}</div></section>`;
   const rows = next.stations.filter(id => played.has(id)).map(id => { const d = DEF[id], up = G.upgrades[id] = G.upgrades[id] || {};
-    const list = UPGRADES.filter(u => (!u.needs || u.needs(d)) && (!u.late || autoOpen)).map(u => u.maxFor ? { ...u, max:u.maxFor(d) } : u);
+    const list = UPGRADES.filter(u => (!u.needs || u.needs(d)) && (!u.late || autoOpen)).map(u => u.maxFor ? { ...u, max:u.maxFor(d) } : u)
+      .sort((a, b) => (b.recommend && !up[b.id] ? 1 : 0) - (a.recommend && !up[a.id] ? 1 : 0));
     const tile = u => { const lv = up[u.id] || 0;
-      return shopTile(u, lv, u.cost(lv), `data-st="${id}" data-up="${u.id}"`, { locked: u.req && !u.req(up), auto: !!u.late, next: u.levelDesc && lv < u.max ? u.levelDesc(lv) : '' }); };
+      return shopTile(u, lv, u.cost(lv), `data-st="${id}" data-up="${u.id}"`, { locked: u.req && !u.req(up), auto: !!u.late, rec: !!u.recommend, next: u.levelDesc && lv < u.max ? u.levelDesc(lv) : '' }); };
     const ld = G.lastLoad && G.lastLoad[id] != null && d.role !== 'storage' ? G.lastLoad[id] : null;
     return section(d.icon, d.name, ld == null ? '' : loadBar(ld), list.filter(u => !u.late).map(tile).join(''), list.filter(u => u.late).map(tile).join('')); }).join('');
   const grow = GLOBAL_UPGRADES.filter(u => !u.needs || u.needs()).map(u => { const lv = G.global[u.id] || 0;
@@ -3952,8 +3956,10 @@ function showShop(){
   const note = !autoOpen ? `More upgrades unlock as new stations open. Station <b style="color:var(--good)">automation</b> becomes available after ${shiftConfig(AUTO.unlockAfter-1).name}.`
     : autoBought() >= MAINT.after ? `${ico('wrench')} Your automation needs <b style="color:var(--warn)">maintenance</b>: auto-routers break down now and then, and a service worker has to repair them. More workers: see <b>Whole hall</b>.`
     : `Heads-up: from ${MAINT.after} automation upgrades on (you own ${autoBought()}), auto-routers start to break down and need a service worker.`;
+  const recTip = played.has('warehouse') && next.stations.includes('warehouse') && !(G.upgrades.warehouse || {}).auto
+    ? `<p class="shop-note" style="color:var(--text)">${ico('bulb')} <b style="color:var(--accent)">Tip:</b> <b>Auto-retrieval</b> (Shuttle Warehouse) is a great first upgrade: the shuttles fetch totes for the most urgent order on their own, so you can focus on routing.</p>` : '';
   modal(`<div class="shop-h"><div><h2>Upgrade the hall</h2><p class="sub">Next: Shift ${G.shiftIdx+1} · ${next.name}. A <b style="color:var(--bad)">red</b> busy bar marks a bottleneck.</p></div>
-    <div class="cashbox"><small>Cash</small><span class="cashbig">$${G.money.toLocaleString('en')}</span></div></div>
+    <div class="cashbox"><small>Cash</small><span class="cashbig">$${G.money.toLocaleString('en')}</span></div></div>${recTip}
     <div class="shop">${section('factory', 'Whole hall', '', grow)}${rows}</div>
     <p class="shop-note">${note}</p>
     <div class="btnrow stickyrow"><button class="btn primary" id="mNext">${G.shopBack === showPause ? 'Restart' : 'Continue to'} Shift ${G.shiftIdx+1} ▸</button>${G.shopBack === showTitle ? '<button class="btn" id="mShopBack">Back</button>' : ''}</div>`);
