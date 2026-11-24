@@ -1018,9 +1018,9 @@ function freeRackSlot(){
   return { a:0, l:0, side:0 };
 }
 // Source totes hold several pieces of the same tool (2-4, mostly 3). Commissioning takes one out; the rest goes back into the rack.
-// The count is kept per rack slot, so a tote that is requested again has one piece less. An emptied tote is refilled from stock.
+// Totes are magically refilled in the rack, so every fetched tote is full again and never comes back empty.
 function rackKey(sl){ return sl.a+'-'+sl.l+'-'+sl.side; }
-function stockQty(sl){ G.rackQty = G.rackQty || {}; const k = rackKey(sl); if (!G.rackQty[k]) G.rackQty[k] = pick([2,3,3,3,3,4]); return G.rackQty[k]; }
+function stockQty(){ return pick([2,3,3,3,3,4]); }
 function linesDone(o){ return o.lines.filter(l => l.state==='atPick' || l.state==='picked').length; }
 // Click on a glowing tote: the shuttle brings it to Commissioning. The first tote opens the order's HU there.
 function retrieve(o, li){
@@ -1094,8 +1094,7 @@ function updateRobots(dt){
       const b = r.back; b.carried = true; r.carry = true; const ax = aisleX(b.slot.a), q = rackPos(b.slot);
       robotGo(r, [{ x:ax, y:DOCK_Y }, { x:ax, y:q.y }], 'toStow'); } continue; }
     if (r.state === 'stow'){ r.t -= dt; if (r.t <= 0){
-      const b = r.back, k = rackKey(b.slot); G.rackQty = G.rackQty || {};
-      if (b.qty > 0) G.rackQty[k] = b.qty; else delete G.rackQty[k];
+      const b = r.back;
       G.back.splice(G.back.indexOf(b), 1); r.back = null; r.carry = false;
       robotGo(r, [{ x:r.x, y:DOCK_Y }, robotHome(r.i)], 'homing'); } continue; }
     if (r.state === 'grab'){ r.t -= dt; if (r.t <= 0){ r.carry = true; robotGo(r, [{ x:r.x, y:DOCK_Y }, { x:HAND_X, y:DOCK_Y }], 'toLift'); } }
@@ -1123,8 +1122,8 @@ function sendTotesBack(st, li, lines, color){
   const add = [];
   for (let i = 0; i < N; i++){ const l = lines[i]; if (!l.slot) continue;
     const p = commTotePos(st, li, i, N), path = mkPath([{ x:p.x, y:p.y }, { x:p.x, y:ry }, { x:HAND_X, y:ry }, { x:HAND_X, y:DOCK_Y + 6 }], -1);
-    add.push({ slot:{ ...l.slot }, qty:Math.max(0, (l.qty || 1) - 1), color:color || '#5a6680', icon:l.item.icon, path, wait:false, robot:null, carried:false });
-    l.qty = Math.max(0, (l.qty || 1) - 1);
+    add.push({ slot:{ ...l.slot }, qty:Math.max(1, (l.qty || 2) - 1), color:color || '#5a6680', icon:l.item.icon, path, wait:false, robot:null, carried:false });
+    l.qty = Math.max(1, (l.qty || 2) - 1);
   }
   add.sort((a, b) => a.path.len - b.path.len); G.back.push(...add);
 }
@@ -3873,7 +3872,7 @@ function showIntro(idx){
   const cfg = shiftConfig(idx), prev = idx > 0 ? shiftConfig(idx-1).stations : [];
   // preview stations for flow
   G.cfg = cfg; G.stations = cfg.stations.map(id => makeStation(DEF[id])); G.st = Object.fromEntries(G.stations.map(s => [s.id, s])); layoutStations();
-  G.orders = []; G.hus = []; G.fetch = []; G.jobs = []; G.back = []; G.rackQty = {}; G.robots = []; G.inbound = []; resetPallets(); G.shippedLog = []; G.time = 0; G.truck = newTruck(); G.truckOut = null; G.shipped = 0; G.sat = 100;
+  G.orders = []; G.hus = []; G.fetch = []; G.jobs = []; G.back = []; G.robots = []; G.inbound = []; resetPallets(); G.shippedLog = []; G.time = 0; G.truck = newTruck(); G.truckOut = null; G.shipped = 0; G.sat = 100;
   const newOnes = cfg.stations.filter(id => !prev.includes(id));
   saveProfile();
   const stTip = id => `<span class="tipc"><b>${DEF[id].name}</b><br>${DEF[id].desc}</span>`;
@@ -4055,7 +4054,7 @@ function frame(now){
 }
 ['touchend','click','keydown'].forEach(ev => document.addEventListener(ev, () => { AU.init(); if (AU.ctx && AU.ctx.state !== 'running') AU.ctx.resume(); }, { passive:true }));
 if (window.ResizeObserver) new ResizeObserver(resize).observe(floorEl);
-resize(); syncButtons(); showTitle(); 
+resize(); syncButtons(); showTitle();
 // ?demo (or #demo) in the URL skips the title screen and starts the demo right away
 if (new URLSearchParams(location.search).has('demo') || location.hash === '#demo') startDemo();
 requestAnimationFrame(frame);
